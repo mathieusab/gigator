@@ -13,6 +13,20 @@
 				"GOOGLE_CLOUD_REGION": "europe-west1"
 			}
 		},
+		"supabase": {
+			"type": "stdio",
+			"command": "npx",
+			"cwd": "${workspaceFolder}",
+			"args": [
+				"-y",
+				"@supabase/mcp-server-supabase@latest",
+				"--project-ref=tfocwpxrdwiqhydvisuf"
+			],
+			"env": {
+				"SUPABASE_ACCESS_TOKEN": "${input:supabase-access-token}",
+				"SUPABASE_PROJECT_REF": "tfocwpxrdwiqhydvisuf"
+			}
+		},
 		"io.github.github/github-mcp-server": {
 			"type": "http",
 			"url": "https://api.githubcopilot.com/mcp/",
@@ -24,6 +38,12 @@
 		}
 	},
 	"inputs": [
+		{
+			"id": "supabase-access-token",
+			"type": "promptString",
+			"description": "Supabase personal access token (PAT)",
+			"password": true
+		},
 		{
 			"id": "Authorization",
 			"type": "promptString",
