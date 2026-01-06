@@ -1,0 +1,34 @@
+{
+	"servers": {
+		"gcloud": {
+			"type": "stdio",
+			"command": "npx",
+			"cwd": "${workspaceFolder}",
+			"args": [
+				"-y",
+				"@google-cloud/gcloud-mcp"
+			],
+			"env": {
+				"GOOGLE_CLOUD_PROJECT": "gigator",
+				"GOOGLE_CLOUD_REGION": "europe-west1"
+			}
+		},
+		"io.github.github/github-mcp-server": {
+			"type": "http",
+			"url": "https://api.githubcopilot.com/mcp/",
+			"headers": {
+				"Authorization": "${input:Authorization}"
+			},
+			"gallery": "https://api.mcp.github.com",
+			"version": "0.26.3"
+		}
+	},
+	"inputs": [
+		{
+			"id": "Authorization",
+			"type": "promptString",
+			"description": "Authentication token (PAT or App token)",
+			"password": true
+		}
+	]
+}
