@@ -6,5 +6,8 @@
     "build": "npm --prefix app run build",
     "preview": "npm --prefix app run preview",
     "lint": "npm --prefix app run lint"
+  },
+  "devDependencies": {
+    "@openai/codex": "^0.79.0"
   }
 }
