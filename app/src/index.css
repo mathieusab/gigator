@@ -2,12 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Aesthico';
+  src: url('/fonts/Aesthico(Demo)-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
   --ring: 222.2 84% 4.9%;
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
+  /* Validator look: slate-50 app background with dark-gray text */
+  --background: 210 40% 98%;
+  --foreground: 215 28% 17%;
   --primary: 222.2 47.4% 11.2%;
   --primary-foreground: 210 40% 98%;
   --secondary: 210 40% 96%;
@@ -54,6 +63,8 @@
 html,
 body {
   height: 100%;
+  font-family: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 body {
@@ -63,6 +74,11 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Classe pour les titres principaux en Aesthico */
+.font-aesthico {
+  font-family: 'Aesthico', serif;
 }
 
 #root {

@@ -105,6 +105,15 @@ for select
 to authenticated
 using (public.is_active_app_user() and is_active = true);
 
+-- Allow authenticated users to update their own row (e.g., last_login_at)
+drop policy if exists app_users_update_own on public.app_users;
+create policy app_users_update_own
+on public.app_users
+for update
+to authenticated
+using (email = (auth.jwt() ->> 'email'))
+with check (email = (auth.jwt() ->> 'email'));
+
 -- concerts policies
 drop policy if exists concerts_select_active_users on public.concerts;
 create policy concerts_select_active_users
