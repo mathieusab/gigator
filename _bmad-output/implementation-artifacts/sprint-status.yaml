@@ -11,7 +11,7 @@ story_location: "_bmad-output/implementation-artifacts"
 development_status:
   epic-1: in-progress
   1-1-auth-google-whitelist-profil: done
-  1-2-gestion-des-membres-inviter-desactiver: ready-for-dev
+  1-2-gestion-des-membres-inviter-desactiver: review
   1-3-annuaire-des-salles-crud-minimal: backlog
   1-4-annuaire-contacts-liens-contactssalles-recherche: backlog
   epic-1-retrospective: optional
