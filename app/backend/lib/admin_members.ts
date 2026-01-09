@@ -34,6 +34,21 @@ export async function upsertInvite(db: DbClient, email: string): Promise<AdminMe
     throw new Error('invalid_email');
   }
 
+  // First try to reactivate an existing row case-insensitively.
+  // This avoids creating duplicates if legacy rows exist with different casing.
+  const reactivateSql = `
+    UPDATE app_email_allowlist
+    SET is_active = true, updated_at = now()
+    WHERE lower(email) = lower($1)
+    RETURNING id, email, is_active, created_at, updated_at;
+  `;
+
+  const reactivated = await db.query(reactivateSql, [normalizedEmail]);
+  const reactivatedRow = reactivated?.rows?.[0];
+  if (reactivatedRow) {
+    return reactivatedRow as AdminMember;
+  }
+
   const sql = `
     INSERT INTO app_email_allowlist (email, is_active)
     VALUES ($1, true)
@@ -52,10 +67,18 @@ export async function upsertInvite(db: DbClient, email: string): Promise<AdminMe
 
 export async function setMemberActive(db: DbClient, id: string, isActive: boolean): Promise<AdminMember | null> {
   const sql = `
-    UPDATE app_email_allowlist
-    SET is_active = $1, updated_at = now()
-    WHERE id = $2
-    RETURNING id, email, is_active, created_at, updated_at;
+    WITH updated AS (
+      UPDATE app_email_allowlist
+      SET is_active = $1, updated_at = now()
+      WHERE id = $2 AND is_active IS DISTINCT FROM $1
+      RETURNING id, email, is_active, created_at, updated_at
+    )
+    SELECT id, email, is_active, created_at, updated_at FROM updated
+    UNION ALL
+    SELECT id, email, is_active, created_at, updated_at
+    FROM app_email_allowlist
+    WHERE id = $2 AND NOT EXISTS (SELECT 1 FROM updated)
+    LIMIT 1;
   `;
 
   const res = await db.query(sql, [!!isActive, id]);

@@ -9,35 +9,8 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { Pool } from 'pg';
 import { verifyJwt } from '../lib/jwt';
+import { getSessionToken } from '../lib/session_token';
 import { listMembers, setMemberActive, upsertInvite } from '../lib/admin_members';
-
-function getBearerToken(req: FastifyRequest): string | null {
-  const raw = (req.headers as any)?.authorization;
-  if (!raw || typeof raw !== 'string') return null;
-  const m = raw.match(/^Bearer\s+(.+)$/i);
-  return m ? m[1] : null;
-}
-
-function getCookieToken(req: FastifyRequest): string | null {
-  const raw = (req.headers as any)?.cookie;
-  if (!raw || typeof raw !== 'string') return null;
-
-  const cookieName = process.env.APP_SESSION_COOKIE_NAME || 'app_session';
-  const parts = raw.split(';');
-  for (const p of parts) {
-    const [k, ...rest] = p.trim().split('=');
-    if (k === cookieName) {
-      const v = rest.join('=');
-      if (!v) return null;
-      try {
-        return decodeURIComponent(v);
-      } catch {
-        return v;
-      }
-    }
-  }
-  return null;
-}
 
 function getAdminEmailsFromEnv(): string[] {
   const raw = process.env.APP_ADMIN_EMAILS;
@@ -65,7 +38,7 @@ function getPool(): Pool {
 }
 
 function requireAdmin(request: FastifyRequest, reply: FastifyReply): { email: string } | null {
-  const token = getBearerToken(request) || getCookieToken(request);
+  const token = getSessionToken(request);
   if (!token) {
     reply.status(401).send({ error: 'unauthorized' });
     return null;
@@ -155,3 +128,4 @@ export default async function adminMembersRoutes(fastify: FastifyInstance) {
     }
   });
 }
+
