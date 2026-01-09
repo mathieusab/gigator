@@ -15,21 +15,37 @@ async function parseJsonSafe(res: Response): Promise<any> {
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers || {})
-    },
-    credentials: 'include'
-  });
+  let res: Response;
+  try {
+    const headers: Record<string, string> = {
+      ...((init.headers as Record<string, string> | undefined) || {})
+    };
+
+    const hasBody = init.body !== undefined && init.body !== null;
+    if (hasBody && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    res = await fetch(path, {
+      ...init,
+      headers,
+      credentials: 'include'
+    });
+  } catch (e: any) {
+    const err: ApiError = {
+      status: 0,
+      error: 'network_error',
+      message: e?.message || 'Network error'
+    };
+    throw err;
+  }
 
   if (!res.ok) {
     const body = await parseJsonSafe(res);
     const err: ApiError = {
       status: res.status,
       error: body?.error,
-      message: body?.message
+      message: body?.message || body?.error || res.statusText || `HTTP ${res.status}`
     };
     throw err;
   }

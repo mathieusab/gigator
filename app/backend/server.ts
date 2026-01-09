@@ -1,6 +1,8 @@
 // app/backend/server.ts
 // Minimal Fastify server wiring the route modules.
 
+import 'dotenv/config';
+
 import Fastify from 'fastify';
 
 import adminMembersRoutes from './routes/admin_members';

@@ -1,35 +1,55 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AppShell } from './AppShell';
+import { useAuth } from './auth';
+import { ContactsPage } from './pages/ContactsPage';
+import { LoginPage } from './pages/LoginPage';
+import { VenuesPage } from './pages/VenuesPage';
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { state } = useAuth();
+  if (state.status === 'loading') return <p style={{ padding: 16 }}>Chargement…</p>;
+  if (state.status === 'anonymous') return <Navigate to="/login" replace />;
+  return <>{children}</>;
 }
 
-export default App
+function HomeRedirect() {
+  const { state } = useAuth();
+  if (state.status === 'loading') return <p style={{ padding: 16 }}>Chargement…</p>;
+  if (state.status === 'anonymous') return <Navigate to="/login" replace />;
+  return <Navigate to="/venues" replace />;
+}
+
+function PlaceholderPage({ title }: { title: string }) {
+  return (
+    <main>
+      <h2>{title}</h2>
+      <p>À implémenter.</p>
+    </main>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomeRedirect />} />
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route
+          element={
+            <RequireAuth>
+              <AppShell />
+            </RequireAuth>
+          }
+        >
+          <Route path="/venues" element={<VenuesPage />} />
+          <Route path="/contacts" element={<ContactsPage />} />
+          <Route path="/opportunities" element={<PlaceholderPage title="Opportunités" />} />
+          <Route path="/admin/members" element={<PlaceholderPage title="Membres" />} />
+        </Route>
+
+        <Route path="*" element={<p style={{ padding: 16 }}>Page introuvable</p>} />
+      </Routes>
+    </BrowserRouter>
+  );
+}

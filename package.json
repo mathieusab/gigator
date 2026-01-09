@@ -2,7 +2,10 @@
   "name": "gigator",
   "private": true,
   "scripts": {
-    "dev": "npm --prefix app/frontend run dev -- --host",
+    "dev": "npm run dev:frontend",
+    "dev:full": "concurrently -k -n backend,frontend -c cyan,green \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "npm --prefix app/frontend run dev -- --host",
+    "dev:backend": "HOST=127.0.0.1 PORT=3000 npx tsx watch app/backend/server.ts",
     "build": "npm run typecheck && npm --prefix app/frontend run build",
     "preview": "npm --prefix app/frontend run preview",
     "typecheck": "npx tsc -p tsconfig.json --noEmit --pretty false",
@@ -14,10 +17,12 @@
     "@openai/codex": "^0.79.0",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.16.0",
+    "concurrently": "^9.2.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "dotenv": "^16.6.1",
     "fastify": "^5.6.2",
     "pg": "^8.16.3",
     "redis": "^5.10.0"
