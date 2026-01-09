@@ -5,6 +5,11 @@ app/node_modules/
 # build outputs
 app/dist/
 
+# bmad artifacts
+_bmad/
+_bmad-inputs/
+_bmad-output/
+
 # env
 .env
 .env.*
