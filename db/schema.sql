@@ -102,6 +102,20 @@ CREATE TABLE IF NOT EXISTS organization_members (
 CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members (organization_id);
 CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members (user_id);
 
+-- Venues (rooms directory) - minimal MVP
+CREATE TABLE IF NOT EXISTS venues (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  city TEXT NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+-- Support stable ordering and indexable lookups (ORDER BY lower(name))
+CREATE INDEX IF NOT EXISTS idx_venues_name_lower ON venues (lower(name));
+CREATE INDEX IF NOT EXISTS idx_venues_city_lower ON venues (lower(city));
+
 -- Opportunities (gigs / listings)
 CREATE TABLE IF NOT EXISTS opportunities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -111,7 +125,7 @@ CREATE TABLE IF NOT EXISTS opportunities (
   status opportunity_status NOT NULL DEFAULT 'draft',
   date DATE, -- scheduled date if relevant
   location TEXT,
-  venue_id UUID, -- optional reference to venues table if created
+  venue_id UUID REFERENCES venues(id) ON DELETE SET NULL,
   owner_id UUID REFERENCES profiles(id) ON DELETE SET NULL, -- who owns the listing
   organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
   cachet_amount_cents BIGINT, -- store money as integer (cents)
@@ -282,6 +296,14 @@ BEGIN
   ) THEN
     CREATE TRIGGER trg_set_updated_at_bookings
     BEFORE UPDATE ON bookings
+    FOR EACH ROW EXECUTE PROCEDURE set_updated_at_column();
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'trg_set_updated_at_venues'
+  ) THEN
+    CREATE TRIGGER trg_set_updated_at_venues
+    BEFORE UPDATE ON venues
     FOR EACH ROW EXECUTE PROCEDURE set_updated_at_column();
   END IF;
 END;

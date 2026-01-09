@@ -8,6 +8,157 @@ servers:
     description: Local dev
 
 paths:
+  /api/venues:
+    get:
+      summary: List venues
+      responses:
+        '200':
+          description: Array of venues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Venue'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "unauthorized"
+    post:
+      summary: Create venue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - city
+              properties:
+                name:
+                  type: string
+                city:
+                  type: string
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Created venue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venue'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid_request"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "unauthorized"
+
+  /api/venues/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get venue by id
+      responses:
+        '200':
+          description: Venue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venue'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid_request"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "unauthorized"
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "not_found"
+    patch:
+      summary: Update venue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                city:
+                  type: string
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Updated venue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venue'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid_request"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "unauthorized"
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "not_found"
+
   /api/opportunities:
     get:
       summary: List opportunities
@@ -620,22 +771,24 @@ components:
 
     Venue:
       type: object
+      required:
+        - id
+        - name
+        - city
       properties:
         id:
           type: string
         name:
           type: string
-        address:
+        city:
           type: string
-        geo:
-          type: object
-          properties:
-            lat:
-              type: number
-            lng:
-              type: number
-        capacity:
-          type: integer
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+        updated_at:
+          type: string
 
     ComposeRequest:
       type: object

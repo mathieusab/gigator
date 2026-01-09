@@ -12,14 +12,14 @@ development_status:
   epic-1: in-progress
   1-1-auth-google-whitelist-profil: done
   1-2-gestion-des-membres-inviter-desactiver: done
-  1-3-annuaire-des-salles-crud-minimal: backlog
-  1-4-annuaire-contacts-liens-contactssalles-recherche: backlog
+  1-3-annuaire-des-salles-crud-minimal: review
+  1-4-annuaire-contacts-liens-contactssalles-recherche: ready-for-dev
   epic-1-retrospective: optional
 
   epic-2: backlog
-  2-1-crud-opportunite-statuts-gagneeperdue: backlog
-  2-2-next-action-relance-dueoverdue: backlog
-  2-3-historique-activity-log-interactions-non-email: backlog
+  2-1-crud-opportunite-statuts-gagneeperdue: ready-for-dev
+  2-2-next-action-relance-dueoverdue: ready-for-dev
+  2-3-historique-activity-log-interactions-non-email: ready-for-dev
   epic-2-retrospective: optional
 
   epic-3: backlog
