@@ -1,6 +1,6 @@
 # Story GIG-001: Démarrer le flux OAuth Gmail — POST /api/sync/gmail/start
 
-Status: review
+Status: in-progress
 
 ## Story
 
@@ -185,6 +185,28 @@ gpt-5.2 (bmad-bmm-sm)
 - OpenAPI: [`app/backend/openapi.yaml`](app/backend/openapi.yaml:1)
 - Unit test: [`tests/unit/oauth.builder.test.ts`](tests/unit/oauth.builder.test.ts:1)
 - Integration test: [`tests/integration/oauth_start.test.ts`](tests/integration/oauth_start.test.ts:1)
+  - Callback state test: [`tests/integration/oauth_callback_state.test.ts`](tests/integration/oauth_callback_state.test.ts:1)
+
+## Senior Developer Review (AI)
+
+Reviewer: Mathieu — 2026-01-09
+
+### Résumé
+- Tests: `npm test` OK (suite complète)
+- Lint/typecheck: `npm run lint` OK
+- Scope story: `/api/sync/gmail/start` OK + AC1–AC4 couverts
+
+### Changements demandés (corrigés)
+1) AC3: validation env OAuth durcie côté builder (`getAuthUrl()` exige désormais `GOOGLE_CLIENT_SECRET`).
+2) Hors-scope GIG-001: routes callback + accounts cachées derrière feature-flag `ENABLE_GMAIL_OAUTH_CALLBACK=true`.
+3) Store `state`: comportement “fail closed” si `REDIS_URL` est configuré mais Redis indisponible + TTL parsing durci.
+4) Tests: ajout d’un scénario KO (config manquante) pour `/start`.
+
+### Review Follow-ups (AI)
+- [ ] [AI-Review][MEDIUM] Réduire l’écart “git vs story”: isoler les changements liés à GIG-001 (branch/PR séparée) ou documenter explicitement le contexte de branche (beaucoup de fichiers diff vs `main`).
+- [ ] [AI-Review][MEDIUM] Décider la stratégie de rollout de `ENABLE_GMAIL_OAUTH_CALLBACK` (dev only vs prod) et la bascule vers GIG-002.
+- [ ] [AI-Review][LOW] Documenter l’exigence ops: si `REDIS_URL` est configuré, Redis doit être disponible (sinon `/start` échoue).
 
 ## Change Log
 - 2026-01-09 — Validation story: tests + lint OK, Status → review (AC1–AC4 + OpenAPI).
+- 2026-01-09 — Code review: corrections appliquées (AC3 env validation, feature-flag callback/accounts, state store durci, tests KO ajoutés). Status → in-progress.

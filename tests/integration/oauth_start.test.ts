@@ -4,10 +4,25 @@ import assert from 'node:assert/strict';
 // Integration test (in-process) for POST /api/sync/gmail/start
 // Run with: npx tsx tests/integration/oauth_start.test.ts
 
+async function importFresh<T = any>(modulePath: string): Promise<T> {
+  // Cache-bust to allow multiple env configurations in one process.
+  return (await import(`${modulePath}?t=${Date.now()}-${Math.random()}`)) as any;
+}
+
+async function buildFastifyWithRoutes() {
+  const fastifyModule = await importFresh<any>('fastify');
+  const fastify = fastifyModule.default({ logger: false });
+
+  const routesMod = await importFresh<any>('../../app/backend/routes/auth_google.ts');
+  const authGoogleRoutes: (f: any) => Promise<void> = routesMod.default;
+  await fastify.register(authGoogleRoutes);
+
+  return fastify;
+}
+
 async function main() {
-  // Ensure env is set BEFORE importing any backend modules (they snapshot env at import time).
+  // Common env for these tests
   process.env.GOOGLE_CLIENT_ID = 'test-client-id';
-  process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
   process.env.GOOGLE_OAUTH_REDIRECT_URI = 'http://localhost:3000/api/sync/gmail/callback';
 
   // Force in-memory oauth state store (avoid Redis connect in tests).
@@ -17,62 +32,80 @@ async function main() {
   // oauth.ts imports pg and instantiates a Pool at module load time; it should not connect unless used.
   process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://user:pass@127.0.0.1:5432/db';
 
-  const fastifyModule = await import('fastify');
-  const fastify = fastifyModule.default({ logger: false });
+  // Case 1: Start OK (AC1/AC2/AC4)
+  {
+    // Ensure env is set BEFORE importing any backend modules (they snapshot env at import time).
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
 
-  const routesMod = await import('../../app/backend/routes/auth_google.ts');
-  const authGoogleRoutes: (f: any) => Promise<void> = routesMod.default;
+    const fastify = await buildFastifyWithRoutes();
 
-  await fastify.register(authGoogleRoutes);
+    const res = await fastify.inject({
+      method: 'POST',
+      url: '/api/sync/gmail/start'
+    });
 
-  const res = await fastify.inject({
-    method: 'POST',
-    url: '/api/sync/gmail/start',
-  });
+    assert.equal(res.statusCode, 200, `expected 200, got ${res.statusCode}. body=${res.body}`);
 
-  assert.equal(res.statusCode, 200, `expected 200, got ${res.statusCode}. body=${res.body}`);
+    let body: any;
+    try {
+      body = JSON.parse(res.body);
+    } catch (e) {
+      throw new Error(`response is not valid JSON: ${res.body}`);
+    }
 
-  let body: any;
-  try {
-    body = JSON.parse(res.body);
-  } catch (e) {
-    throw new Error(`response is not valid JSON: ${res.body}`);
+    const oauthUrl = body?.oauth_url;
+    assert.equal(typeof oauthUrl, 'string', 'oauth_url missing or not a string in response body');
+
+    const expectedPrefix = 'https://accounts.google.com/o/oauth2/v2/auth?';
+    assert.ok(
+      oauthUrl.startsWith(expectedPrefix),
+      `oauth_url does not start with expected prefix. got: ${oauthUrl}`
+    );
+
+    // Validate required query params per AC (not just "state=" substring)
+    const u = new URL(oauthUrl);
+
+    assert.equal(u.searchParams.get('client_id'), 'test-client-id', 'client_id param mismatch');
+    assert.equal(
+      u.searchParams.get('redirect_uri'),
+      'http://localhost:3000/api/sync/gmail/callback',
+      'redirect_uri param mismatch'
+    );
+    assert.equal(u.searchParams.get('response_type'), 'code', 'response_type should be code');
+
+    const scope = u.searchParams.get('scope') || '';
+    assert.ok(scope.includes('openid'), 'scope should include openid');
+    assert.ok(scope.includes('email'), 'scope should include email');
+    assert.ok(scope.includes('profile'), 'scope should include profile');
+    assert.ok(
+      scope.includes('https://www.googleapis.com/auth/gmail.readonly'),
+      'scope should include gmail.readonly'
+    );
+
+    const state = u.searchParams.get('state');
+    assert.ok(state, 'state param missing');
+    assert.match(state!, /^[0-9a-f]{48}$/i, 'state should look like 24 random bytes hex');
+
+    await fastify.close();
   }
 
-  const oauthUrl = body?.oauth_url;
-  assert.equal(typeof oauthUrl, 'string', 'oauth_url missing or not a string in response body');
+  // Case 2: Missing config (AC3/T2)
+  {
+    delete process.env.GOOGLE_CLIENT_SECRET;
 
-  const expectedPrefix = 'https://accounts.google.com/o/oauth2/v2/auth?';
-  assert.ok(
-    oauthUrl.startsWith(expectedPrefix),
-    `oauth_url does not start with expected prefix. got: ${oauthUrl}`
-  );
+    const fastify = await buildFastifyWithRoutes();
 
-  // Validate required query params per AC (not just "state=" substring)
-  const u = new URL(oauthUrl);
+    const res = await fastify.inject({
+      method: 'POST',
+      url: '/api/sync/gmail/start'
+    });
 
-  assert.equal(u.searchParams.get('client_id'), 'test-client-id', 'client_id param mismatch');
-  assert.equal(
-    u.searchParams.get('redirect_uri'),
-    'http://localhost:3000/api/sync/gmail/callback',
-    'redirect_uri param mismatch'
-  );
-  assert.equal(u.searchParams.get('response_type'), 'code', 'response_type should be code');
+    assert.equal(res.statusCode, 400, `expected 400, got ${res.statusCode}. body=${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body?.error, 'oauth_config_error');
 
-  const scope = u.searchParams.get('scope') || '';
-  assert.ok(scope.includes('openid'), 'scope should include openid');
-  assert.ok(scope.includes('email'), 'scope should include email');
-  assert.ok(scope.includes('profile'), 'scope should include profile');
-  assert.ok(
-    scope.includes('https://www.googleapis.com/auth/gmail.readonly'),
-    'scope should include gmail.readonly'
-  );
-
-  const state = u.searchParams.get('state');
-  assert.ok(state, 'state param missing');
-  assert.match(state!, /^[0-9a-f]{48}$/i, 'state should look like 24 random bytes hex');
-
-  await fastify.close();
+    await fastify.close();
+  }
 
   console.log('PASS: /api/sync/gmail/start in-process integration test passed');
   process.exit(0);

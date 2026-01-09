@@ -24,15 +24,13 @@ import { Pool } from 'pg';
 import crypto from 'crypto';
 import { deleteOauthState, getOauthState, persistOauthState } from '../lib/oauth_state_store';
 
-const {
-  GOOGLE_CLIENT_ID,
-  GOOGLE_CLIENT_SECRET,
-  GOOGLE_OAUTH_REDIRECT_URI,
-  DATABASE_URL
-} = process.env;
-
-if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_OAUTH_REDIRECT_URI) {
-  // Do not throw at import-time to keep PoC flexible; functions will error if config missing.
+function getEnvSnapshot() {
+  return {
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_OAUTH_REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI,
+    DATABASE_URL: process.env.DATABASE_URL
+  };
 }
 
 let pool: Pool | null = null;
@@ -43,6 +41,7 @@ let pool: Pool | null = null;
  */
 function getPool(): Pool {
   if (!pool) {
+    const { DATABASE_URL } = getEnvSnapshot();
     pool = new Pool({ connectionString: DATABASE_URL });
   }
   return pool;
@@ -66,8 +65,12 @@ type GetAuthUrlOptions = {
 export async function getAuthUrl(): Promise<string>;
 export async function getAuthUrl(options: { returnObject: true } & Omit<GetAuthUrlOptions, 'returnObject'>): Promise<GetAuthUrlObjectResult>;
 export async function getAuthUrl(options?: GetAuthUrlOptions): Promise<string | GetAuthUrlObjectResult> {
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_OAUTH_REDIRECT_URI) {
-    throw new Error('OAuth configuration incomplete (GOOGLE_CLIENT_ID / GOOGLE_OAUTH_REDIRECT_URI)');
+  const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI } = getEnvSnapshot();
+
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_OAUTH_REDIRECT_URI) {
+    throw new Error(
+      'OAuth configuration incomplete (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_OAUTH_REDIRECT_URI)'
+    );
   }
 
   // For PoC use readonly Gmail scope + basic profile info
@@ -110,6 +113,8 @@ export async function getAuthUrl(options?: GetAuthUrlOptions): Promise<string | 
 
 // Exchange authorization code for tokens, fetch userinfo, and persist into DB.
 export async function handleOAuthCallback(code: string, state?: string, profileId?: string) {
+  const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI } = getEnvSnapshot();
+
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_OAUTH_REDIRECT_URI) {
     throw new Error('OAuth configuration incomplete');
   }

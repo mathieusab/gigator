@@ -21,10 +21,12 @@
 import type { RedisClientType } from 'redis';
 
 const REDIS_URL = process.env.REDIS_URL ?? '';
-const DEFAULT_TTL = Number(process.env.OAUTH_STATE_TTL ?? '600'); // seconds
+const DEFAULT_TTL_RAW = Number(process.env.OAUTH_STATE_TTL ?? '600');
+const DEFAULT_TTL = Number.isFinite(DEFAULT_TTL_RAW) && DEFAULT_TTL_RAW > 0 ? DEFAULT_TTL_RAW : 600; // seconds
 
 let redisClient: RedisClientType | null = null;
 let usingRedis = false;
+let redisInitError: string | null = null;
 
 // In-memory fallback store: Map<state, { meta: any, expiresAt: number }>
 const memStore = new Map<string, { meta: any; expiresAt: number }>();
@@ -37,15 +39,13 @@ async function initRedis() {
     redisClient = createClient({ url: REDIS_URL });
     await redisClient.connect();
     usingRedis = true;
+    redisInitError = null;
   } catch (err) {
-    // Fallback to in-memory store
-    // eslint-disable-next-line no-console
-    console.warn(
-      'oauth_state_store: Redis unavailable, using in-memory store (not for production):',
-      err instanceof Error ? err.message : String(err)
-    );
+    // Fail closed when REDIS_URL is configured but Redis is unavailable.
+    // In production/multi-instance setups, an in-memory fallback would break state validation.
     redisClient = null;
     usingRedis = false;
+    redisInitError = err instanceof Error ? err.message : String(err);
   }
 }
 
@@ -58,6 +58,15 @@ function ensureInit(): Promise<void> {
   return initPromise;
 }
 
+async function ensureReadyForOperation(): Promise<void> {
+  await ensureInit();
+  if (REDIS_URL && !usingRedis) {
+    throw new Error(
+      `oauth_state_store: Redis required but unavailable${redisInitError ? ` (${redisInitError})` : ''}`
+    );
+  }
+}
+
 /**
  * Persist an oauth state with optional TTL.
  * @param state - opaque random string
@@ -65,23 +74,20 @@ function ensureInit(): Promise<void> {
  * @param ttlSeconds - seconds to live (defaults to DEFAULT_TTL)
  */
 export async function persistOauthState(state: string, meta: any, ttlSeconds?: number): Promise<void> {
-  const ttl = typeof ttlSeconds === 'number' ? ttlSeconds : DEFAULT_TTL;
-  await ensureInit();
+  const ttlRaw = typeof ttlSeconds === 'number' ? ttlSeconds : DEFAULT_TTL;
+  const ttl = Number.isFinite(ttlRaw) && ttlRaw > 0 ? ttlRaw : DEFAULT_TTL;
+  await ensureReadyForOperation();
 
   if (usingRedis && redisClient) {
     try {
       await redisClient.setEx(`oauth:state:${state}`, ttl, JSON.stringify(meta || {}));
       return;
     } catch (err) {
-      // fallback to memStore if Redis set fails
-      // eslint-disable-next-line no-console
-      console.warn(
-        'oauth_state_store: Redis setEx failed, falling back to memory store:',
-        err instanceof Error ? err.message : String(err)
-      );
+      throw new Error(`oauth_state_store: Redis setEx failed (${err instanceof Error ? err.message : String(err)})`);
     }
   }
 
+  // Only allowed when REDIS_URL is not configured.
   const expiresAt = Date.now() + ttl * 1000;
   memStore.set(state, { meta: meta || {}, expiresAt });
 }
@@ -91,7 +97,7 @@ export async function persistOauthState(state: string, meta: any, ttlSeconds?: n
  * @param state
  */
 export async function getOauthState(state: string): Promise<any | null> {
-  await ensureInit();
+  await ensureReadyForOperation();
 
   if (usingRedis && redisClient) {
     try {
@@ -103,11 +109,7 @@ export async function getOauthState(state: string): Promise<any | null> {
         return v;
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        'oauth_state_store: Redis get failed, falling back to memory store:',
-        err instanceof Error ? err.message : String(err)
-      );
+      throw new Error(`oauth_state_store: Redis get failed (${err instanceof Error ? err.message : String(err)})`);
     }
   }
 
@@ -125,18 +127,14 @@ export async function getOauthState(state: string): Promise<any | null> {
  * @param state
  */
 export async function deleteOauthState(state: string): Promise<void> {
-  await ensureInit();
+  await ensureReadyForOperation();
 
   if (usingRedis && redisClient) {
     try {
       await redisClient.del(`oauth:state:${state}`);
       return;
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        'oauth_state_store: Redis del failed, falling back to memory store:',
-        err instanceof Error ? err.message : String(err)
-      );
+      throw new Error(`oauth_state_store: Redis del failed (${err instanceof Error ? err.message : String(err)})`);
     }
   }
 

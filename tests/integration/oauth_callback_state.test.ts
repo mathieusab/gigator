@@ -11,6 +11,9 @@ function setTestEnv() {
   process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
   process.env.GOOGLE_OAUTH_REDIRECT_URI = 'http://localhost:3000/api/sync/gmail/callback';
 
+  // Callback route is feature-flagged (out-of-scope for GIG-001 by default).
+  process.env.ENABLE_GMAIL_OAUTH_CALLBACK = 'true';
+
   // Force in-memory oauth state store (avoid Redis connect in tests).
   process.env.REDIS_URL = '';
   process.env.OAUTH_STATE_TTL = '600';

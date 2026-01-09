@@ -1,0 +1,16 @@
+# Sprint Status
+# Generated/maintained by BMAD workflows.
+# This file enables automatic status sync during code-review.
+
+generated: "2026-01-09"
+project: "gigator"
+project_key: "gigator"
+tracking_system: "file-system"
+story_location: "_bmad-output/implementation-artifacts"
+
+development_status:
+  # Epics (optional here; add when you have epic files)
+  # epic-1: in-progress
+
+  # Stories
+  GIG-001-oauth-start: in-progress
