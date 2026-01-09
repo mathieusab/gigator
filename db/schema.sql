@@ -48,6 +48,7 @@ CREATE TYPE message_direction AS ENUM (
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   auth_uid UUID UNIQUE, -- reference to auth.users.id (stored as uuid)
+  google_user_id TEXT UNIQUE,
   email TEXT UNIQUE,
   full_name TEXT,
   avatar_url TEXT,
@@ -59,6 +60,20 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles (email);
+
+-- App email allowlist (MVP auth gate)
+CREATE TABLE IF NOT EXISTS app_email_allowlist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL UNIQUE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_email_allowlist_email ON app_email_allowlist (email);
+
+-- Support case-insensitive lookups performed via lower(email)
+CREATE INDEX IF NOT EXISTS idx_app_email_allowlist_email_lower ON app_email_allowlist (lower(email));
 
 -- Organizations
 CREATE TABLE IF NOT EXISTS organizations (
