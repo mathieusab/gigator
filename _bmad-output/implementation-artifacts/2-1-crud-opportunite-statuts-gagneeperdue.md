@@ -1,6 +1,6 @@
 # Story 2.1: CRUD opportunité + statuts gagnée/perdue
 
-Status: review
+Status: done
 
 ## Story
 
