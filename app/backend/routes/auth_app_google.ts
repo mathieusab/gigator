@@ -97,7 +97,7 @@ export default async function authAppGoogleRoutes(fastify: FastifyInstance) {
         ];
         if (isProduction()) parts.push('Secure');
         reply.header('Set-Cookie', parts.join('; '));
-        return reply.redirect(302, successRedirect);
+        return reply.redirect(successRedirect, 302);
       }
 
       return reply.send(result);

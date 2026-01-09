@@ -148,6 +148,8 @@ CREATE TABLE IF NOT EXISTS opportunities (
   title TEXT NOT NULL,
   slug TEXT,
   description TEXT,
+  next_action TEXT,
+  follow_up_due_date DATE,
   status opportunity_status NOT NULL DEFAULT 'draft',
   date DATE, -- scheduled date if relevant
   location TEXT,
@@ -168,6 +170,7 @@ CREATE INDEX IF NOT EXISTS idx_opportunities_owner ON opportunities (owner_id);
 CREATE INDEX IF NOT EXISTS idx_opportunities_status ON opportunities (status);
 CREATE INDEX IF NOT EXISTS idx_opportunities_date ON opportunities (date);
 CREATE INDEX IF NOT EXISTS idx_opportunities_org ON opportunities (organization_id);
+CREATE INDEX IF NOT EXISTS idx_opportunities_follow_up_due_date ON opportunities (follow_up_due_date);
 CREATE INDEX IF NOT EXISTS idx_opportunities_title_trgm ON opportunities USING gin (to_tsvector('english', coalesce(title,'')));
 
 -- Threads (email / conversation threads import)

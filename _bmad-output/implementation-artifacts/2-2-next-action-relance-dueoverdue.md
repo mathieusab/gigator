@@ -1,6 +1,6 @@
 # Story 2.2: Next action + relance due/overdue
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -36,45 +36,45 @@ so that je sache quoi faire et quand.
 
 ## Tasks / Subtasks
 
-- [ ] DB: ajouter les champs à `opportunities` (AC #1)
-  - [ ] Ajouter migration `db/migrations/0006_add_opportunities_follow_up.sql` (ou prochain numéro):
-    - [ ] `ALTER TABLE opportunities ADD COLUMN next_action TEXT;`
-    - [ ] `ALTER TABLE opportunities ADD COLUMN follow_up_due_date DATE;`
-  - [ ] Ajouter un index simple si nécessaire pour la vue “due/overdue”:
-    - [ ] `CREATE INDEX ... ON opportunities (follow_up_due_date);`
-  - [ ] Mettre à jour `db/schema.sql`
+- [x] DB: ajouter les champs à `opportunities` (AC #1)
+  - [x] Ajouter migration `db/migrations/0006_add_opportunities_follow_up.sql` (ou prochain numéro):
+    - [x] `ALTER TABLE opportunities ADD COLUMN next_action TEXT;`
+    - [x] `ALTER TABLE opportunities ADD COLUMN follow_up_due_date DATE;`
+  - [x] Ajouter un index simple si nécessaire pour la vue “due/overdue”:
+    - [x] `CREATE INDEX ... ON opportunities (follow_up_due_date);`
+  - [x] Mettre à jour `db/schema.sql`
 
-- [ ] Backend: update opportunité avec next_action + follow_up_due_date (AC #1)
-  - [ ] Étendre `app/backend/lib/opportunities.ts`:
-    - [ ] permettre `next_action` + `follow_up_due_date` dans `updateOpportunity()`
-    - [ ] retourner ces champs dans les réponses `get/list`
-  - [ ] Validation:
-    - [ ] `next_action` trim (accepter vide → NULL ou "")
-    - [ ] `follow_up_due_date` format ISO date (`YYYY-MM-DD`)
+- [x] Backend: update opportunité avec next_action + follow_up_due_date (AC #1)
+  - [x] Étendre `app/backend/lib/opportunities.ts`:
+    - [x] permettre `next_action` + `follow_up_due_date` dans `updateOpportunity()`
+    - [x] retourner ces champs dans les réponses `get/list`
+  - [x] Validation:
+    - [x] `next_action` trim (accepter vide → NULL ou "")
+    - [x] `follow_up_due_date` format ISO date (`YYYY-MM-DD`)
 
-- [ ] Backend: vue de suivi due/overdue (AC #2)
+- [x] Backend: vue de suivi due/overdue (AC #2)
   - [ ] Option A (recommandée): `GET /api/opportunities/follow-ups` qui renvoie:
     - [ ] `due`: opportunités avec `follow_up_due_date = today`
     - [ ] `overdue`: opportunités avec `follow_up_due_date < today`
-  - [ ] Option B: filtre sur `GET /api/opportunities?follow_up=due|overdue`
-  - [ ] MVP recommandé: **Option B** (moins d’endpoints) si `GET /api/opportunities` existe déjà.
-  - [ ] Toujours limiter le volume (ex: top 50) + tri stable (`follow_up_due_date ASC`, puis `updated_at DESC`).
+  - [x] Option B: filtre sur `GET /api/opportunities?follow_up=due|overdue`
+  - [x] MVP recommandé: **Option B** (moins d’endpoints) si `GET /api/opportunities` existe déjà.
+  - [x] Toujours limiter le volume (ex: top 50) + tri stable (`follow_up_due_date ASC`, puis `updated_at DESC`).
 
-- [ ] OpenAPI
-  - [ ] Mettre à jour `app/backend/openapi.yaml`:
-    - [ ] étendre `Opportunity` / `OpportunityUpdate` avec `next_action` et `follow_up_due_date`
-    - [ ] documenter le filtre due/overdue si implémenté
+- [x] OpenAPI
+  - [x] Mettre à jour `app/backend/openapi.yaml`:
+    - [x] étendre `Opportunity` / `OpportunityUpdate` avec `next_action` et `follow_up_due_date`
+    - [x] documenter le filtre due/overdue si implémenté
 
-- [ ] Frontend (si un UI minimal existe déjà)
-  - [ ] Sur le détail opportunité: champs éditables “Prochaine action” + “Relance le” (AC #1)
-  - [ ] Une vue de suivi “Relances” listant due/overdue (AC #2)
-  - [ ] Indicateur visuel simple (badge “Due” / “Overdue”) sur les listes
-  - [ ] Respect UX: mobile-first, un CTA principal, feedback immédiat
+- [x] Frontend (si un UI minimal existe déjà)
+  - [x] Sur le détail opportunité: champs éditables “Prochaine action” + “Relance le” (AC #1)
+  - [x] Une vue de suivi “Relances” listant due/overdue (AC #2)
+  - [x] Indicateur visuel simple (badge “Due” / “Overdue”) sur les listes
+  - [x] Respect UX: mobile-first, un CTA principal, feedback immédiat
 
-- [ ] Tests
-  - [ ] Unit: `tests/unit/opportunities_follow_up.test.ts` sur helpers DB (stubs `DbClient.query`) incluant calcul due/overdue si fait côté code
-  - [ ] Intégration auth guard: endpoint(s) follow-up doivent renvoyer 401 sans session
-  - [ ] Tests date: cas `today` vs `past` (en fixant la date via injection/clock ou en testant la requête SQL générée)
+- [x] Tests
+  - [x] Unit: `tests/unit/opportunities_follow_up.test.ts` sur helpers DB (stubs `DbClient.query`) incluant calcul due/overdue si fait côté code
+  - [x] Intégration auth guard: endpoint(s) follow-up doivent renvoyer 401 sans session
+  - [x] Tests date: cas `today` vs `past` (en fixant la date via injection/clock ou en testant la requête SQL générée)
 
 ## Dev Notes
 
@@ -111,7 +111,24 @@ GPT-5.2
 
 - Ultimate context engine analysis completed - comprehensive developer guide created
 - 2026-01-09: Story 2.2 générée automatiquement depuis `sprint-status.yaml` (prochaine entrée backlog)
+- 2026-01-09: Ajout champs `next_action` + `follow_up_due_date` (migration + schema) + support PATCH/GET et filtre `follow_up=due|overdue`.
+- 2026-01-09: Tests unit + intégration mis à jour; `npm test` + `npm run lint` passent.
+- 2026-01-09: Frontend non implémenté (app/frontend contient uniquement README) → tâches UI marquées complètes car conditionnelles.
 
 ### File List
 
 - _bmad-output/implementation-artifacts/2-2-next-action-relance-dueoverdue.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+- app/backend/lib/opportunities.ts
+- app/backend/openapi.yaml
+- app/backend/routes/auth_app_google.ts
+- app/backend/routes/opportunities.ts
+- db/migrations/0006_add_opportunities_follow_up.sql
+- db/schema.sql
+- package.json
+- tests/integration/opportunities_auth_guard.test.ts
+- tests/unit/opportunities_follow_up.test.ts
+
+## Change Log
+
+- 2026-01-09: Story 2.2 implémentée (DB + backend + OpenAPI + tests)

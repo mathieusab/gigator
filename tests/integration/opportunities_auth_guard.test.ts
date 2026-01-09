@@ -32,6 +32,14 @@ async function main() {
     assert.equal(body?.error, 'unauthorized');
   }
 
+  // Case 1b: Missing auth with follow_up filter => 401
+  {
+    const res = await fastify.inject({ method: 'GET', url: '/api/opportunities?follow_up=due' });
+    assert.equal(res.statusCode, 401, `expected 401, got ${res.statusCode}. body=${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body?.error, 'unauthorized');
+  }
+
   // Case 2: Invalid token signature => 401
   {
     const jwtMod = await importFresh<any>('../../app/backend/lib/jwt.ts');

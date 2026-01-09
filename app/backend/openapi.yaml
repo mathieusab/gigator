@@ -652,6 +652,15 @@ paths:
           schema:
             type: string
           description: Filter by venue id
+        - name: follow_up
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - due
+              - overdue
+          description: Filter by follow-up due date relative to today (UTC)
       responses:
         '200':
           description: Array of opportunities
@@ -1281,6 +1290,13 @@ components:
         description:
           type: string
           nullable: true
+        next_action:
+          type: string
+          nullable: true
+        follow_up_due_date:
+          type: string
+          nullable: true
+          description: ISO date (YYYY-MM-DD)
         status:
           type: string
           enum:
@@ -1317,6 +1333,13 @@ components:
         description:
           type: string
           nullable: true
+        next_action:
+          type: string
+          nullable: true
+        follow_up_due_date:
+          type: string
+          nullable: true
+          description: ISO date (YYYY-MM-DD)
         status:
           type: string
           enum:

@@ -5,7 +5,7 @@
 // - GET   /api/opportunities?venue_id=
 // - POST  /api/opportunities          { title, description?, venue_id? }
 // - GET   /api/opportunities/:id
-// - PATCH /api/opportunities/:id      { title?, description?, venue_id?, status? }
+// - PATCH /api/opportunities/:id      { title?, description?, venue_id?, status?, next_action?, follow_up_due_date? }
 
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { getDbPool } from '../lib/db';
@@ -52,6 +52,8 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
 
     const query = (request.query || {}) as any;
     const venue_id = typeof query?.venue_id === 'string' ? query.venue_id : undefined;
+    const follow_up = typeof query?.follow_up === 'string' ? query.follow_up : undefined;
+    const todayUtc = typeof follow_up === 'string' ? new Date().toISOString().slice(0, 10) : undefined;
 
     let client: any;
     try {
@@ -61,7 +63,17 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      const opportunities = await listOpportunities(client, typeof venue_id === 'string' ? { venue_id } : undefined);
+      const filter: any = {};
+      if (typeof venue_id === 'string') filter.venue_id = venue_id;
+      if (typeof follow_up === 'string') {
+        if (follow_up !== 'due' && follow_up !== 'overdue') {
+          return reply.status(400).send({ error: 'invalid_request' });
+        }
+        filter.follow_up = follow_up;
+        filter.today = todayUtc;
+      }
+
+      const opportunities = await listOpportunities(client, Object.keys(filter).length ? filter : undefined);
       return reply.send(opportunities);
     } catch (e: any) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -206,6 +218,22 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
         return reply.status(400).send({ error: 'invalid_request' });
       }
       patch.status = body.status;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'next_action')) {
+      provided = true;
+      if (body.next_action !== null && typeof body.next_action !== 'string') {
+        return reply.status(400).send({ error: 'invalid_request' });
+      }
+      patch.next_action = body.next_action;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'follow_up_due_date')) {
+      provided = true;
+      if (body.follow_up_due_date !== null && typeof body.follow_up_due_date !== 'string') {
+        return reply.status(400).send({ error: 'invalid_request' });
+      }
+      patch.follow_up_due_date = body.follow_up_due_date;
     }
 
     if (!provided) {
