@@ -1,6 +1,6 @@
 # Story 1.4: Annuaire contacts + liens contacts↔salles + recherche
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -42,50 +42,50 @@ so that je puisse retrouver les bons interlocuteurs sans friction.
 
 ## Tasks / Subtasks
 
-- [ ] DB: introduire tables “contacts” + “contact_venues” (AC #1-#2)
-  - [ ] Ajouter migration `db/migrations/0005_create_contacts_and_links.sql` (ou prochain numéro) avec:
-    - [ ] `contacts` (id uuid, name, email, phone, instagram, notes, created_at, updated_at)
-    - [ ] `contact_venues` (id uuid, contact_id, venue_id, created_at) + UNIQUE(contact_id, venue_id)
-  - [ ] Mettre à jour `db/schema.sql` pour refléter ces tables
+- [x] DB: introduire tables “contacts” + “contact_venues” (AC #1-#2)
+  - [x] Ajouter migration `db/migrations/0005_create_contacts_and_links.sql` (ou prochain numéro) avec:
+    - [x] `contacts` (id uuid, name, email, phone, instagram, notes, created_at, updated_at)
+    - [x] `contact_venues` (id uuid, contact_id, venue_id, created_at) + UNIQUE(contact_id, venue_id)
+  - [x] Mettre à jour `db/schema.sql` pour refléter ces tables
 
-- [ ] Backend: CRUD contacts (AC #1)
-  - [ ] DB helpers `app/backend/lib/contacts.ts` (pattern `DbClient`)
-    - [ ] `createContact(db, payload)`
-    - [ ] `listContacts(db, { q? })`
-    - [ ] `getContactById(db, id)`
-    - [ ] `updateContact(db, id, patch)`
-  - [ ] Routes `app/backend/routes/contacts.ts`
-    - [ ] `GET /api/contacts?q=`
-    - [ ] `POST /api/contacts`
-    - [ ] `GET /api/contacts/:id`
-    - [ ] `PATCH /api/contacts/:id`
-  - [ ] Validation: `name` non vide; canaux optionnels trim
+- [x] Backend: CRUD contacts (AC #1)
+  - [x] DB helpers `app/backend/lib/contacts.ts` (pattern `DbClient`)
+    - [x] `createContact(db, payload)`
+    - [x] `listContacts(db, { q? })`
+    - [x] `getContactById(db, id)`
+    - [x] `updateContact(db, id, patch)`
+  - [x] Routes `app/backend/routes/contacts.ts`
+    - [x] `GET /api/contacts?q=`
+    - [x] `POST /api/contacts`
+    - [x] `GET /api/contacts/:id`
+    - [x] `PATCH /api/contacts/:id`
+  - [x] Validation: `name` non vide; canaux optionnels trim
 
-- [ ] Backend: liens contacts↔venues (AC #2)
-  - [ ] DB helpers `app/backend/lib/contact_venues.ts`
-    - [ ] `linkContactToVenue(db, contactId, venueId)` (idempotent)
-    - [ ] `unlinkContactFromVenue(db, contactId, venueId)` (idempotent)
-    - [ ] `listVenuesForContact(db, contactId)`
-    - [ ] `listContactsForVenue(db, venueId)`
-  - [ ] Routes (au choix, garder simple):
-    - [ ] `POST /api/contacts/:id/venues` body `{ venue_id }`
-    - [ ] `DELETE /api/contacts/:id/venues/:venue_id`
-    - [ ] `GET /api/contacts/:id/venues`
-    - [ ] `GET /api/venues/:id/contacts`
+- [x] Backend: liens contacts↔venues (AC #2)
+  - [x] DB helpers `app/backend/lib/contact_venues.ts`
+    - [x] `linkContactToVenue(db, contactId, venueId)` (idempotent)
+    - [x] `unlinkContactFromVenue(db, contactId, venueId)` (idempotent)
+    - [x] `listVenuesForContact(db, contactId)`
+    - [x] `listContactsForVenue(db, venueId)`
+  - [x] Routes (au choix, garder simple):
+    - [x] `POST /api/contacts/:id/venues` body `{ venue_id }`
+    - [x] `DELETE /api/contacts/:id/venues/:venue_id`
+    - [x] `GET /api/contacts/:id/venues`
+    - [x] `GET /api/venues/:id/contacts`
 
-- [ ] Backend: recherche (AC #3)
-  - [ ] Option A (recommandée MVP): endpoint global `GET /api/search?q=` qui renvoie `{ venues: [], contacts: [], opportunities: [] }`
-  - [ ] Option B: recherche par ressource (contacts/venues/opportunities) + UI qui agrège; uniquement si déjà une architecture front l’exige.
-  - [ ] Garder l’implémentation stable et testable; limiter le nombre de résultats (ex: 10 par type) pour la perf.
+- [x] Backend: recherche (AC #3)
+  - [x] Option A (recommandée MVP): endpoint global `GET /api/search?q=` qui renvoie `{ venues: [], contacts: [], opportunities: [] }`
+  - [x] Option B: recherche par ressource (contacts/venues/opportunities) + UI qui agrège; uniquement si déjà une architecture front l’exige.
+  - [x] Garder l’implémentation stable et testable; limiter le nombre de résultats (ex: 10 par type) pour la perf.
 
-- [ ] OpenAPI
-  - [ ] Mettre à jour `app/backend/openapi.yaml`:
-    - [ ] étendre `Contact` (instagram, notes)
-    - [ ] ajouter paths contacts + liens + search
+- [x] OpenAPI
+  - [x] Mettre à jour `app/backend/openapi.yaml`:
+    - [x] étendre `Contact` (instagram, notes)
+    - [x] ajouter paths contacts + liens + search
 
-- [ ] Tests
-  - [ ] Unit tests DB helpers: `tests/unit/contacts.test.ts`, `tests/unit/contact_venues.test.ts`, `tests/unit/search.test.ts` (stubs `DbClient.query`)
-  - [ ] Intégration auth guard: `tests/integration/contacts_auth_guard.test.ts`, `tests/integration/search_auth_guard.test.ts`
+- [x] Tests
+  - [x] Unit tests DB helpers: `tests/unit/contacts.test.ts`, `tests/unit/contact_venues.test.ts`, `tests/unit/search.test.ts` (stubs `DbClient.query`)
+  - [x] Intégration auth guard: `tests/integration/contacts_auth_guard.test.ts`, `tests/integration/search_auth_guard.test.ts`
 
 ## Dev Notes
 
@@ -127,7 +127,33 @@ GPT-5.2
 
 - Ultimate context engine analysis completed - comprehensive developer guide created
 - 2026-01-09: Story 1.4 générée automatiquement depuis `sprint-status.yaml` (prochaine entrée backlog)
+- 2026-01-09: DB `contacts` + `contact_venues` ajoutées (migration 0005 + schema), test présence schema/migration ajouté, `npm test` OK
+- 2026-01-09: CRUD contacts (helpers + routes) + tests unitaires + auth guard; `npm test` OK
+- 2026-01-09: Liens contacts↔salles + recherche globale; tests unitaires + guards ajoutés; `npm test` OK
+- 2026-01-09: OpenAPI mis à jour (contacts + liens + search). Story complète; `npm test` OK
 
 ### File List
 
 - _bmad-output/implementation-artifacts/1-4-annuaire-contacts-liens-contactssalles-recherche.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+- app/backend/lib/contacts.ts
+- app/backend/lib/contact_venues.ts
+- app/backend/lib/search.ts
+- app/backend/routes/contact_venues.ts
+- app/backend/routes/contacts.ts
+- app/backend/routes/search.ts
+- app/backend/server.ts
+- app/backend/openapi.yaml
+- db/migrations/0005_create_contacts_and_links.sql
+- db/schema.sql
+- package.json
+- tests/integration/contacts_auth_guard.test.ts
+- tests/integration/search_auth_guard.test.ts
+- tests/unit/contacts.schema.test.ts
+- tests/unit/contacts.test.ts
+- tests/unit/contact_venues.test.ts
+- tests/unit/search.test.ts
+
+## Change Log
+
+- 2026-01-09: Ajout Contacts + liens Contacts↔Salles + endpoint /api/search + mise à jour OpenAPI

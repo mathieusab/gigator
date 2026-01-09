@@ -6,7 +6,10 @@ import Fastify from 'fastify';
 import adminMembersRoutes from './routes/admin_members';
 import authAppGoogleRoutes from './routes/auth_app_google';
 import authGoogleRoutes from './routes/auth_google';
+import contactVenuesRoutes from './routes/contact_venues';
+import contactsRoutes from './routes/contacts';
 import meRoutes from './routes/me';
+import searchRoutes from './routes/search';
 import venuesRoutes from './routes/venues';
 
 export function buildServer() {
@@ -16,6 +19,9 @@ export function buildServer() {
   fastify.register(adminMembersRoutes);
   fastify.register(authAppGoogleRoutes);
   fastify.register(authGoogleRoutes);
+  fastify.register(contactVenuesRoutes);
+  fastify.register(contactsRoutes);
+  fastify.register(searchRoutes);
   fastify.register(venuesRoutes);
 
   fastify.get('/health', async () => ({ ok: true }));

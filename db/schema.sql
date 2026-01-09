@@ -116,6 +116,32 @@ CREATE TABLE IF NOT EXISTS venues (
 CREATE INDEX IF NOT EXISTS idx_venues_name_lower ON venues (lower(name));
 CREATE INDEX IF NOT EXISTS idx_venues_city_lower ON venues (lower(city));
 
+-- Contacts - minimal MVP
+CREATE TABLE IF NOT EXISTS contacts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  instagram TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_contacts_name_lower ON contacts (lower(name));
+
+-- Contact ↔ Venue links (many-to-many)
+CREATE TABLE IF NOT EXISTS contact_venues (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  venue_id UUID NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+  UNIQUE (contact_id, venue_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_contact_venues_contact_id ON contact_venues (contact_id);
+CREATE INDEX IF NOT EXISTS idx_contact_venues_venue_id ON contact_venues (venue_id);
+
 -- Opportunities (gigs / listings)
 CREATE TABLE IF NOT EXISTS opportunities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -304,6 +330,14 @@ BEGIN
   ) THEN
     CREATE TRIGGER trg_set_updated_at_venues
     BEFORE UPDATE ON venues
+    FOR EACH ROW EXECUTE PROCEDURE set_updated_at_column();
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'trg_set_updated_at_contacts'
+  ) THEN
+    CREATE TRIGGER trg_set_updated_at_contacts
+    BEFORE UPDATE ON contacts
     FOR EACH ROW EXECUTE PROCEDURE set_updated_at_column();
   END IF;
 END;
