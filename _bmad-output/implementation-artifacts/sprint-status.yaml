@@ -56,4 +56,4 @@ development_status:
   GIG-005-thread-detail-opportunity: ready-for-dev
   GIG-007-create-opportunity: ready-for-dev
   GIG-020-import-worker-robust: ready-for-dev
-  1-2-oauth-callback: ready-for-dev
+  1-2-oauth-callback: review

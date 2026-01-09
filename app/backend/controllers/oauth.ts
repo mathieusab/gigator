@@ -247,11 +247,9 @@ export async function handleOAuthCallback(code: string, state?: string, profileI
     // Return sanitized account info
     return {
       id: account.id,
-      google_user_id: account.google_user_id,
       email: account.email,
       display_name: account.display_name,
-      expires_at: account.expires_at,
-      scope: account.scope
+      expires_at: account.expires_at
     };
   } catch (err) {
     await client.query('ROLLBACK');

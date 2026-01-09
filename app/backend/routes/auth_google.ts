@@ -90,8 +90,8 @@ export default async function authGoogleRoutes(fastify: FastifyInstance) {
       const code = query?.code;
       const state = query?.state;
 
-      if (!code) {
-        return reply.status(400).send({ error: 'missing_code' });
+      if (!code || typeof code !== 'string') {
+        return reply.status(400).send({ error: 'missing_code', message: 'Missing OAuth code' });
       }
 
       try {
