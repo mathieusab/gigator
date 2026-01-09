@@ -34,7 +34,7 @@ async function main() {
 
   // Case 1: Start OK (AC1/AC2/AC4)
   {
-    // Ensure env is set BEFORE importing any backend modules (they snapshot env at import time).
+    // Ensure env is set BEFORE importing backend modules (safest pattern for modules that may read env during init).
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
 
     const fastify = await buildFastifyWithRoutes();

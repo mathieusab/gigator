@@ -17,6 +17,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   getAuthUrl,
   handleOAuthCallback,
+  isOAuthConfigError,
   listLinkedAccounts
 } from '../controllers/oauth';
 
@@ -29,7 +30,10 @@ function redactTokensInString(s: string): string {
     .replace(/("access_token"\s*:\s*")([^"]+)(")/gi, '$1[REDACTED]$3')
     .replace(/\b(refresh_token|id_token)\s*=\s*([^\s&]+)/gi, '$1=[REDACTED]')
     .replace(/\baccess_token\s*=\s*([^\s&]+)/gi, 'access_token=[REDACTED]')
-    .replace(/\b(refresh_token|id_token)\b\s*:\s*([^\s,}]+)/gi, '$1: [REDACTED]');
+    .replace(/\b(refresh_token|id_token)\b\s*:\s*([^\s,}]+)/gi, '$1: [REDACTED]')
+    // Redact credentials in URLs (e.g., redis://user:pass@host, postgres://user:pass@host)
+    .replace(/\b([a-z][a-z0-9+.-]*):\/\/([^\s:@/]+):([^@\s/]+)@/gi, '$1://$2:[REDACTED]@')
+    .replace(/\b([a-z][a-z0-9+.-]*):\/\/:([^@\s/]+)@/gi, '$1://:[REDACTED]@');
 }
 
 function sanitizeErrorForLog(err: unknown): unknown {
@@ -55,13 +59,8 @@ export default async function authGoogleRoutes(fastify: FastifyInstance) {
       const oauth_url = await getAuthUrl();
       return reply.send({ oauth_url });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
       const safeErr = sanitizeErrorForLog(err);
-      const isConfigError =
-        message.includes('OAuth configuration incomplete') ||
-        message.includes('GOOGLE_CLIENT_ID') ||
-        message.includes('GOOGLE_CLIENT_SECRET') ||
-        message.includes('GOOGLE_OAUTH_REDIRECT_URI');
+      const isConfigError = isOAuthConfigError(err);
 
       if (isConfigError) {
         // Missing/invalid server config
@@ -106,11 +105,7 @@ export default async function authGoogleRoutes(fastify: FastifyInstance) {
         fastify.log.error({ err: safeErr }, 'oauth callback exchange failed');
 
         const isInvalidState = message.includes('invalid_oauth_state');
-        const isConfigError =
-          message.includes('OAuth configuration incomplete') ||
-          message.includes('GOOGLE_CLIENT_ID') ||
-          message.includes('GOOGLE_CLIENT_SECRET') ||
-          message.includes('GOOGLE_OAUTH_REDIRECT_URI');
+        const isConfigError = isOAuthConfigError(err);
 
         if (isInvalidState) {
           return reply.status(400).send({

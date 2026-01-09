@@ -13,7 +13,7 @@ development_status:
   # epic-1: in-progress
 
   # Stories
-  GIG-001-oauth-start: ready-for-dev
+  GIG-001-oauth-start: done
   GIG-002-oauth-callback: ready-for-dev
   GIG-003-import-threads: ready-for-dev
   GIG-004-threads-list: ready-for-dev

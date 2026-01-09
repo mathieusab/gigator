@@ -24,6 +24,23 @@ import { Pool } from 'pg';
 import crypto from 'crypto';
 import { deleteOauthState, getOauthState, persistOauthState } from '../lib/oauth_state_store';
 
+class OAuthConfigError extends Error {
+  code = 'OAUTH_CONFIG_ERROR' as const;
+  constructor(message: string) {
+    super(message);
+    this.name = 'OAuthConfigError';
+  }
+}
+
+export function isOAuthConfigError(err: unknown): err is OAuthConfigError {
+  return (
+    !!err &&
+    typeof err === 'object' &&
+    (err as any).code === 'OAUTH_CONFIG_ERROR' &&
+    (err as any).name === 'OAuthConfigError'
+  );
+}
+
 function getEnvSnapshot() {
   return {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
@@ -68,8 +85,8 @@ export async function getAuthUrl(options?: GetAuthUrlOptions): Promise<string | 
   const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI } = getEnvSnapshot();
 
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_OAUTH_REDIRECT_URI) {
-    throw new Error(
-      'OAuth configuration incomplete (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_OAUTH_REDIRECT_URI)'
+    throw new OAuthConfigError(
+      'OAuth configuration missing or incomplete (requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI)'
     );
   }
 
@@ -116,7 +133,9 @@ export async function handleOAuthCallback(code: string, state?: string, profileI
   const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI } = getEnvSnapshot();
 
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_OAUTH_REDIRECT_URI) {
-    throw new Error('OAuth configuration incomplete');
+    throw new OAuthConfigError(
+      'OAuth configuration missing or incomplete (requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI)'
+    );
   }
 
   // Validate and consume the oauth state (CSRF protection).

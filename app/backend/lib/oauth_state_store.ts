@@ -21,8 +21,11 @@
 import type { RedisClientType } from 'redis';
 
 const REDIS_URL = process.env.REDIS_URL ?? '';
-const DEFAULT_TTL_RAW = Number(process.env.OAUTH_STATE_TTL ?? '600');
-const DEFAULT_TTL = Number.isFinite(DEFAULT_TTL_RAW) && DEFAULT_TTL_RAW > 0 ? DEFAULT_TTL_RAW : 600; // seconds
+const MIN_TTL_SECONDS = 600; // AC requires >= 10 minutes
+const DEFAULT_TTL_RAW = Number(process.env.OAUTH_STATE_TTL ?? String(MIN_TTL_SECONDS));
+const DEFAULT_TTL_UNCLAMPED =
+  Number.isFinite(DEFAULT_TTL_RAW) && DEFAULT_TTL_RAW > 0 ? DEFAULT_TTL_RAW : MIN_TTL_SECONDS;
+const DEFAULT_TTL = Math.max(DEFAULT_TTL_UNCLAMPED, MIN_TTL_SECONDS); // seconds
 
 let redisClient: RedisClientType | null = null;
 let usingRedis = false;
@@ -61,9 +64,15 @@ function ensureInit(): Promise<void> {
 async function ensureReadyForOperation(): Promise<void> {
   await ensureInit();
   if (REDIS_URL && !usingRedis) {
-    throw new Error(
-      `oauth_state_store: Redis required but unavailable${redisInitError ? ` (${redisInitError})` : ''}`
-    );
+    // Keep provider details out of the error message to reduce the risk of leaking connection info.
+    // Logging should still capture the underlying failure separately (via redisInitError).
+    throw new Error('oauth_state_store: Redis required but unavailable');
+  }
+}
+
+function purgeExpiredMemEntries(nowMs = Date.now()): void {
+  for (const [key, value] of memStore.entries()) {
+    if (nowMs > value.expiresAt) memStore.delete(key);
   }
 }
 
@@ -75,7 +84,8 @@ async function ensureReadyForOperation(): Promise<void> {
  */
 export async function persistOauthState(state: string, meta: any, ttlSeconds?: number): Promise<void> {
   const ttlRaw = typeof ttlSeconds === 'number' ? ttlSeconds : DEFAULT_TTL;
-  const ttl = Number.isFinite(ttlRaw) && ttlRaw > 0 ? ttlRaw : DEFAULT_TTL;
+  const ttlUnclamped = Number.isFinite(ttlRaw) && ttlRaw > 0 ? ttlRaw : DEFAULT_TTL;
+  const ttl = Math.max(ttlUnclamped, MIN_TTL_SECONDS);
   await ensureReadyForOperation();
 
   if (usingRedis && redisClient) {
@@ -88,6 +98,7 @@ export async function persistOauthState(state: string, meta: any, ttlSeconds?: n
   }
 
   // Only allowed when REDIS_URL is not configured.
+  purgeExpiredMemEntries();
   const expiresAt = Date.now() + ttl * 1000;
   memStore.set(state, { meta: meta || {}, expiresAt });
 }
@@ -113,6 +124,7 @@ export async function getOauthState(state: string): Promise<any | null> {
     }
   }
 
+  purgeExpiredMemEntries();
   const r = memStore.get(state);
   if (!r) return null;
   if (Date.now() > r.expiresAt) {

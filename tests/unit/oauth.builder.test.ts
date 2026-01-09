@@ -6,7 +6,7 @@ import { URL } from 'node:url';
 // Run with: npx tsx tests/unit/oauth.builder.test.ts
 
 async function main() {
-  // Ensure env is set BEFORE importing the module under test because it snapshots env at import time.
+  // Set env BEFORE importing the module under test (safest pattern for modules that may read env during init).
   process.env.GOOGLE_CLIENT_ID = 'test-client-id';
   process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
   process.env.GOOGLE_OAUTH_REDIRECT_URI = 'http://localhost:3000/api/sync/gmail/callback';
