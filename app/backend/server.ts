@@ -6,6 +6,7 @@ import Fastify from 'fastify';
 import adminMembersRoutes from './routes/admin_members';
 import authAppGoogleRoutes from './routes/auth_app_google';
 import authGoogleRoutes from './routes/auth_google';
+import activityLogRoutes from './routes/activity_log';
 import contactVenuesRoutes from './routes/contact_venues';
 import contactsRoutes from './routes/contacts';
 import meRoutes from './routes/me';
@@ -26,6 +27,7 @@ export function buildServer() {
   fastify.register(adminMembersRoutes);
   fastify.register(authAppGoogleRoutes);
   fastify.register(authGoogleRoutes);
+  fastify.register(activityLogRoutes);
   fastify.register(contactVenuesRoutes);
   fastify.register(contactsRoutes);
   fastify.register(opportunitiesRoutes);

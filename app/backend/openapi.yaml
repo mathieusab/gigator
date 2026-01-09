@@ -822,6 +822,140 @@ paths:
               example:
                 error: "server_error"
 
+  /api/opportunities/{id}/activity:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: List activity log events for an opportunity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Max number of events to return (1-200)
+      responses:
+        '200':
+          description: Array of activity log events (desc)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityLogEvent'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid_request"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "unauthorized"
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "not_found"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
+
+  /api/opportunities/{id}/interactions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Append a non-email interaction event to an opportunity
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - channel
+              properties:
+                channel:
+                  type: string
+                  enum:
+                    - call
+                    - instagram
+                    - in_person
+                    - other
+                occurred_at:
+                  type: string
+                  format: date-time
+                  nullable: true
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Created activity event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityLogEvent'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid_request"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "unauthorized"
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "not_found"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
+
   /api/threads:
     get:
       summary: List threads (synced from Gmail)
@@ -1364,6 +1498,36 @@ components:
         venue_id:
           type: string
           nullable: true
+
+    ActivityLogEvent:
+      type: object
+      required:
+        - id
+        - action_type
+        - occurred_at
+        - metadata
+        - created_at
+      properties:
+        id:
+          type: string
+        opportunity_id:
+          type: string
+          nullable: true
+        actor_profile_id:
+          type: string
+          nullable: true
+        action_type:
+          type: string
+          description: Event type (e.g., non_email_interaction, status_changed, owner_changed, gmail_action)
+        occurred_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          description: Event payload (channel, notes, diffs, etc.)
+        created_at:
+          type: string
+          format: date-time
 
     Contact:
       type: object

@@ -173,6 +173,23 @@ CREATE INDEX IF NOT EXISTS idx_opportunities_org ON opportunities (organization_
 CREATE INDEX IF NOT EXISTS idx_opportunities_follow_up_due_date ON opportunities (follow_up_due_date);
 CREATE INDEX IF NOT EXISTS idx_opportunities_title_trgm ON opportunities USING gin (to_tsvector('english', coalesce(title,'')));
 
+-- Activity log (append-only) - opportunity events + non-email interactions
+CREATE TABLE IF NOT EXISTS activity_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  opportunity_id UUID REFERENCES opportunities(id) ON DELETE SET NULL,
+  actor_profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  action_type TEXT NOT NULL,
+  occurred_at TIMESTAMPTZ NOT NULL,
+  metadata JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_opportunity_occurred_at_desc
+  ON activity_log (opportunity_id, occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_action_type_occurred_at_desc
+  ON activity_log (action_type, occurred_at DESC);
+
 -- Threads (email / conversation threads import)
 CREATE TABLE IF NOT EXISTS threads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
