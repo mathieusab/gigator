@@ -127,8 +127,24 @@ GPT-5.2
 - db/schema.sql
 - package.json
 - tests/integration/opportunities_auth_guard.test.ts
+- tests/integration/opportunities_follow_up_happy_path.test.ts
 - tests/unit/opportunities_follow_up.test.ts
 
 ## Change Log
 
 - 2026-01-09: Story 2.2 implémentée (DB + backend + OpenAPI + tests)
+
+## Senior Developer Review (AI)
+
+Date: 2026-01-09
+
+### Fixes appliqués (post-review)
+
+- OpenAPI: la réponse `PATCH /api/opportunities/{id}` décrit désormais un payload `Opportunity`.
+- API: la liste opportunités est bornée (LIMIT 200 par défaut; LIMIT 50 sur `follow_up=due|overdue`).
+- API: ajout d’un champ dérivé `follow_up_status` (`due|overdue|none`) dans les réponses opportunités pour simplifier la vue de suivi.
+- Tests: ajout d’un test d’intégration “happy path” couvrant `follow_up=due|overdue`, `follow_up_status`, et le bounding de la liste.
+
+### Décision
+
+Statut story inchangé (review) — corrections intégrées, prêt pour re-review si nécessaire.

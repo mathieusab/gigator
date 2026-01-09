@@ -785,6 +785,10 @@ paths:
       responses:
         '200':
           description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Opportunity'
         '400':
           description: Invalid request
           content:
@@ -1297,6 +1301,13 @@ components:
           type: string
           nullable: true
           description: ISO date (YYYY-MM-DD)
+        follow_up_status:
+          type: string
+          enum:
+            - due
+            - overdue
+            - none
+          description: Derived from follow_up_due_date relative to today (UTC)
         status:
           type: string
           enum:

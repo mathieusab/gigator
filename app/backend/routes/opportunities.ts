@@ -46,6 +46,17 @@ function asNonEmptyString(x: unknown): string | null {
   return s ? s : null;
 }
 
+type FollowUpStatus = 'due' | 'overdue' | 'none';
+
+function computeFollowUpStatus(follow_up_due_date: unknown, todayUtc: string): FollowUpStatus {
+  if (!follow_up_due_date || typeof follow_up_due_date !== 'string') return 'none';
+  const d = follow_up_due_date.trim();
+  if (!d) return 'none';
+  if (d === todayUtc) return 'due';
+  if (d < todayUtc) return 'overdue';
+  return 'none';
+}
+
 export default async function opportunitiesRoutes(fastify: FastifyInstance) {
   fastify.get('/api/opportunities', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!requireSession(request, reply)) return;
@@ -53,11 +64,12 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
     const query = (request.query || {}) as any;
     const venue_id = typeof query?.venue_id === 'string' ? query.venue_id : undefined;
     const follow_up = typeof query?.follow_up === 'string' ? query.follow_up : undefined;
-    const todayUtc = typeof follow_up === 'string' ? new Date().toISOString().slice(0, 10) : undefined;
+    const todayUtc = new Date().toISOString().slice(0, 10);
 
     let client: any;
     try {
-      client = await getDbPool().connect();
+      const dbPool = (fastify as any).dbPool ?? getDbPool();
+      client = await dbPool.connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -74,7 +86,11 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
       }
 
       const opportunities = await listOpportunities(client, Object.keys(filter).length ? filter : undefined);
-      return reply.send(opportunities);
+      const withDerived = opportunities.map((o: any) => ({
+        ...o,
+        follow_up_status: computeFollowUpStatus(o?.follow_up_due_date, todayUtc)
+      }));
+      return reply.send(withDerived);
     } catch (e: any) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg === 'invalid_request') {
@@ -88,6 +104,8 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
 
   fastify.post('/api/opportunities', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!requireSession(request, reply)) return;
+
+    const todayUtc = new Date().toISOString().slice(0, 10);
 
     const body = (request.body || {}) as any;
     const title = asNonEmptyString(body?.title);
@@ -113,7 +131,8 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getDbPool().connect();
+      const dbPool = (fastify as any).dbPool ?? getDbPool();
+      client = await dbPool.connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -124,7 +143,10 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
         description: Object.prototype.hasOwnProperty.call(body, 'description') ? body.description : undefined,
         venue_id: Object.prototype.hasOwnProperty.call(body, 'venue_id') ? body.venue_id : undefined
       });
-      return reply.send(created);
+      return reply.send({
+        ...created,
+        follow_up_status: computeFollowUpStatus((created as any)?.follow_up_due_date, todayUtc)
+      });
     } catch (e: any) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg === 'invalid_request') {
@@ -139,6 +161,8 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
   fastify.get('/api/opportunities/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!requireSession(request, reply)) return;
 
+    const todayUtc = new Date().toISOString().slice(0, 10);
+
     const params = (request.params || {}) as any;
     const id = params?.id;
     if (!id || typeof id !== 'string') {
@@ -147,7 +171,8 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getDbPool().connect();
+      const dbPool = (fastify as any).dbPool ?? getDbPool();
+      client = await dbPool.connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -157,7 +182,10 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
       if (!row) {
         return reply.status(404).send({ error: 'not_found' });
       }
-      return reply.send(row);
+      return reply.send({
+        ...row,
+        follow_up_status: computeFollowUpStatus((row as any)?.follow_up_due_date, todayUtc)
+      });
     } catch (e: any) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg === 'invalid_request') {
@@ -171,6 +199,8 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
 
   fastify.patch('/api/opportunities/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!requireSession(request, reply)) return;
+
+    const todayUtc = new Date().toISOString().slice(0, 10);
 
     const params = (request.params || {}) as any;
     const id = params?.id;
@@ -242,7 +272,8 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getDbPool().connect();
+      const dbPool = (fastify as any).dbPool ?? getDbPool();
+      client = await dbPool.connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -252,7 +283,10 @@ export default async function opportunitiesRoutes(fastify: FastifyInstance) {
       if (!updated) {
         return reply.status(404).send({ error: 'not_found' });
       }
-      return reply.send(updated);
+      return reply.send({
+        ...updated,
+        follow_up_status: computeFollowUpStatus((updated as any)?.follow_up_due_date, todayUtc)
+      });
     } catch (e: any) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg === 'invalid_request') {

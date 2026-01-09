@@ -160,13 +160,14 @@ export async function listOpportunities(db: DbClient, filter?: ListOpportunities
   }
 
   const hasFollowUpFilter = typeof follow_up !== 'undefined';
+  const limit = hasFollowUpFilter ? 50 : 200;
 
   const sql = `
     SELECT id, title, description, next_action, follow_up_due_date, venue_id, status, created_at, updated_at
     FROM opportunities
     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
     ORDER BY ${hasFollowUpFilter ? 'follow_up_due_date ASC, updated_at DESC' : 'updated_at DESC'}, id ASC
-    ${hasFollowUpFilter ? 'LIMIT 50' : ''};
+    LIMIT ${limit};
   `;
 
   const res = await db.query(sql, params);
