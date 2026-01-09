@@ -14,7 +14,7 @@ development_status:
   1-2-gestion-des-membres-inviter-desactiver: done
   1-3-annuaire-des-salles-crud-minimal: done
   1-4-annuaire-contacts-liens-contactssalles-recherche: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: backlog
   2-1-crud-opportunite-statuts-gagneeperdue: ready-for-dev
