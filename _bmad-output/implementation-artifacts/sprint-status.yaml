@@ -17,7 +17,7 @@ development_status:
   epic-1-retrospective: done
 
   epic-2: backlog
-  2-1-crud-opportunite-statuts-gagneeperdue: ready-for-dev
+  2-1-crud-opportunite-statuts-gagneeperdue: review
   2-2-next-action-relance-dueoverdue: ready-for-dev
   2-3-historique-activity-log-interactions-non-email: ready-for-dev
   epic-2-retrospective: optional

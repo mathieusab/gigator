@@ -9,11 +9,18 @@ import authGoogleRoutes from './routes/auth_google';
 import contactVenuesRoutes from './routes/contact_venues';
 import contactsRoutes from './routes/contacts';
 import meRoutes from './routes/me';
+import opportunitiesRoutes from './routes/opportunities';
 import searchRoutes from './routes/search';
 import venuesRoutes from './routes/venues';
 
 export function buildServer() {
   const fastify = Fastify({ logger: true });
+
+  // Friendly landing for the API base URL.
+  fastify.get('/', async () => ({ ok: true, service: 'gigator-backend', health: '/health' }));
+
+  // Avoid noisy 404s when opened in a browser.
+  fastify.get('/favicon.ico', async (_request, reply) => reply.status(204).send());
 
   fastify.register(meRoutes);
   fastify.register(adminMembersRoutes);
@@ -21,6 +28,7 @@ export function buildServer() {
   fastify.register(authGoogleRoutes);
   fastify.register(contactVenuesRoutes);
   fastify.register(contactsRoutes);
+  fastify.register(opportunitiesRoutes);
   fastify.register(searchRoutes);
   fastify.register(venuesRoutes);
 

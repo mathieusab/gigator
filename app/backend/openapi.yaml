@@ -647,16 +647,11 @@ paths:
     get:
       summary: List opportunities
       parameters:
-        - name: status
+        - name: venue_id
           in: query
           schema:
             type: string
-          description: Filter by status
-        - name: owner
-          in: query
-          schema:
-            type: string
-          description: Owner user id
+          description: Filter by venue id
       responses:
         '200':
           description: Array of opportunities
@@ -666,6 +661,22 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Opportunity'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "unauthorized"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
     post:
       summary: Create opportunity
       requestBody:
@@ -675,12 +686,36 @@ paths:
             schema:
               $ref: '#/components/schemas/OpportunityCreate'
       responses:
-        '201':
+        '200':
           description: Created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Opportunity'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid_request"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "unauthorized"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
 
   /api/opportunities/{id}:
     parameters:
@@ -698,7 +733,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Opportunity'
-    put:
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid_request"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "unauthorized"
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "not_found"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
+    patch:
       summary: Update opportunity
       requestBody:
         required: true
@@ -709,11 +776,38 @@ paths:
       responses:
         '200':
           description: Updated
-    delete:
-      summary: Delete opportunity
-      responses:
-        '204':
-          description: Deleted
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid_request"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "unauthorized"
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "not_found"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
 
   /api/threads:
     get:
@@ -1184,22 +1278,22 @@ components:
           type: string
         title:
           type: string
+        description:
+          type: string
+          nullable: true
         status:
           type: string
-          description: Concert joué / Échange d'information / À relancer / Premier contact / Concert planifié / Refusé / Pas de réponse
-        date:
-          type: string
-          format: date
-        cachet:
-          type: string
+          enum:
+            - draft
+            - open
+            - negotiating
+            - booked
+            - cancelled
+            - declined
+            - archived
         venue_id:
           type: string
-        owner_id:
-          type: string
-        created_by:
-          type: string
-        related_thread_id:
-          type: string
+          nullable: true
 
     OpportunityCreate:
       type: object
@@ -1208,36 +1302,34 @@ components:
       properties:
         title:
           type: string
-        status:
+        description:
           type: string
-        date:
-          type: string
-          format: date
-        cachet:
-          type: string
+          nullable: true
         venue_id:
           type: string
-        owner_id:
-          type: string
-        related_thread_id:
-          type: string
+          nullable: true
 
     OpportunityUpdate:
       type: object
       properties:
         title:
           type: string
+        description:
+          type: string
+          nullable: true
         status:
           type: string
-        date:
-          type: string
-          format: date
-        cachet:
-          type: string
+          enum:
+            - draft
+            - open
+            - negotiating
+            - booked
+            - cancelled
+            - declined
+            - archived
         venue_id:
           type: string
-        owner_id:
-          type: string
+          nullable: true
 
     Contact:
       type: object
