@@ -17,6 +17,8 @@ export async function searchAll(db: DbClient, q: string): Promise<{
   const raw = normalizeRequiredText(q);
   if (!raw) throw new Error('invalid_request');
 
+  if (raw.length > 200) throw new Error('invalid_request');
+
   const needle = `%${raw.toLowerCase()}%`;
 
   const contactsSql = `

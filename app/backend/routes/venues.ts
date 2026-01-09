@@ -8,20 +8,10 @@
 // - PATCH /api/venues/:id      { name?, city?, notes? }
 
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { Pool } from 'pg';
+import { getDbPool } from '../lib/db';
 import { verifyJwt } from '../lib/jwt';
 import { getSessionToken } from '../lib/session_token';
 import { createVenue, getVenueById, listVenues, updateVenue } from '../lib/venues';
-
-let pool: Pool | null = null;
-function getPool(): Pool {
-  if (!pool) {
-    const url = process.env.DATABASE_URL;
-    if (!url) throw new Error('missing_database_url');
-    pool = new Pool({ connectionString: url });
-  }
-  return pool;
-}
 
 function requireSession(request: FastifyRequest, reply: FastifyReply): { sub: string; email?: string } | null {
   const token = getSessionToken(request);
@@ -62,7 +52,7 @@ export default async function venuesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -92,7 +82,7 @@ export default async function venuesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -126,7 +116,7 @@ export default async function venuesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -190,7 +180,7 @@ export default async function venuesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }

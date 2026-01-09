@@ -10,8 +10,8 @@
 // - GOOGLE_APP_OAUTH_REDIRECT_URI
 
 import crypto from 'crypto';
-import { Pool } from 'pg';
 import { isEmailAllowed, isEmailAllowedByEnv } from '../lib/allowlist';
+import { getDbPool } from '../lib/db';
 import { signJwt } from '../lib/jwt';
 import { deleteOauthState, getOauthState, persistOauthState } from '../lib/oauth_state_store';
 
@@ -58,17 +58,8 @@ function getEnvSnapshot() {
   };
 }
 
-let pool: Pool | null = null;
-
-function getPool(): Pool {
-  if (!pool) {
-    const { DATABASE_URL } = getEnvSnapshot();
-    if (!DATABASE_URL) {
-      throw new Error('missing_database_url');
-    }
-    pool = new Pool({ connectionString: DATABASE_URL });
-  }
-  return pool;
+function getPool() {
+  return getDbPool();
 }
 
 export class AccessDeniedError extends Error {

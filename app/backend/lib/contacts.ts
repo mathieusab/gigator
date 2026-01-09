@@ -85,6 +85,10 @@ export async function createContact(db: DbClient, input: CreateContactInput): Pr
 export async function listContacts(db: DbClient, input: ListContactsInput = {}): Promise<Contact[]> {
   const q = normalizeOptionalText(input?.q);
 
+  if (q && q.length > 200) {
+    throw new Error('invalid_request');
+  }
+
   if (q) {
     const needle = `%${q.toLowerCase()}%`;
     const sql = `

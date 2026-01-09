@@ -459,6 +459,14 @@ paths:
                 properties:
                   ok:
                     type: boolean
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "not_found"
         '400':
           description: Invalid request
           content:

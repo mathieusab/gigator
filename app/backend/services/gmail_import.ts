@@ -26,21 +26,16 @@
 // - Routes: [`app/backend/routes/auth_google.ts`](app/backend/routes/auth_google.ts:1)
 // - Controller helpers: [`app/backend/controllers/oauth.ts`](app/backend/controllers/oauth.ts:1)
 
-import { Pool } from 'pg';
+import { getDbPool } from '../lib/db';
 
 const {
-  DATABASE_URL,
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET
 } = process.env;
 
-if (!DATABASE_URL) {
-  // For PoC we won't throw at import time; callers will see DB connection errors.
+function getPool() {
+  return getDbPool();
 }
-
-const pool = new Pool({
-  connectionString: DATABASE_URL
-});
 
 type GmailThread = any;
 type GmailMessage = any;
@@ -113,7 +108,7 @@ async function refreshAccessTokenIfNeeded(account: any) {
   const expires_in = json.expires_in;
 
   // Persist updated access token & expiry
-  const client = await pool.connect();
+  const client = await getPool().connect();
   try {
     await client.query(
       `UPDATE gmail_accounts SET access_token = $1, expires_at = (now() + ($2 || ' seconds')::interval), updated_at = now() WHERE id = $3`,
@@ -177,7 +172,7 @@ async function upsertThreadAndMessages(threadResource: GmailThread) {
       .filter(Boolean)
       .sort((a: any, b: any) => (b as any) - (a as any))[0]) || null;
 
-  const client = await pool.connect();
+  const client = await getPool().connect();
   try {
     await client.query('BEGIN');
 
@@ -273,7 +268,7 @@ async function upsertThreadAndMessages(threadResource: GmailThread) {
 export async function importThreadsForAccount(accountId: string, opts?: { maxResults?: number }) {
   const maxResults = opts?.maxResults ?? 50;
 
-  const client = await pool.connect();
+  const client = await getPool().connect();
   try {
     // Load account record
     const accRes = await client.query('SELECT * FROM gmail_accounts WHERE id = $1', [accountId]);

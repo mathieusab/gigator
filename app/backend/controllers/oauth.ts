@@ -20,9 +20,9 @@
 // - This is PoC code. In production: encrypt refresh_token at rest, validate state, protect endpoints with auth,
 //   handle token rotation and revocation webhooks, and restrict scopes to least-privilege (gmail.readonly for imports).
 
-import { Pool } from 'pg';
 import crypto from 'crypto';
 import { deleteOauthState, getOauthState, persistOauthState } from '../lib/oauth_state_store';
+import { getDbPool } from '../lib/db';
 
 class OAuthConfigError extends Error {
   code = 'OAUTH_CONFIG_ERROR' as const;
@@ -50,18 +50,8 @@ function getEnvSnapshot() {
   };
 }
 
-let pool: Pool | null = null;
-
-/**
- * Lazily initialize the DB pool to avoid module-load side effects for routes that don't need DB
- * (e.g. [`POST /api/sync/gmail/start`](app/backend/routes/auth_google.ts:50)).
- */
-function getPool(): Pool {
-  if (!pool) {
-    const { DATABASE_URL } = getEnvSnapshot();
-    pool = new Pool({ connectionString: DATABASE_URL });
-  }
-  return pool;
+function getPool() {
+  return getDbPool();
 }
 
 type GetAuthUrlObjectResult = { oauth_url: string; state: string };

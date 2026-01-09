@@ -8,20 +8,12 @@
 // - PATCH /api/contacts/:id      { name?, email?, phone?, instagram?, notes? }
 
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { Pool } from 'pg';
+import { getDbPool } from '../lib/db';
 import { verifyJwt } from '../lib/jwt';
 import { getSessionToken } from '../lib/session_token';
 import { createContact, getContactById, listContacts, updateContact } from '../lib/contacts';
 
-let pool: Pool | null = null;
-function getPool(): Pool {
-  if (!pool) {
-    const url = process.env.DATABASE_URL;
-    if (!url) throw new Error('missing_database_url');
-    pool = new Pool({ connectionString: url });
-  }
-  return pool;
-}
+const MAX_QUERY_LENGTH = 200;
 
 function requireSession(request: FastifyRequest, reply: FastifyReply): { sub: string; email?: string } | null {
   const token = getSessionToken(request);
@@ -62,10 +54,13 @@ export default async function contactsRoutes(fastify: FastifyInstance) {
 
     const query = (request.query || {}) as any;
     const q = typeof query?.q === 'string' ? query.q : undefined;
+    if (typeof q === 'string' && q.trim().length > MAX_QUERY_LENGTH) {
+      return reply.status(400).send({ error: 'invalid_request' });
+    }
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -103,7 +98,7 @@ export default async function contactsRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -139,7 +134,7 @@ export default async function contactsRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -198,7 +193,7 @@ export default async function contactsRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }

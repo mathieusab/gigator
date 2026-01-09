@@ -8,7 +8,7 @@
 // - GET    /api/venues/:id/contacts
 
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { Pool } from 'pg';
+import { getDbPool } from '../lib/db';
 import { verifyJwt } from '../lib/jwt';
 import { getSessionToken } from '../lib/session_token';
 import {
@@ -18,14 +18,10 @@ import {
   unlinkContactFromVenue
 } from '../lib/contact_venues';
 
-let pool: Pool | null = null;
-function getPool(): Pool {
-  if (!pool) {
-    const url = process.env.DATABASE_URL;
-    if (!url) throw new Error('missing_database_url');
-    pool = new Pool({ connectionString: url });
-  }
-  return pool;
+type PgErrorLike = { code?: string };
+function getPgErrorCode(err: unknown): string | null {
+  if (!err || typeof err !== 'object') return null;
+  return typeof (err as PgErrorLike).code === 'string' ? (err as PgErrorLike).code as string : null;
 }
 
 function requireSession(request: FastifyRequest, reply: FastifyReply): { sub: string; email?: string } | null {
@@ -73,7 +69,7 @@ export default async function contactVenuesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -82,6 +78,8 @@ export default async function contactVenuesRoutes(fastify: FastifyInstance) {
       await linkContactToVenue(client, contactId, venueId);
       return reply.send({ ok: true });
     } catch (e: any) {
+      const code = getPgErrorCode(e);
+      if (code === '23503') return reply.status(404).send({ error: 'not_found' });
       const msg = e instanceof Error ? e.message : String(e);
       if (msg === 'invalid_request') return reply.status(400).send({ error: 'invalid_request' });
       return reply.status(500).send({ error: 'server_error' });
@@ -106,7 +104,7 @@ export default async function contactVenuesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -134,7 +132,7 @@ export default async function contactVenuesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }
@@ -162,7 +160,7 @@ export default async function contactVenuesRoutes(fastify: FastifyInstance) {
 
     let client: any;
     try {
-      client = await getPool().connect();
+      client = await getDbPool().connect();
     } catch {
       return reply.status(500).send({ error: 'server_error' });
     }

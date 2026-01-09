@@ -7,7 +7,7 @@
 // - PATCH /api/admin/members/:id { is_active }
 
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { Pool } from 'pg';
+import { getDbPool } from '../lib/db';
 import { verifyJwt } from '../lib/jwt';
 import { getSessionToken } from '../lib/session_token';
 import { listMembers, setMemberActive, upsertInvite } from '../lib/admin_members';
@@ -27,15 +27,6 @@ function isAdmin(email: string | null | undefined): boolean {
   return getAdminEmailsFromEnv().includes(normalized);
 }
 
-let pool: Pool | null = null;
-function getPool(): Pool {
-  if (!pool) {
-    const url = process.env.DATABASE_URL;
-    if (!url) throw new Error('missing_database_url');
-    pool = new Pool({ connectionString: url });
-  }
-  return pool;
-}
 
 function requireAdmin(request: FastifyRequest, reply: FastifyReply): { email: string } | null {
   const token = getSessionToken(request);
@@ -68,7 +59,7 @@ export default async function adminMembersRoutes(fastify: FastifyInstance) {
   fastify.get('/api/admin/members', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!requireAdmin(request, reply)) return;
 
-    const client = await getPool().connect();
+    const client = await getDbPool().connect();
     try {
       const members = await listMembers(client);
       return reply.send(members);
@@ -86,7 +77,7 @@ export default async function adminMembersRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'invalid_request' });
     }
 
-    const client = await getPool().connect();
+    const client = await getDbPool().connect();
     try {
       const member = await upsertInvite(client, email);
       return reply.send(member);
@@ -116,7 +107,7 @@ export default async function adminMembersRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'invalid_request' });
     }
 
-    const client = await getPool().connect();
+    const client = await getDbPool().connect();
     try {
       const updated = await setMemberActive(client, id, is_active);
       if (!updated) {
