@@ -175,6 +175,19 @@ async function main() {
       assert.equal(body?.name, 'Zeta');
     }
 
+    // GET detail missing => 404
+    {
+      const res = await fastify.inject({
+        method: 'GET',
+        url: '/api/venues/does-not-exist',
+        headers: { authorization: `Bearer ${token}` }
+      });
+
+      assert.equal(res.statusCode, 404, `expected 404, got ${res.statusCode}. body=${res.body}`);
+      const body = JSON.parse(res.body);
+      assert.equal(body?.error, 'not_found');
+    }
+
     // PATCH update
     {
       const res = await fastify.inject({
@@ -188,6 +201,32 @@ async function main() {
       const body = JSON.parse(res.body);
       assert.equal(body?.id, createdId);
       assert.equal(body?.notes, null);
+    }
+
+    // Validation: POST bad notes type => 400
+    {
+      const res = await fastify.inject({
+        method: 'POST',
+        url: '/api/venues',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { name: 'Bad', city: 'Paris', notes: 123 }
+      });
+      assert.equal(res.statusCode, 400, `expected 400, got ${res.statusCode}. body=${res.body}`);
+      const body = JSON.parse(res.body);
+      assert.equal(body?.error, 'invalid_request');
+    }
+
+    // Validation: PATCH empty body => 400
+    {
+      const res = await fastify.inject({
+        method: 'PATCH',
+        url: `/api/venues/${createdId}`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: {}
+      });
+      assert.equal(res.statusCode, 400, `expected 400, got ${res.statusCode}. body=${res.body}`);
+      const body = JSON.parse(res.body);
+      assert.equal(body?.error, 'invalid_request');
     }
 
     await fastify.close();

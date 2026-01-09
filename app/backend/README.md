@@ -17,3 +17,7 @@ Core responsibilities
 How to start (MVP)
 - Initialize a TypeScript Node project
 - Add basic server with a health endpoint and /api/ping
+
+Dev server (local)
+- Entry point: `app/backend/server.ts` (Fastify)
+- Minimal run: `APP_JWT_SECRET=dev DATABASE_URL=postgres://... PORT=3000 npx tsx app/backend/server.ts`

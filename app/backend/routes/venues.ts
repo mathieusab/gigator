@@ -38,7 +38,12 @@ function requireSession(request: FastifyRequest, reply: FastifyReply): { sub: st
 
   try {
     const payload = verifyJwt(token, secret) as any;
-    return { sub: String(payload?.sub || ''), email: payload?.email };
+    const sub = String(payload?.sub || '').trim();
+    if (!sub) {
+      reply.status(401).send({ error: 'unauthorized' });
+      return null;
+    }
+    return { sub, email: payload?.email };
   } catch {
     reply.status(401).send({ error: 'unauthorized' });
     return null;

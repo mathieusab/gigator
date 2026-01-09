@@ -32,6 +32,38 @@ async function main() {
     assert.equal(body?.error, 'unauthorized');
   }
 
+  // Case 2: Invalid token signature => 401
+  {
+    const jwtMod = await importFresh<any>('../../app/backend/lib/jwt.ts');
+    const signJwt: (payload: any, secret: string) => string = jwtMod.signJwt;
+    const badToken = signJwt({ sub: 'profile-123', email: 'user@example.com' }, 'wrong-secret');
+
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/api/venues',
+      headers: { authorization: `Bearer ${badToken}` }
+    });
+    assert.equal(res.statusCode, 401, `expected 401, got ${res.statusCode}. body=${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body?.error, 'unauthorized');
+  }
+
+  // Case 3: Token missing sub => 401
+  {
+    const jwtMod = await importFresh<any>('../../app/backend/lib/jwt.ts');
+    const signJwt: (payload: any, secret: string) => string = jwtMod.signJwt;
+    const tokenMissingSub = signJwt({ email: 'user@example.com' }, 'test-secret');
+
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/api/venues',
+      headers: { authorization: `Bearer ${tokenMissingSub}` }
+    });
+    assert.equal(res.statusCode, 401, `expected 401, got ${res.statusCode}. body=${res.body}`);
+    const body = JSON.parse(res.body);
+    assert.equal(body?.error, 'unauthorized');
+  }
+
   await fastify.close();
   console.log('PASS: venues auth guard integration test passed');
   process.exit(0);

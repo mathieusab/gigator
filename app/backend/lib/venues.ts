@@ -34,7 +34,7 @@ function normalizeOptionalText(value: unknown): string | null {
   if (value === null) return null;
   if (typeof value === 'undefined') return null;
   const s = String(value).trim();
-  return s ? s : '';
+  return s ? s : null;
 }
 
 function validateRequiredField(name: string, value: string) {

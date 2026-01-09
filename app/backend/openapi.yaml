@@ -28,6 +28,14 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "unauthorized"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
     post:
       summary: Create venue
       requestBody:
@@ -70,6 +78,14 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "unauthorized"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
 
   /api/venues/{id}:
     parameters:
@@ -111,6 +127,14 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "not_found"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
     patch:
       summary: Update venue
       requestBody:
@@ -158,6 +182,14 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: "not_found"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "server_error"
 
   /api/opportunities:
     get:

@@ -10,6 +10,12 @@ _bmad/
 _bmad-inputs/
 _bmad-output/
 
+# Keep implementation artifacts (stories + sprint status) versioned
+!_bmad-output/implementation-artifacts/
+_bmad-output/implementation-artifacts/**
+!_bmad-output/implementation-artifacts/*.md
+!_bmad-output/implementation-artifacts/sprint-status.yaml
+
 # env
 .env
 .env.*
