@@ -1,0 +1,160 @@
+// app/backend/lib/oauth_state_store.ts
+// Lightweight OAuth state store with Redis (preferred) and in-memory fallback.
+// Exports:
+// - persistOauthState(state: string, meta: any, ttlSeconds?: number): Promise<void>
+// - getOauthState(state: string): Promise<any | null>
+// - deleteOauthState(state: string): Promise<void>
+// - isUsingRedis(): boolean
+//
+// Behavior:
+// - If REDIS_URL is set, attempts to connect to Redis (node-redis v4 client).
+// - If Redis not available or REDIS_URL not set, falls back to an in-memory Map (not for production).
+// - Default TTL: 600 seconds (10 minutes) configurable via OAUTH_STATE_TTL env var.
+//
+// Usage example:
+//   await persistOauthState(state, { profileId: '123' });
+//   const meta = await getOauthState(state);
+//   await deleteOauthState(state);
+
+// app/backend/lib/oauth_state_store.ts
+// Note: repo already has Node typings (see [`tsconfig.json`](tsconfig.json:8)).
+import type { RedisClientType } from 'redis';
+
+const REDIS_URL = process.env.REDIS_URL ?? '';
+const DEFAULT_TTL = Number(process.env.OAUTH_STATE_TTL ?? '600'); // seconds
+
+let redisClient: RedisClientType | null = null;
+let usingRedis = false;
+
+// In-memory fallback store: Map<state, { meta: any, expiresAt: number }>
+const memStore = new Map<string, { meta: any; expiresAt: number }>();
+
+async function initRedis() {
+  if (!REDIS_URL) return;
+  try {
+    // Dynamic import keeps startup lightweight; in tests we often force mem-store via REDIS_URL="".
+    const { createClient } = await import('redis');
+    redisClient = createClient({ url: REDIS_URL });
+    await redisClient.connect();
+    usingRedis = true;
+  } catch (err) {
+    // Fallback to in-memory store
+    // eslint-disable-next-line no-console
+    console.warn(
+      'oauth_state_store: Redis unavailable, using in-memory store (not for production):',
+      err instanceof Error ? err.message : String(err)
+    );
+    redisClient = null;
+    usingRedis = false;
+  }
+}
+
+// Ensure redis is initialized lazily
+let initPromise: Promise<void> | null = null;
+function ensureInit(): Promise<void> {
+  if (!initPromise) {
+    initPromise = initRedis();
+  }
+  return initPromise;
+}
+
+/**
+ * Persist an oauth state with optional TTL.
+ * @param state - opaque random string
+ * @param meta - metadata object (e.g., { profileId, createdAt })
+ * @param ttlSeconds - seconds to live (defaults to DEFAULT_TTL)
+ */
+export async function persistOauthState(state: string, meta: any, ttlSeconds?: number): Promise<void> {
+  const ttl = typeof ttlSeconds === 'number' ? ttlSeconds : DEFAULT_TTL;
+  await ensureInit();
+
+  if (usingRedis && redisClient) {
+    try {
+      await redisClient.setEx(`oauth:state:${state}`, ttl, JSON.stringify(meta || {}));
+      return;
+    } catch (err) {
+      // fallback to memStore if Redis set fails
+      // eslint-disable-next-line no-console
+      console.warn(
+        'oauth_state_store: Redis setEx failed, falling back to memory store:',
+        err instanceof Error ? err.message : String(err)
+      );
+    }
+  }
+
+  const expiresAt = Date.now() + ttl * 1000;
+  memStore.set(state, { meta: meta || {}, expiresAt });
+}
+
+/**
+ * Retrieve persisted oauth state metadata. Returns null if not found or expired.
+ * @param state
+ */
+export async function getOauthState(state: string): Promise<any | null> {
+  await ensureInit();
+
+  if (usingRedis && redisClient) {
+    try {
+      const v = await redisClient.get(`oauth:state:${state}`);
+      if (!v) return null;
+      try {
+        return JSON.parse(v);
+      } catch {
+        return v;
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        'oauth_state_store: Redis get failed, falling back to memory store:',
+        err instanceof Error ? err.message : String(err)
+      );
+    }
+  }
+
+  const r = memStore.get(state);
+  if (!r) return null;
+  if (Date.now() > r.expiresAt) {
+    memStore.delete(state);
+    return null;
+  }
+  return r.meta;
+}
+
+/**
+ * Delete an oauth state (used after validation).
+ * @param state
+ */
+export async function deleteOauthState(state: string): Promise<void> {
+  await ensureInit();
+
+  if (usingRedis && redisClient) {
+    try {
+      await redisClient.del(`oauth:state:${state}`);
+      return;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        'oauth_state_store: Redis del failed, falling back to memory store:',
+        err instanceof Error ? err.message : String(err)
+      );
+    }
+  }
+
+  memStore.delete(state);
+}
+
+/** Returns true if Redis is being used as the backing store. */
+export function isUsingRedis(): boolean {
+  return usingRedis;
+}
+
+// Optional: graceful shutdown helper
+export async function shutdownOauthStateStore(): Promise<void> {
+  if (redisClient && usingRedis) {
+    try {
+      await redisClient.disconnect();
+    } catch {
+      // ignore
+    }
+  }
+}

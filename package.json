@@ -5,9 +5,21 @@
     "dev": "npm --prefix app run dev -- --host",
     "build": "npm --prefix app run build",
     "preview": "npm --prefix app run preview",
-    "lint": "npm --prefix app run lint"
+    "typecheck": "npx tsc -p tsconfig.json --noEmit --pretty false",
+    "lint": "npm run typecheck",
+    "test": "node tests/sample.test.js && npx tsx tests/unit/oauth.builder.test.ts && npx tsx tests/integration/oauth_start.test.ts && npx tsx tests/integration/oauth_callback_state.test.ts",
+    "test:ci": "node tests/sample.test.js && npx tsx tests/unit/oauth.builder.test.ts && npx tsx tests/integration/oauth_start.test.ts && npx tsx tests/integration/oauth_callback_state.test.ts"
   },
   "devDependencies": {
-    "@openai/codex": "^0.79.0"
+    "@openai/codex": "^0.79.0",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.16.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "fastify": "^5.6.2",
+    "pg": "^8.16.3",
+    "redis": "^5.10.0"
   }
 }

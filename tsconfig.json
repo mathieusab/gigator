@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["app/backend/**/*.ts"],
+  "exclude": ["node_modules", "app/**/node_modules", "app/backend/shims.d.ts", "tests/**"]
+}

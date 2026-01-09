@@ -1,0 +1,140 @@
+name: CI - unit & integration tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  unit:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:ci
+
+      - name: Upload test logs on failure
+        if: failure()
+        run: |
+          echo "Unit tests failed. Showing last 200 lines of npm output (if any)."
+
+  integration:
+    name: Run integration tests (Postgres + Redis + backend)
+    runs-on: ubuntu-latest
+    needs: unit
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/testdb
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PORT: 3000
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for Postgres to be ready
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U postgres && break
+            echo "Waiting for postgres..."
+            sleep 2
+          done
+        # Install libpq tools to use pg_isready/psql
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        shell: bash
+
+      - name: Install postgresql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+        shell: bash
+
+      - name: Apply DB schema
+        run: |
+          psql "postgresql://postgres:postgres@localhost:5432/testdb" -f db/schema.sql
+        shell: bash
+
+      - name: Start backend (dev) in background
+        run: |
+          # start app backend (assumes app dev script listens on $PORT)
+          npm --prefix app run dev -- --host &
+          # wait for backend to become healthy
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/health || curl -fsS http://localhost:3000/; then
+              echo "Backend is up"
+              break
+            fi
+            echo "Waiting for backend..."
+            sleep 2
+          done
+        shell: bash
+
+      - name: "Run integration test: gmail_start"
+        run: node tests/integration/gmail_start.test.js
+        env:
+          BASE: http://localhost:3000
+
+      - name: "Run integration test: threads pagination"
+        run: node tests/integration/threads_pagination.test.js
+        env:
+          BASE: http://localhost:3000
+
+      - name: "Run integration test: dedupe / lock"
+        run: node tests/integration/dedupe_lock.test.js
+        env:
+          BASE: http://localhost:3000
+
+      - name: Upload integration logs on failure
+        if: failure()
+        run: |
+          echo "Integration tests failed. Dumping last 200 lines of system logs (if any)."

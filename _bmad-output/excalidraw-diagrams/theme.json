@@ -1,0 +1,19 @@
+{
+  "name": "gigator-monochrome",
+  "version": 1,
+  "colors": {
+    "background": "#FFFFFF",
+    "surface": "#F5F5F5",
+    "stroke": "#000000",
+    "text": "#000000",
+    "mutedText": "#4D4D4D",
+    "accent": "#000000",
+    "danger": "#000000",
+    "success": "#000000",
+    "warning": "#000000"
+  },
+  "notes": {
+    "intent": "Minimal utilitarian / monochrome. Borders and primary CTAs in black on white.",
+    "source": "Mathieu input (Fond #FFFFFF, Texte #000000, Bordure #000000)"
+  }
+}

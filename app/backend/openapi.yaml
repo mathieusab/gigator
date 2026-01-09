@@ -1,0 +1,379 @@
+openapi: 3.0.1
+info:
+  title: Gigator API
+  version: 0.1.0
+  description: Minimal OpenAPI skeleton for core Gigator backend endpoints (opportunities, threads, compose, auth, AI).
+servers:
+  - url: http://localhost:3000
+    description: Local dev
+
+paths:
+  /api/opportunities:
+    get:
+      summary: List opportunities
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: Filter by status
+        - name: owner
+          in: query
+          schema:
+            type: string
+          description: Owner user id
+      responses:
+        '200':
+          description: Array of opportunities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Opportunity'
+    post:
+      summary: Create opportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpportunityCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Opportunity'
+
+  /api/opportunities/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get opportunity by id
+      responses:
+        '200':
+          description: Opportunity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Opportunity'
+    put:
+      summary: Update opportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpportunityUpdate'
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete opportunity
+      responses:
+        '204':
+          description: Deleted
+
+  /api/threads:
+    get:
+      summary: List threads (synced from Gmail)
+      responses:
+        '200':
+          description: Array of threads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Thread'
+    post:
+      summary: Import thread (Webhook / manual import)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ThreadCreate'
+      responses:
+        '201':
+          description: Imported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thread'
+
+  /api/compose:
+    post:
+      summary: Create a draft / request AI suggestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComposeRequest'
+      responses:
+        '202':
+          description: Draft accepted for processing (AI suggestion queued)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComposeResponse'
+
+  /api/sync/gmail/start:
+    post:
+      summary: Start Gmail sync (initiate OAuth / watch)
+      requestBody:
+        required: false
+      responses:
+        '200':
+          description: OAuth URL returned
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - oauth_url
+                properties:
+                  oauth_url:
+                    type: string
+              example:
+                oauth_url: "https://accounts.google.com/o/oauth2/v2/auth?client_id=YOUR_CLIENT_ID&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fapi%2Fsync%2Fgmail%2Fcallback&response_type=code&scope=openid%20email%20profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly&state=RANDOM_STATE"
+        '400':
+          description: Bad request (missing/invalid config or invalid params)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "oauth_config_error"
+                message: "OAuth configuration missing or incomplete (requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI)"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "failed_to_start_oauth"
+                message: "Unexpected error while building OAuth URL"
+
+  /api/ai/suggest:
+    post:
+      summary: Request AI suggestion for given draft/context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AISuggestionRequest'
+      responses:
+        '200':
+          description: Suggestion returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AISuggestion'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      description: Generic error response payload.
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Stable error identifier.
+        message:
+          type: string
+          description: Human-readable error message (safe to expose).
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        google_id:
+          type: string
+        role:
+          type: string
+
+    Thread:
+      type: object
+      properties:
+        id:
+          type: string
+        gmail_thread_id:
+          type: string
+        subject:
+          type: string
+        last_message_at:
+          type: string
+          format: date-time
+        raw_payload:
+          type: object
+
+    ThreadCreate:
+      type: object
+      properties:
+        gmail_thread_id:
+          type: string
+        subject:
+          type: string
+        raw_payload:
+          type: object
+
+    Opportunity:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          description: Concert joué / Échange d'information / À relancer / Premier contact / Concert planifié / Refusé / Pas de réponse
+        date:
+          type: string
+          format: date
+        cachet:
+          type: string
+        venue_id:
+          type: string
+        owner_id:
+          type: string
+        created_by:
+          type: string
+        related_thread_id:
+          type: string
+
+    OpportunityCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        status:
+          type: string
+        date:
+          type: string
+          format: date
+        cachet:
+          type: string
+        venue_id:
+          type: string
+        owner_id:
+          type: string
+        related_thread_id:
+          type: string
+
+    OpportunityUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        status:
+          type: string
+        date:
+          type: string
+          format: date
+        cachet:
+          type: string
+        venue_id:
+          type: string
+        owner_id:
+          type: string
+
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        preferred_contact_method:
+          type: string
+
+    Venue:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        geo:
+          type: object
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+        capacity:
+          type: integer
+
+    ComposeRequest:
+      type: object
+      properties:
+        opportunity_id:
+          type: string
+        to:
+          type: array
+          items:
+            type: string
+        subject:
+          type: string
+        body:
+          type: string
+        request_ai:
+          type: boolean
+          description: If true, queue AI suggestion
+
+    ComposeResponse:
+      type: object
+      properties:
+        draft_id:
+          type: string
+        status:
+          type: string
+
+    AISuggestionRequest:
+      type: object
+      properties:
+        draft_id:
+          type: string
+        context:
+          type: string
+
+    AISuggestion:
+      type: object
+      properties:
+        suggestion:
+          type: string
+        metadata:
+          type: object
+
+security:
+  - bearerAuth: []
