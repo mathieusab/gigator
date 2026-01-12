@@ -1,4 +1,4 @@
-# PRD — Barely Blue · Booking Manager
+# PRD — Barely Blue · Gigator
 
 ## 1) Résumé
 Barely Blue joue des concerts dans plusieurs salles. L’objectif est de construire une application interne (web) pour centraliser le suivi des dates (passées / à venir), des échanges email avec les salles et de la localisation des concerts sur carte.
@@ -52,12 +52,9 @@ Décisions (confirmées) :
 
 ## 6) Hors périmètre (pour éviter de dériver)
 - Paiements / facturation
-- Gestion avancée de tournée (itineraries, optimisation de route)
-- CRM complet des salles (pipeline multi-étapes très détaillé)
-- Synchronisation bidirectionnelle avec Google Calendar (sauf si tu le demandes explicitement)
 
 ## 7) Parcours utilisateur (UX)
-> Note: l’UX doit rester simple et proche du style Validator (Tailwind + tokens via CSS variables). Pas d’ajout de features “nice-to-have” non demandées.
+> Note: l’UX doit rester simple et proche du style Validator (Tailwind + tokens via CSS variables). Pas d’ajout de features “nice-to-have” non demandées. Validator et Gigator sont deux applications de la même suite d'application. Le thème doit être le même que Validator. 
 
 ### 7.1 Connexion
 - Bouton “Sign in with Google”.
