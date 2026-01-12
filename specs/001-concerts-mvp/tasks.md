@@ -8,22 +8,22 @@ description: "Generated tasks for Concerts MVP"
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Create frontend scaffold (Vite React + TypeScript) with `frontend/package.json` and `frontend/vite.config.ts`
-- [ ] T002 Create backend scaffold (Node.js + Express) with `backend/package.json` and `backend/src/index.ts`
-- [ ] T003 [P] Configure repo tooling: add `.eslintrc.js`, `.prettierrc`, and `pnpm-workspace.yaml`
+- [X] T001 Create frontend scaffold (Vite React + TypeScript) with `frontend/package.json` and `frontend/vite.config.ts`
+- [X] T002 Create backend scaffold (Node.js + Express) with `backend/package.json` and `backend/src/index.ts`
+- [X] T003 [P] Configure repo tooling: add `.eslintrc.js`, `.prettierrc`, and `pnpm-workspace.yaml`
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T004 Create database schema SQL at `specs/001-concerts-mvp/sql/init.sql` (tables: `app_users`, `concerts`)
-- [ ] T005 [P] Add `specs/001-concerts-mvp/sql/seed_app_users.sql` to seed example `app_users` for acceptance tests
-- [ ] T006 [P] Add RLS policy SQL at `specs/001-concerts-mvp/sql/rls.sql` implementing `is_active` and `auth.uid()` checks
-- [ ] T007 [P] Implement Gmail proxy skeleton in `backend/src/proxy/gmail.ts` and router `backend/src/routes/gmail.ts`
-- [ ] T008 Create backend environment example at `backend/.env.example` documenting `GMAIL_PROXY_CLIENT_ID` and `GMAIL_PROXY_CLIENT_SECRET`
-- [ ] T009 Configure frontend Supabase client at `frontend/src/lib/supabaseClient.ts` (uses `VITE_SUPABASE_URL` & `VITE_SUPABASE_ANON_KEY`)
+- [X] T004 Create database schema SQL at `specs/001-concerts-mvp/sql/init.sql` (tables: `app_users`, `concerts`)
+- [X] T005 [P] Add `specs/001-concerts-mvp/sql/seed_app_users.sql` to seed example `app_users` for acceptance tests
+- [X] T006 [P] Add RLS policy SQL at `specs/001-concerts-mvp/sql/rls.sql` implementing `is_active` and `auth.uid()` checks
+- [X] T007 [P] Implement Gmail proxy skeleton in `backend/src/proxy/gmail.ts` and router `backend/src/routes/gmail.ts`
+- [X] T008 Create backend environment example at `backend/.env.example` documenting `GMAIL_PROXY_CLIENT_ID` and `GMAIL_PROXY_CLIENT_SECRET`
+- [X] T009 Configure frontend Supabase client at `frontend/src/lib/supabaseClient.ts` (uses `VITE_SUPABASE_URL` & `VITE_SUPABASE_ANON_KEY`)
 
-- [ ] T035 [P] Add RLS integration tests: `specs/001-concerts-mvp/tests/rls/test_concerts_rls.spec.ts` (validate select/insert/update/delete under simulated `auth.uid()` contexts)
+- [X] T035 [P] Add RLS integration tests: `specs/001-concerts-mvp/tests/rls/test_concerts_rls.spec.ts` (validate select/insert/update/delete under simulated `auth.uid()` contexts)
 
 ---
 
@@ -33,12 +33,12 @@ description: "Generated tasks for Concerts MVP"
 
 **Independent Test**: Sign in with an active `app_users` account — lands on concerts list; sign in with inactive/nonexistent account — see access-denied.
 
-- [ ] T010 [P] [US1] Create `frontend/src/pages/Login.tsx` with sign-in entrypoint
-- [ ] T011 [US1] Implement `frontend/src/components/GoogleSignInButton.tsx` that triggers Supabase OAuth
-- [ ] T012 [US1] Implement `frontend/src/lib/supabaseAuth.ts` helper (session handling, redirect)
-- [ ] T013 [P] [US1] Add `specs/001-concerts-mvp/sql/seed_app_users.sql` entry for CI/manual acceptance (ensure `is_active=true` sample)
-- [ ] T014 [US1] Add integration test `frontend/tests/integration/test_auth.spec.ts` verifying sign-in happy/sad paths
-- [ ] T015 [US1] Create `frontend/src/pages/AccessDenied.tsx` and wire redirect for unauthorized users
+- [X] T010 [P] [US1] Create `frontend/src/pages/Login.tsx` with sign-in entrypoint
+- [X] T011 [US1] Implement `frontend/src/components/GoogleSignInButton.tsx` that triggers Supabase OAuth
+- [X] T012 [US1] Implement `frontend/src/lib/supabaseAuth.ts` helper (session handling, redirect)
+- [X] T013 [P] [US1] Add `specs/001-concerts-mvp/sql/seed_app_users.sql` entry for CI/manual acceptance (ensure `is_active=true` sample)
+- [X] T014 [US1] Add integration test `frontend/tests/integration/test_auth.spec.ts` verifying sign-in happy/sad paths
+- [X] T015 [US1] Create `frontend/src/pages/AccessDenied.tsx` and wire redirect for unauthorized users
 
 ---
 
