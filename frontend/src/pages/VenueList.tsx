@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useAuth } from '../lib/useAuth';
+import { listConcerts, type Concert } from '../services/concerts';
 import { autocompletePlaces, geocodePlace, type PlaceSuggestion } from '../services/mapsProxy';
 import { createVenue, deleteVenue, listVenues, type Venue } from '../services/venues';
 
@@ -12,10 +13,61 @@ function venueLocation(v: Venue): string {
   return [v.city, v.region, v.country].filter(Boolean).join(', ');
 }
 
+type LastPlayedByVenueId = Record<string, string | null | undefined>;
+
+function parseIsoToMs(iso: string | null | undefined): number {
+  if (!iso) return Number.NaN;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : Number.NaN;
+}
+
+function computeLastPlayedByVenueId(concerts: Concert[]): LastPlayedByVenueId {
+  const map: LastPlayedByVenueId = {};
+  for (const c of concerts) {
+    if (!c.venue_id) continue;
+    if (c.status !== 'completed') continue;
+    const ms = parseIsoToMs(c.date_start);
+    if (!Number.isFinite(ms)) continue;
+
+    const existingMs = parseIsoToMs(map[c.venue_id] ?? null);
+    if (!Number.isFinite(existingMs) || ms > existingMs) {
+      map[c.venue_id] = c.date_start;
+    }
+  }
+  return map;
+}
+
+function hasPlayedComputed(v: Venue, lastPlayed: LastPlayedByVenueId): boolean {
+  return Boolean(v.has_played) || Boolean(lastPlayed[v.id]);
+}
+
+function compareVenuesForSalles(a: Venue, b: Venue, lastPlayed: LastPlayedByVenueId): number {
+  const aPlayed = hasPlayedComputed(a, lastPlayed);
+  const bPlayed = hasPlayedComputed(b, lastPlayed);
+
+  // Unplayed first, then played.
+  if (aPlayed !== bPlayed) return aPlayed ? 1 : -1;
+
+  // For played venues, most recent played date first.
+  if (aPlayed && bPlayed) {
+    const aMs = parseIsoToMs(lastPlayed[a.id] ?? null);
+    const bMs = parseIsoToMs(lastPlayed[b.id] ?? null);
+    const aHas = Number.isFinite(aMs);
+    const bHas = Number.isFinite(bMs);
+
+    if (aHas && bHas && aMs !== bMs) return bMs - aMs;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+  }
+
+  // Fallback stable ordering.
+  return String(a.name ?? '').localeCompare(String(b.name ?? ''), 'fr', { sensitivity: 'base' });
+}
+
 export default function VenueList() {
   const navigate = useNavigate();
   const { session } = useAuth();
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [lastPlayedByVenueId, setLastPlayedByVenueId] = useState<LastPlayedByVenueId>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,9 +105,14 @@ export default function VenueList() {
       setError(null);
       setIsLoading(true);
       try {
-        const items = await listVenues();
+        const [venueItems, concertItems] = await Promise.all([
+          listVenues(),
+          // Non-blocking: if this fails (RLS/connection), we still render venues.
+          listConcerts().catch(() => [] as Concert[]),
+        ]);
         if (!isMounted) return;
-        setVenues(items);
+        setVenues(venueItems);
+        setLastPlayedByVenueId(computeLastPlayedByVenueId(concertItems));
       } catch (e) {
         if (!isMounted) return;
         setError(e instanceof Error ? e.message : 'Failed to load venues');
@@ -121,9 +178,10 @@ export default function VenueList() {
 
   const filtered = useMemo(() => {
     const q = locationFilter.trim().toLowerCase();
-    return venues.filter((v) => {
-      if (playedFilter === 'played' && !v.has_played) return false;
-      if (playedFilter === 'not_played' && v.has_played) return false;
+    const items = venues.filter((v) => {
+      const played = hasPlayedComputed(v, lastPlayedByVenueId);
+      if (playedFilter === 'played' && !played) return false;
+      if (playedFilter === 'not_played' && played) return false;
 
       if (!q) return true;
       const haystack = [v.name, v.city, v.region, v.country, v.address]
@@ -132,7 +190,10 @@ export default function VenueList() {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [venues, locationFilter, playedFilter]);
+
+    items.sort((a, b) => compareVenuesForSalles(a, b, lastPlayedByVenueId));
+    return items;
+  }, [venues, locationFilter, playedFilter, lastPlayedByVenueId]);
 
   async function handleConfirmDelete() {
     if (!pendingDeleteVenue) return;
@@ -230,9 +291,7 @@ export default function VenueList() {
         lng,
       });
       setVenues((prev) => {
-        const next = [created, ...prev.filter((v) => v.id !== created.id)];
-        next.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')));
-        return next;
+        return [created, ...prev.filter((v) => v.id !== created.id)];
       });
       setNewName('');
       setSelectedPlaceId(null);
@@ -488,8 +547,13 @@ export default function VenueList() {
                           <div style={{ fontWeight: 700 }}>{v.name}</div>
                           <div style={{ color: '#4b5563' }}>{venueLocation(v)}</div>
                         </div>
-                        <div style={{ color: v.has_played ? '#065f46' : '#6b7280', fontSize: 13 }}>
-                          {v.has_played ? 'Déjà joué' : 'Jamais joué'}
+                        <div
+                          style={{
+                            color: hasPlayedComputed(v, lastPlayedByVenueId) ? '#065f46' : '#6b7280',
+                            fontSize: 13,
+                          }}
+                        >
+                          {hasPlayedComputed(v, lastPlayedByVenueId) ? 'Déjà joué' : 'Jamais joué'}
                         </div>
                       </div>
                     </button>

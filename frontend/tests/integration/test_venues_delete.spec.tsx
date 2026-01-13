@@ -124,6 +124,24 @@ vi.mock('../../src/services/mapsProxy', () => {
   };
 });
 
+vi.mock('../../src/services/concerts', () => {
+  return {
+    listConcerts: vi.fn(async () => []),
+    getConcert: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    createConcert: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    updateConcert: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    deleteConcert: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+  };
+});
+
 import App from '../../src/App';
 
 test('Salles: supprimer une salle depuis la liste', async () => {
@@ -171,4 +189,96 @@ test('Salles: affiche une erreur claire si la suppression est impossible', async
   const alert = await screen.findByRole('alert');
   expect(alert).toHaveTextContent('Suppression de "Le Bikini" impossible');
   expect(alert).toHaveTextContent(/liée à d’autres données/i);
+});
+
+test('Salles: tri par date (jamais joué puis joué, plus récent en premier)', async () => {
+  // Override venues + concerts for this test.
+  store.venues = [
+    {
+      ...initialVenues[0],
+      id: 'v-unplayed',
+      name: 'AAA Unplayed',
+      has_played: false,
+    },
+    {
+      ...initialVenues[0],
+      id: 'v-played-old',
+      name: 'Played Old',
+      has_played: true,
+    },
+    {
+      ...initialVenues[0],
+      id: 'v-played-new',
+      name: 'Played New',
+      has_played: true,
+    },
+  ];
+
+  const concerts = await import('../../src/services/concerts');
+  vi.mocked(concerts.listConcerts).mockResolvedValueOnce([
+    {
+      id: 'c-1',
+      date_start: '2024-01-10T20:00:00.000Z',
+      date_end: null,
+      status: 'completed',
+      title: 'Old show',
+      venue_id: 'v-played-old',
+      contact_id: null,
+      venue_name: 'Played Old',
+      city: null,
+      country: null,
+      address: null,
+      lat: null,
+      lng: null,
+      venue_contact_name: null,
+      venue_contact_email: null,
+      notes: null,
+      created_by: 'user-1',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 'c-2',
+      date_start: '2025-06-10T20:00:00.000Z',
+      date_end: null,
+      status: 'completed',
+      title: 'New show',
+      venue_id: 'v-played-new',
+      contact_id: null,
+      venue_name: 'Played New',
+      city: null,
+      country: null,
+      address: null,
+      lat: null,
+      lng: null,
+      venue_contact_name: null,
+      venue_contact_email: null,
+      notes: null,
+      created_by: 'user-1',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ]);
+
+  render(
+    <MemoryRouter initialEntries={['/venues']}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText('Salles')).toBeInTheDocument();
+
+  const items = await screen.findAllByRole('listitem');
+  const names = items.map((li) => {
+    // Each list item contains the venue name as visible text.
+    const a = within(li).queryByText('AAA Unplayed');
+    if (a) return 'AAA Unplayed';
+    const b = within(li).queryByText('Played New');
+    if (b) return 'Played New';
+    const c = within(li).queryByText('Played Old');
+    if (c) return 'Played Old';
+    return 'UNKNOWN';
+  });
+
+  expect(names).toEqual(['AAA Unplayed', 'Played New', 'Played Old']);
 });
