@@ -37,6 +37,23 @@ create table if not exists concerts (
 
 create index if not exists concerts_date_start_idx on concerts(date_start);
 
+-- Financial items (incomes & expenses) linked to concerts.
+-- Amounts are stored in cents to avoid floating point issues.
+create table if not exists concert_financial_items (
+  id uuid primary key default gen_random_uuid(),
+  concert_id uuid not null references concerts(id) on delete cascade,
+  kind text not null check (kind in ('income', 'expense')),
+  label text not null,
+  amount_cents integer not null check (amount_cents >= 0),
+  effective_at timestamptz,
+  created_by uuid not null references app_users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists concert_financial_items_concert_id_idx on concert_financial_items(concert_id);
+create index if not exists concert_financial_items_effective_at_idx on concert_financial_items(effective_at);
+
 -- If the table already existed from a previous iteration, ensure key columns exist.
 -- (CREATE TABLE IF NOT EXISTS does not add new columns.)
 alter table concerts add column if not exists date_end timestamptz;

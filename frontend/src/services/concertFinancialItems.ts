@@ -1,0 +1,110 @@
+import { supabase } from '../lib/supabaseClient';
+
+export type ConcertFinancialItemKind = 'income' | 'expense';
+
+export type ConcertFinancialItem = {
+  id: string;
+  concert_id: string;
+  kind: ConcertFinancialItemKind;
+  label: string;
+  amount_cents: number;
+  effective_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ConcertFinancialItemUpsertInput = {
+  kind: ConcertFinancialItemKind;
+  label: string;
+  amount_cents: number;
+  effective_at?: string | null;
+};
+
+async function requireUserId(): Promise<string> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw new Error(error.message);
+  const userId = data.user?.id;
+  if (!userId) throw new Error('Not authenticated');
+  return userId;
+}
+
+function unwrap<T>(result: { data: T | null; error: { message: string } | null }): T {
+  if (result.error) throw new Error(result.error.message);
+  if (result.data === null) throw new Error('Unexpected empty response');
+  return result.data;
+}
+
+export async function listConcertFinancialItems(): Promise<ConcertFinancialItem[]> {
+  const res = await supabase
+    .from('concert_financial_items')
+    .select('*')
+    .order('effective_at', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true });
+  return unwrap<ConcertFinancialItem[]>(res);
+}
+
+export async function listConcertFinancialItemsForConcert(
+  concertId: string,
+): Promise<ConcertFinancialItem[]> {
+  const res = await supabase
+    .from('concert_financial_items')
+    .select('*')
+    .eq('concert_id', concertId)
+    .order('effective_at', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true });
+  return unwrap<ConcertFinancialItem[]>(res);
+}
+
+export async function createConcertFinancialItem(
+  concertId: string,
+  input: ConcertFinancialItemUpsertInput,
+): Promise<ConcertFinancialItem> {
+  const userId = await requireUserId();
+
+  const payload: Record<string, unknown> = {
+    concert_id: concertId,
+    kind: input.kind,
+    label: input.label.trim(),
+    amount_cents: input.amount_cents,
+    effective_at: 'effective_at' in input ? input.effective_at ?? null : null,
+    created_by: userId,
+    updated_at: new Date().toISOString(),
+  };
+
+  const res = await supabase
+    .from('concert_financial_items')
+    .insert(payload)
+    .select('*')
+    .single();
+  return unwrap<ConcertFinancialItem>(res);
+}
+
+export async function updateConcertFinancialItem(
+  id: string,
+  input: ConcertFinancialItemUpsertInput,
+): Promise<ConcertFinancialItem> {
+  const payload: Record<string, unknown> = {
+    kind: input.kind,
+    label: input.label.trim(),
+    amount_cents: input.amount_cents,
+    updated_at: new Date().toISOString(),
+  };
+
+  if ('effective_at' in input) {
+    payload.effective_at = input.effective_at ?? null;
+  }
+
+  const res = await supabase
+    .from('concert_financial_items')
+    .update(payload)
+    .eq('id', id)
+    .select('*')
+    .single();
+  return unwrap<ConcertFinancialItem>(res);
+}
+
+export async function deleteConcertFinancialItem(id: string): Promise<void> {
+  const res = await supabase.from('concert_financial_items').delete().eq('id', id);
+  if (res.error) throw new Error(res.error.message);
+}

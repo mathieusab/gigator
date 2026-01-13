@@ -87,6 +87,22 @@ vi.mock('../../src/services/concerts', () => {
   };
 });
 
+vi.mock('../../src/services/concertFinancialItems', () => {
+  return {
+    listConcertFinancialItems: vi.fn(async () => []),
+    listConcertFinancialItemsForConcert: vi.fn(async () => []),
+    createConcertFinancialItem: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    updateConcertFinancialItem: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    deleteConcertFinancialItem: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+  };
+});
+
 import App from '../../src/App';
 
 test('US3: calendar navigation and event click opens concert detail', async () => {

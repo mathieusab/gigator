@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { listConcerts, type Concert } from '../services/concerts';
+import { listConcertFinancialItems, type ConcertFinancialItem } from '../services/concertFinancialItems';
 
 function monthKeyUTC(date: Date): string {
   const y = date.getUTCFullYear();
@@ -22,6 +23,13 @@ type MonthBucket = {
   start: Date;
   end: Date;
   count: number;
+};
+
+type MonthNetBucket = {
+  key: string; // YYYY-MM (UTC)
+  start: Date;
+  end: Date;
+  netCents: number;
 };
 
 function buildPastConcertsBuckets(concerts: Concert[], now: Date, months = 24): MonthBucket[] {
@@ -50,6 +58,49 @@ function buildPastConcertsBuckets(concerts: Concert[], now: Date, months = 24): 
   }
 
   return buckets;
+}
+
+function buildNetGainsBuckets(
+  concerts: Concert[],
+  items: ConcertFinancialItem[],
+  now: Date,
+  months = 24,
+): MonthNetBucket[] {
+  const endMonthStart = getUtcMonthStart(now);
+  const startMonthStart = addMonthsUTC(endMonthStart, -(months - 1));
+
+  const buckets: MonthNetBucket[] = [];
+  for (let i = 0; i < months; i++) {
+    const start = addMonthsUTC(startMonthStart, i);
+    const end = addMonthsUTC(startMonthStart, i + 1);
+    buckets.push({ key: monthKeyUTC(start), start, end, netCents: 0 });
+  }
+
+  const bucketByKey = new Map(buckets.map((b) => [b.key, b]));
+  const concertById = new Map(concerts.map((c) => [c.id, c]));
+
+  for (const item of items) {
+    const concert = concertById.get(item.concert_id);
+
+    const dateIso = item.effective_at ?? concert?.date_start ?? null;
+    if (!dateIso) continue;
+    const d = new Date(dateIso);
+    if (!Number.isFinite(d.getTime())) continue;
+    if (d.getTime() >= now.getTime()) continue;
+
+    const key = monthKeyUTC(d);
+    const bucket = bucketByKey.get(key);
+    if (!bucket) continue;
+
+    const delta = item.kind === 'income' ? item.amount_cents : -item.amount_cents;
+    bucket.netCents += delta;
+  }
+
+  return buckets;
+}
+
+function formatCentsEUR(cents: number): string {
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(cents / 100);
 }
 
 function BarChart({ buckets }: { buckets: MonthBucket[] }) {
@@ -156,8 +207,114 @@ function BarChart({ buckets }: { buckets: MonthBucket[] }) {
   );
 }
 
+function NetBarChart({ buckets }: { buckets: MonthNetBucket[] }) {
+  const width = 860;
+  const height = 320;
+  const margin = { top: 16, right: 12, bottom: 64, left: 64 };
+
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+
+  const min = Math.min(0, ...buckets.map((b) => b.netCents));
+  const max = Math.max(0, ...buckets.map((b) => b.netCents));
+  const maxAbs = Math.max(1, Math.abs(min), Math.abs(max));
+
+  const barGap = 2;
+  const barW = Math.max(1, plotW / buckets.length - barGap);
+
+  function y(value: number) {
+    // Map [-maxAbs, +maxAbs] to [bottom, top]
+    const t = (value + maxAbs) / (2 * maxAbs);
+    return margin.top + plotH * (1 - t);
+  }
+
+  const y0 = y(0);
+
+  const ticks = 5;
+  const tickValues = Array.from({ length: ticks * 2 + 1 }, (_, i) => {
+    const v = -maxAbs + (i * (2 * maxAbs)) / (ticks * 2);
+    return Math.round(v / 1000) * 1000; // keep labels stable (in cents)
+  });
+
+  return (
+    <svg
+      width="100%"
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label="Graphe des gains nets par mois (24 derniers mois)"
+      style={{ display: 'block', border: '1px solid #e5e7eb', borderRadius: 12, background: 'white' }}
+    >
+      {/* Y grid + labels */}
+      {tickValues.map((v) => {
+        const yy = y(v);
+        const isZero = v === 0;
+        return (
+          <g key={v}>
+            <line
+              x1={margin.left}
+              x2={width - margin.right}
+              y1={yy}
+              y2={yy}
+              stroke={isZero ? '#e5e7eb' : '#f3f4f6'}
+              strokeWidth={isZero ? 1.5 : 1}
+            />
+            <text x={margin.left - 8} y={yy + 4} textAnchor="end" fontSize={12} fill="#6b7280">
+              {formatCentsEUR(v)}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Bars */}
+      {buckets.map((b, i) => {
+        const x = margin.left + i * (barW + barGap);
+        const yy = y(b.netCents);
+        const isPositive = b.netCents >= 0;
+        const topY = isPositive ? yy : y0;
+        const h = Math.abs(y0 - yy);
+
+        return (
+          <g key={b.key}>
+            <title>
+              {b.key}: {formatCentsEUR(b.netCents)}
+            </title>
+            <rect
+              data-testid={`stats-net-bar-${b.key}`}
+              data-net-cents={b.netCents}
+              x={x}
+              y={topY}
+              width={barW}
+              height={h}
+              rx={3}
+              fill={b.netCents === 0 ? '#e5e7eb' : isPositive ? '#86efac' : '#fca5a5'}
+              stroke={b.netCents === 0 ? '#d1d5db' : isPositive ? '#22c55e' : '#ef4444'}
+            />
+          </g>
+        );
+      })}
+
+      {/* X labels (quarterly) */}
+      {buckets.map((b, i) => {
+        const show = i === 0 || i === buckets.length - 1 || i % 3 === 0;
+        if (!show) return null;
+        const x = margin.left + i * (barW + barGap) + barW / 2;
+        return (
+          <text key={b.key} x={x} y={height - margin.bottom + 22} textAnchor="middle" fontSize={11} fill="#6b7280">
+            {b.key}
+          </text>
+        );
+      })}
+
+      {/* Axis lines */}
+      <line x1={margin.left} x2={margin.left} y1={margin.top} y2={height - margin.bottom} stroke="#e5e7eb" />
+      <line x1={margin.left} x2={width - margin.right} y1={height - margin.bottom} y2={height - margin.bottom} stroke="#e5e7eb" />
+    </svg>
+  );
+}
+
 export default function StatsPage() {
   const [concerts, setConcerts] = useState<Concert[]>([]);
+  const [financialItems, setFinancialItems] = useState<ConcertFinancialItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -167,9 +324,10 @@ export default function StatsPage() {
       setError(null);
       setIsLoading(true);
       try {
-        const items = await listConcerts();
+        const [items, fi] = await Promise.all([listConcerts(), listConcertFinancialItems()]);
         if (!isMounted) return;
         setConcerts(items);
+        setFinancialItems(fi);
       } catch (e) {
         if (!isMounted) return;
         setError(e instanceof Error ? e.message : 'Failed to load concerts');
@@ -182,16 +340,18 @@ export default function StatsPage() {
     };
   }, []);
 
-  const { buckets, totalPast } = useMemo(() => {
+  const { buckets, netBuckets, totalPast, totalNetCents } = useMemo(() => {
     const now = new Date();
     const buckets = buildPastConcertsBuckets(concerts, now, 24);
+    const netBuckets = buildNetGainsBuckets(concerts, financialItems, now, 24);
     const totalPast = concerts.filter((c) => {
       if (!c.date_start) return false;
       const d = new Date(c.date_start);
       return Number.isFinite(d.getTime()) && d.getTime() < now.getTime();
     }).length;
-    return { buckets, totalPast };
-  }, [concerts]);
+    const totalNetCents = netBuckets.reduce((acc, b) => acc + b.netCents, 0);
+    return { buckets, netBuckets, totalPast, totalNetCents };
+  }, [concerts, financialItems]);
 
   return (
     <main
@@ -224,6 +384,12 @@ export default function StatsPage() {
           </div>
 
           <BarChart buckets={buckets} />
+
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 8 }}>
+            <h2 style={{ margin: 0, fontSize: 16 }}>Gains nets par mois</h2>
+            <div style={{ color: '#6b7280', fontSize: 13 }}>Total net (24 mois): {formatCentsEUR(totalNetCents)}</div>
+          </div>
+          <NetBarChart buckets={netBuckets} />
         </section>
       ) : null}
     </main>

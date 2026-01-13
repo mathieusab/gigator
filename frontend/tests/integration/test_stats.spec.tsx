@@ -52,7 +52,22 @@ type Concert = {
   updated_at: string;
 };
 
-const store: { concerts: Concert[] } = { concerts: [] };
+type ConcertFinancialItem = {
+  id: string;
+  concert_id: string;
+  kind: 'income' | 'expense';
+  label: string;
+  amount_cents: number;
+  effective_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+const store: { concerts: Concert[]; financialItems: ConcertFinancialItem[] } = {
+  concerts: [],
+  financialItems: [],
+};
 
 vi.mock('../../src/services/concerts', () => {
   return {
@@ -67,6 +82,22 @@ vi.mock('../../src/services/concerts', () => {
       throw new Error('not used');
     }),
     deleteConcert: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+  };
+});
+
+vi.mock('../../src/services/concertFinancialItems', () => {
+  return {
+    listConcertFinancialItems: vi.fn(async () => store.financialItems.slice()),
+    listConcertFinancialItemsForConcert: vi.fn(async () => []),
+    createConcertFinancialItem: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    updateConcertFinancialItem: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    deleteConcertFinancialItem: vi.fn(async () => {
       throw new Error('not used');
     }),
   };
@@ -174,6 +205,32 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
     },
   ];
 
+  // Net gains: two past concerts last month.
+  store.financialItems = [
+    {
+      id: 'fi-1',
+      concert_id: 'c-1',
+      kind: 'income',
+      label: 'Billetterie',
+      amount_cents: 20000,
+      effective_at: null,
+      created_by: 'user-1',
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    },
+    {
+      id: 'fi-2',
+      concert_id: 'c-1',
+      kind: 'expense',
+      label: 'Parking',
+      amount_cents: 500,
+      effective_at: null,
+      created_by: 'user-1',
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    },
+  ];
+
   render(
     <MemoryRouter initialEntries={['/stats']}>
       <App />
@@ -182,11 +239,15 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
 
   expect(await screen.findByText('Statistiques')).toBeInTheDocument();
   expect(await screen.findByText('Concerts par mois')).toBeInTheDocument();
+  expect(await screen.findByText('Gains nets par mois')).toBeInTheDocument();
 
   await waitFor(() => expect(screen.getByTestId(`stats-bar-${lastMonthKey}`)).toBeInTheDocument());
 
   expect(screen.getByTestId(`stats-bar-${lastMonthKey}`)).toHaveAttribute('data-count', '2');
   expect(screen.getByTestId(`stats-bar-${currentMonthKey}`)).toHaveAttribute('data-count', '0');
+
+  // Net for last month should be 20000 - 500 = 19500 cents.
+  expect(screen.getByTestId(`stats-net-bar-${lastMonthKey}`)).toHaveAttribute('data-net-cents', '19500');
 
   expect(screen.queryByTestId(`stats-bar-${monthKeyUTC(month25)}`)).not.toBeInTheDocument();
 });
