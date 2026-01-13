@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import ConfirmDialog from '../components/ConfirmDialog';
 import { useAuth } from '../lib/useAuth';
 import { autocompletePlaces, geocodePlace, type PlaceSuggestion } from '../services/mapsProxy';
 import { createVenue, deleteVenue, listVenues, type Venue } from '../services/venues';
@@ -20,6 +21,7 @@ export default function VenueList() {
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingVenueId, setDeletingVenueId] = useState<string | null>(null);
+  const [pendingDeleteVenue, setPendingDeleteVenue] = useState<Venue | null>(null);
 
   const [newName, setNewName] = useState('');
   const [resolvedCity, setResolvedCity] = useState<string | null>(null);
@@ -132,16 +134,16 @@ export default function VenueList() {
     });
   }, [venues, locationFilter, playedFilter]);
 
-  async function handleDelete(v: Venue) {
+  async function handleConfirmDelete() {
+    if (!pendingDeleteVenue) return;
     setDeleteError(null);
 
-    const ok = window.confirm(`Supprimer la salle "${v.name}" ?`);
-    if (!ok) return;
-
+    const v = pendingDeleteVenue;
     setDeletingVenueId(v.id);
     try {
       await deleteVenue(v.id);
       setVenues((prev) => prev.filter((item) => item.id !== v.id));
+      setPendingDeleteVenue(null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Suppression impossible';
       setDeleteError(`Suppression de "${v.name}" impossible. ${msg}`);
@@ -292,6 +294,24 @@ export default function VenueList() {
     <main
       style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
     >
+      <ConfirmDialog
+        open={pendingDeleteVenue !== null}
+        title={pendingDeleteVenue ? `Supprimer \"${pendingDeleteVenue.name}\" ?` : 'Supprimer cette salle ?'}
+        description={
+          pendingDeleteVenue
+            ? "Cette action est définitive. Si la salle est liée à des concerts/contacts, la suppression peut être refusée."
+            : undefined
+        }
+        confirmText="Oui, supprimer"
+        cancelText="Annuler"
+        isConfirming={pendingDeleteVenue ? deletingVenueId === pendingDeleteVenue.id : false}
+        onCancel={() => {
+          if (pendingDeleteVenue && deletingVenueId === pendingDeleteVenue.id) return;
+          setPendingDeleteVenue(null);
+        }}
+        onConfirm={() => void handleConfirmDelete()}
+      />
+
       <header
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
       >
@@ -477,7 +497,10 @@ export default function VenueList() {
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
                         type="button"
-                        onClick={() => void handleDelete(v)}
+                        onClick={() => {
+                          setDeleteError(null);
+                          setPendingDeleteVenue(v);
+                        }}
                         disabled={deletingVenueId === v.id}
                         aria-label={`Supprimer ${v.name}`}
                         style={{
@@ -486,7 +509,7 @@ export default function VenueList() {
                           color: '#991b1b',
                         }}
                       >
-                        {deletingVenueId === v.id ? 'Suppression…' : 'Supprimer'}
+                        Supprimer
                       </button>
                     </div>
                   </div>

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
@@ -127,8 +127,6 @@ vi.mock('../../src/services/mapsProxy', () => {
 import App from '../../src/App';
 
 test('Salles: supprimer une salle depuis la liste', async () => {
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
-
   render(
     <MemoryRouter initialEntries={['/venues']}>
       <App />
@@ -141,13 +139,14 @@ test('Salles: supprimer une salle depuis la liste', async () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'Supprimer Le Bikini' }));
 
+  const dialog = await screen.findByRole('dialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Oui, supprimer' }));
+
   await waitFor(() => expect(screen.queryByText('Le Bikini')).not.toBeInTheDocument());
   expect(screen.getByText('Rock School Barbey')).toBeInTheDocument();
 });
 
 test('Salles: affiche une erreur claire si la suppression est impossible', async () => {
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
-
   const venues = await import('../../src/services/venues');
   vi.mocked(venues.deleteVenue).mockRejectedValueOnce(
     new Error(
@@ -165,6 +164,9 @@ test('Salles: affiche une erreur claire si la suppression est impossible', async
   expect(await screen.findByText('Le Bikini')).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Supprimer Le Bikini' }));
+
+  const dialog = await screen.findByRole('dialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Oui, supprimer' }));
 
   const alert = await screen.findByRole('alert');
   expect(alert).toHaveTextContent('Suppression de "Le Bikini" impossible');
