@@ -14,10 +14,18 @@ export default function AccessDenied() {
       <section style={{ marginTop: 16 }}>
         <h2 style={{ fontSize: 16, marginBottom: 8 }}>How to get access</h2>
         <p style={{ marginTop: 0 }}>
-          An admin must add your Supabase user to the <code>app_users</code> table with <code>is_active=true</code>.
+          An admin must add your Supabase user to the <code>app_users</code> table with{' '}
+          <code>is_active=true</code>.
         </p>
         {userId ? (
-          <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fafafa' }}>
+          <div
+            style={{
+              padding: 12,
+              border: '1px solid #e5e7eb',
+              borderRadius: 8,
+              background: '#fafafa',
+            }}
+          >
             <div>
               <strong>Your user id</strong>: <code>{userId}</code>
             </div>
@@ -28,7 +36,9 @@ export default function AccessDenied() {
             ) : null}
             <div style={{ marginTop: 10 }}>
               <strong>SQL</strong> (run in Supabase SQL editor):
-              <pre style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>{`insert into app_users (id, email, is_active)
+              <pre
+                style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}
+              >{`insert into app_users (id, email, is_active)
 values ('${userId}', '${email ?? 'you@example.com'}', true);`}</pre>
             </div>
           </div>

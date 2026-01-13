@@ -87,7 +87,9 @@ export default function CalendarView({
     const first = makeUTCMonthDate(year, monthIdx);
     const leadingBlanks = mondayIndexFromUTCDay(first.getUTCDay());
 
-    const cells: Array<{ kind: 'blank' } | { kind: 'day'; dateKey: string; dayNumber: number; count: number }> = [];
+    const cells: Array<
+      { kind: 'blank' } | { kind: 'day'; dateKey: string; dayNumber: number; count: number }
+    > = [];
 
     for (let i = 0; i < leadingBlanks; i++) cells.push({ kind: 'blank' });
 
@@ -105,14 +107,24 @@ export default function CalendarView({
 
   return (
     <section>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <button type="button" onClick={() => setMonth((m) => addMonthsUTC(m, -1))} data-testid="calendar-prev-month">
+      <header
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+      >
+        <button
+          type="button"
+          onClick={() => setMonth((m) => addMonthsUTC(m, -1))}
+          data-testid="calendar-prev-month"
+        >
           Mois précédent
         </button>
         <div style={{ fontWeight: 700 }} data-testid="calendar-month-label">
           {formatMonthLabel(month)}
         </div>
-        <button type="button" onClick={() => setMonth((m) => addMonthsUTC(m, 1))} data-testid="calendar-next-month">
+        <button
+          type="button"
+          onClick={() => setMonth((m) => addMonthsUTC(m, 1))}
+          data-testid="calendar-next-month"
+        >
           Mois suivant
         </button>
       </header>
@@ -152,15 +164,24 @@ export default function CalendarView({
                 cursor: 'pointer',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}
+              >
                 <span style={{ fontWeight: 700 }}>{cell.dayNumber}</span>
                 {cell.count ? (
-                  <span style={{ fontSize: 12, color: '#4f46e5' }} aria-label={`${cell.count} concert(s)`}>
+                  <span
+                    style={{ fontSize: 12, color: '#4f46e5' }}
+                    aria-label={`${cell.count} concert(s)`}
+                  >
                     {cell.count}
                   </span>
                 ) : null}
               </div>
-              {cell.count ? <div style={{ marginTop: 8, height: 6, borderRadius: 999, background: '#4f46e5' }} /> : null}
+              {cell.count ? (
+                <div
+                  style={{ marginTop: 8, height: 6, borderRadius: 999, background: '#4f46e5' }}
+                />
+              ) : null}
             </button>
           );
         })}
@@ -190,7 +211,14 @@ export default function CalendarView({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <header
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
               <h2 style={{ margin: 0, fontSize: 18 }}>Concerts — {selectedDate}</h2>
               <button type="button" onClick={() => setSelectedDate(null)}>
                 Fermer
@@ -202,11 +230,23 @@ export default function CalendarView({
             {selectedConcerts.length ? (
               <ul style={{ listStyle: 'none', padding: 0, marginTop: 12, display: 'grid', gap: 8 }}>
                 {selectedConcerts.map((c) => (
-                  <li key={c.id} style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <li
+                    key={c.id}
+                    style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: 12 }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                      }}
+                    >
                       <div>
                         <div style={{ fontWeight: 700 }}>{c.venue_name}</div>
-                        <div style={{ color: '#6b7280', fontSize: 12 }}>{formatTimeUTC(c.date_start)}</div>
+                        <div style={{ color: '#6b7280', fontSize: 12 }}>
+                          {formatTimeUTC(c.date_start)}
+                        </div>
                       </div>
                       <button type="button" onClick={() => onOpenConcert(c.id)}>
                         Ouvrir

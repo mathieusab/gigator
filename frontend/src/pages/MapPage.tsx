@@ -33,8 +33,12 @@ export default function MapPage() {
   }, []);
 
   return (
-    <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+    <main
+      style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
+    >
+      <header
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+      >
         <h1 style={{ margin: 0 }}>Carte</h1>
         <Link to="/">Retour</Link>
       </header>
@@ -48,7 +52,7 @@ export default function MapPage() {
 
       {!isLoading && !error ? (
         <div style={{ marginTop: 16 }}>
-          <MapView concerts={concerts} onOpenConcert={(id) => navigate(`/concerts/${id}/edit`)} />
+          <MapView concerts={concerts} onOpenConcert={(id) => navigate(`/concerts/${id}`)} />
         </div>
       ) : null}
     </main>

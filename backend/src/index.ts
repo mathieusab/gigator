@@ -1,10 +1,8 @@
-import cors from 'cors';
 import dotenv from 'dotenv';
-import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { gmailRouter } from './routes/gmail';
+import { createApp } from './app.js';
 
 // When running from a pnpm workspace, the backend may be started with CWD at the repo root
 // or at ./backend. Load common `.env` locations (if present). Values already present in the
@@ -18,16 +16,9 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 // 3) Optional backend env file (some setups use this naming)
 dotenv.config({ path: path.resolve(__dirname, '../.env.backend') });
 
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-app.get('/health', (_req, res) => {
-  res.json({ ok: true });
-});
-
-app.use('/gmail', gmailRouter);
+// createApp already wires cors/json and routes; keep index.ts as the
+// process entrypoint responsible for env loading and HTTP listen.
+const app = createApp();
 
 const port = Number(process.env.PORT ?? 3000);
 app.listen(port, () => {

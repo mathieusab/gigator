@@ -1,8 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-let supabaseUrl = (import.meta.env.VITE_SUPABASE_URL ?? (process.env.VITE_SUPABASE_URL as string | undefined)) as
-  | string
-  | undefined;
+let supabaseUrl = (import.meta.env.VITE_SUPABASE_URL ??
+  (process.env.VITE_SUPABASE_URL as string | undefined)) as string | undefined;
 let supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY ??
   (process.env.VITE_SUPABASE_ANON_KEY as string | undefined)) as string | undefined;
 

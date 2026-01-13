@@ -56,8 +56,12 @@ export default function ConcertList() {
   }
 
   return (
-    <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+    <main
+      style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
+    >
+      <header
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+      >
         <h1 style={{ margin: 0 }}>Concerts</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" onClick={() => navigate('/calendar')}>
@@ -89,6 +93,7 @@ export default function ConcertList() {
                 <ConcertListItem
                   key={c.id}
                   concert={c}
+                  onOpen={(id) => navigate(`/concerts/${id}`)}
                   onEdit={(id) => navigate(`/concerts/${id}/edit`)}
                   onDelete={handleDelete}
                 />
@@ -104,6 +109,7 @@ export default function ConcertList() {
                 <ConcertListItem
                   key={c.id}
                   concert={c}
+                  onOpen={(id) => navigate(`/concerts/${id}`)}
                   onEdit={(id) => navigate(`/concerts/${id}/edit`)}
                   onDelete={handleDelete}
                 />
@@ -115,4 +121,3 @@ export default function ConcertList() {
     </main>
   );
 }
-

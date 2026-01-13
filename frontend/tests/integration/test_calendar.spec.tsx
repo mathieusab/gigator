@@ -89,7 +89,7 @@ vi.mock('../../src/services/concerts', () => {
 
 import App from '../../src/App';
 
-test('US3: calendar navigation and event click opens concert edit', async () => {
+test('US3: calendar navigation and event click opens concert detail', async () => {
   render(
     <MemoryRouter initialEntries={['/calendar']}>
       <App />
@@ -102,17 +102,24 @@ test('US3: calendar navigation and event click opens concert edit', async () => 
   const currentMonthLabel = `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}`;
   const dayKey = `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-15`;
 
-  await waitFor(() => expect(screen.getByTestId('calendar-month-label')).toHaveTextContent(currentMonthLabel));
+  await waitFor(() =>
+    expect(screen.getByTestId('calendar-month-label')).toHaveTextContent(currentMonthLabel),
+  );
 
   fireEvent.click(screen.getByTestId('calendar-next-month'));
-  await waitFor(() => expect(screen.getByTestId('calendar-month-label')).not.toHaveTextContent(currentMonthLabel));
+  await waitFor(() =>
+    expect(screen.getByTestId('calendar-month-label')).not.toHaveTextContent(currentMonthLabel),
+  );
 
   fireEvent.click(screen.getByTestId('calendar-prev-month'));
-  await waitFor(() => expect(screen.getByTestId('calendar-month-label')).toHaveTextContent(currentMonthLabel));
+  await waitFor(() =>
+    expect(screen.getByTestId('calendar-month-label')).toHaveTextContent(currentMonthLabel),
+  );
 
   fireEvent.click(screen.getByTestId(`calendar-day-${dayKey}`));
   expect(await screen.findByText('Le Bikini')).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Ouvrir' }));
-  expect(await screen.findByText('Modifier le concert')).toBeInTheDocument();
+  expect(await screen.findByText('Détail du concert')).toBeInTheDocument();
+  expect(await screen.findByText('Le Bikini')).toBeInTheDocument();
 });

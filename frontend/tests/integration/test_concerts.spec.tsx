@@ -107,7 +107,11 @@ vi.mock('../../src/services/concerts', () => {
     updateConcert: vi.fn(async (id: string, input: any) => {
       const idx = store.concerts.findIndex((c) => c.id === id);
       if (idx === -1) throw new Error('Not found');
-      store.concerts[idx] = { ...store.concerts[idx], ...input, updated_at: new Date().toISOString() };
+      store.concerts[idx] = {
+        ...store.concerts[idx],
+        ...input,
+        updated_at: new Date().toISOString(),
+      };
       return store.concerts[idx];
     }),
     deleteConcert: vi.fn(async (id: string) => {

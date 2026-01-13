@@ -12,7 +12,7 @@
 - Security/privacy is non-negotiable (row-level security on the canonical datastore, least-privilege OAuth scopes)
 - Mobile usability and PWA behavior must be considered
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Sign in & access (Priority: P1)
 
@@ -23,6 +23,7 @@ Why this priority: Authentication is required for all other features and enforce
 Independent Test: Attempt sign-in with a Google account that is and is not present in `app_users`; verify access/denial.
 
 Acceptance Scenarios:
+
 1. Given a valid Google account that is active in `app_users`, When the user signs in, Then they land on the concerts list and see their name/avatar.
 2. Given a valid Google account that is NOT active in `app_users`, When the user signs in, Then they see an access-denied message and cannot view concert data.
 
@@ -37,6 +38,7 @@ Why this priority: Core product value — centralizing booking information.
 Independent Test: Create a concert, verify it appears in the "À venir" list and on calendar; edit and verify changes persist; delete and verify removal.
 
 Acceptance Scenarios:
+
 1. Given the user is authenticated and authorized, When they create a concert with date, venue_name, and city, Then the concert appears in the upcoming list ordered chronologically.
 2. Given a concert exists, When the user edits its details, Then changes are reflected immediately in list, calendar, and map (if lat/lng present).
 3. Given a concert is deleted, When the user returns to the list, Then the concert no longer appears.
@@ -50,6 +52,7 @@ As a user, I want a monthly calendar view that shows all concerts so I can quick
 Independent Test: Open calendar, navigate months, click an event to open detail preview.
 
 Acceptance Scenarios:
+
 1. Given multiple concerts on a day, When viewing the month, Then the day shows an indicator and clicking it shows a list/preview of events.
 2. Given a concert event in the calendar, When the user clicks it, Then the app opens the concert details.
 
@@ -62,6 +65,7 @@ As a user, I want to see concerts on an interactive map so I can visualize locat
 Independent Test: Open map view and verify pins for concerts with lat/lng; click a pin to show minimal preview (venue + date).
 
 Acceptance Scenarios:
+
 1. Given a concert has lat/lng, When viewing the map, Then a pin appears at the correct coordinates.
 2. Given a pin is clicked, When the user clicks it, Then a small card shows `venue_name` and `date_start` and a link to the concert.
 
@@ -76,6 +80,7 @@ Why this priority: Improves context for booking without building a full mail cli
 Independent Test: From a concert detail, request conversation lookup by `venue_contact_email`; verify threads are returned (read-only).
 
 Acceptance Scenarios:
+
 1. Given a `venue_contact_email` is set, When the user requests conversation history, Then the app lists relevant Gmail threads (read-only) filtered by `from:`/`to:` query.
 2. Given no matching threads, When the user requests history, Then the app shows an informative "no results" state.
 
@@ -88,7 +93,7 @@ Acceptance Scenarios:
 - Corrupt or partial data: App must surface validation errors on create/edit and prevent saving invalid dates.
 - Offline: App shows a clean offline state; editing is disabled or queued only if explicitly designed and approved (out of scope for MVP).
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -108,7 +113,7 @@ Acceptance Scenarios:
 - **Concert**: Represents a scheduled or historical performance. Key attributes: `id`, `date_start`, `date_end`, `status`, `venue_name`, `city`, `country`, `address`, `lat`, `lng`, `venue_contact_name`, `venue_contact_email`, `notes`, `created_at`, `updated_at`.
 - **AppUser**: Represents an authorized application user. Key attributes: `email`, `is_active`, `name`, `picture`, `last_login_at`.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -141,7 +146,6 @@ Acceptance Scenarios:
 
 ## Next Steps
 
-1. Review spec and confirm assumptions (especially OAuth token usage for Gmail).  
-2. If accepted, implement Phase 1 tasks: auth setup, Supabase schema & RLS, basic concerts CRUD and list view.  
+1. Review spec and confirm assumptions (especially OAuth token usage for Gmail).
+2. If accepted, implement Phase 1 tasks: auth setup, Supabase schema & RLS, basic concerts CRUD and list view.
 3. After Phase 1, implement Calendar, Map, and Gmail lookup in subsequent increments.
-

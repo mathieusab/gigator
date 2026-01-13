@@ -14,10 +14,12 @@ function formatDateTime(value: string) {
 
 export default function ConcertListItem({
   concert,
+  onOpen,
   onEdit,
   onDelete,
 }: {
   concert: Concert;
+  onOpen: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
@@ -41,6 +43,9 @@ export default function ConcertListItem({
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" onClick={() => onOpen(concert.id)}>
+          Voir
+        </button>
         <button type="button" onClick={() => onEdit(concert.id)}>
           Modifier
         </button>

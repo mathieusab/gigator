@@ -62,7 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const value = useMemo<AuthState>(() => ({ session, appUser, isLoading }), [session, appUser, isLoading]);
+  const value = useMemo<AuthState>(
+    () => ({ session, appUser, isLoading }),
+    [session, appUser, isLoading],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

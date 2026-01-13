@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ConcertForm from '../components/ConcertForm';
-import { createConcert, getConcert, updateConcert, type Concert, type ConcertUpsertInput } from '../services/concerts';
+import {
+  createConcert,
+  getConcert,
+  updateConcert,
+  type Concert,
+  type ConcertUpsertInput,
+} from '../services/concerts';
 
 export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
   const navigate = useNavigate();
@@ -51,9 +57,15 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
   }
 
   return (
-    <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <h1 style={{ margin: 0 }}>{mode === 'create' ? 'Nouveau concert' : 'Modifier le concert'}</h1>
+    <main
+      style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
+    >
+      <header
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+      >
+        <h1 style={{ margin: 0 }}>
+          {mode === 'create' ? 'Nouveau concert' : 'Modifier le concert'}
+        </h1>
         <Link to="/">Retour</Link>
       </header>
 
@@ -66,7 +78,11 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
       {isLoading ? <p>Chargement…</p> : null}
 
       {!isLoading && !error ? (
-        <ConcertForm initial={concert ?? undefined} onSubmit={handleSubmit} submitLabel={mode === 'create' ? 'Créer' : 'Enregistrer'} />
+        <ConcertForm
+          initial={concert ?? undefined}
+          onSubmit={handleSubmit}
+          submitLabel={mode === 'create' ? 'Créer' : 'Enregistrer'}
+        />
       ) : null}
     </main>
   );

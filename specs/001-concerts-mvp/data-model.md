@@ -3,6 +3,7 @@
 ## Entities
 
 ### Concert
+
 - Description: Represents a scheduled or historical performance.
 - Table: `concerts`
 - Fields:
@@ -35,8 +36,8 @@
 - Access control & RLS:
   - Row-level policy: only rows visible to authorized users; editing/deletion requires `created_by = auth.uid()` or a separate admin flag.
 
-
 ### AppUser
+
 - Description: Authorized application users.
 - Table: `app_users`
 - Fields:
@@ -54,17 +55,17 @@
 - Access control:
   - Only `is_active = true` users are allowed to use the app. RLS policies enforce this.
 
-
 ## Relationships
+
 - `concerts.created_by` -> `app_users.id` (many concerts per user)
 
-
 ## State transitions (Concert.status)
+
 - `scheduled` -> `completed` when `date_end` passes and user marks as complete or system-derived
 - `scheduled` -> `cancelled` when explicitly cancelled
 - `cancelled` -> (no transitions) — archived state
 
-
 ## Notes
+
 - Denormalized fields (e.g., `venue_name`, `city`) are allowed for simplicity; ensure derived values are reproducible from inputs.
 - For MVP, geocoding is manual; lat/lng are optional and used for map rendering only.

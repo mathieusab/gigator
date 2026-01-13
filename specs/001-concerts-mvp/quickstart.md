@@ -1,21 +1,28 @@
 # Quickstart — Concerts MVP
 
 ## Prerequisites
+
 - Node.js 18+
 - pnpm or npm
 - Supabase project (URL + anon key)
 - Optional: Google Maps API key (restricted) for map view
 
 ## Required environment variables
+
 - `VITE_SUPABASE_URL` — Supabase URL
 - `VITE_SUPABASE_ANON_KEY` — Supabase anon/public key
 - `VITE_GOOGLE_MAPS_API_KEY` — (optional) Maps JS API key
-- `GMAIL_PROXY_CLIENT_ID` and `GMAIL_PROXY_CLIENT_SECRET` — for backend proxy OAuth (if using server-side exchange)
+- `GMAIL_PROXY_CLIENT_ID` and `GMAIL_PROXY_CLIENT_SECRET` — for backend proxy OAuth
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` — backend-only, to store Gmail refresh tokens (Option B)
+- `GMAIL_TOKEN_ENCRYPTION_KEY` — backend-only, encrypts refresh tokens at rest (Option B)
+- `GMAIL_OAUTH_STATE_SECRET` — backend-only, signs OAuth state (Option B)
+- `FRONTEND_ORIGIN` and `GMAIL_OAUTH_REDIRECT_URI` — backend-only, for OAuth redirects (Option B)
 
 ## Database schema (minimal)
+
 Run the following SQL in Supabase SQL editor to create core tables (MVP):
 
-```sql
+````sql
 -- Extension for uuid generation (if needed)
 create extension if not exists "pgcrypto";
 
@@ -75,27 +82,38 @@ alter table public.concerts add column if not exists date_end timestamptz;
 
 -- refresh PostgREST schema cache
 notify pgrst, 'reload schema';
-```
-```
+````
+
+````
 
 ## Run frontend (development)
 
 ```bash
 # from repo root
-cd frontend
 pnpm install
-pnpm dev
-```
+pnpm dev:frontend
+````
 
 ## Run backend proxy (development)
 
 ```bash
-cd backend
+# from repo root
 pnpm install
 # set GMAIL_PROXY_CLIENT_ID and SECRET in env
-pnpm dev
+pnpm dev:backend
+```
+
+## Run both (development)
+
+```bash
+pnpm install
+pnpm dev:full
 ```
 
 ## Notes
+
 - The frontend uses Supabase Auth for sign-in (Google). The Gmail mailbox lookup is proxied via the backend to avoid exposing tokens client-side.
+- **Option B (recommended)**: The Gmail account used for mailbox lookup can be different from the Google account used to sign in to the app.
+  - Users connect Gmail via the backend OAuth flow and the backend stores an **encrypted refresh token** in Supabase.
+  - Apply the SQL in `specs/001-concerts-mvp/sql/gmail_connections.sql` to create the storage table.
 - For acceptance tests, seed `app_users` with known `id` values that match Supabase auth UIDs and set `is_active = true`.

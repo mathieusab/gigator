@@ -39,7 +39,9 @@ export default function ConcertForm({
   }, [initial?.date_start]);
 
   const [dateStart, setDateStart] = useState(initialStart);
-  const [status, setStatus] = useState<ConcertStatus>((initial?.status as ConcertStatus) ?? 'scheduled');
+  const [status, setStatus] = useState<ConcertStatus>(
+    (initial?.status as ConcertStatus) ?? 'scheduled',
+  );
   const [venueName, setVenueName] = useState(initial?.venue_name ?? '');
   const [city, setCity] = useState(initial?.city ?? '');
   const [country, setCountry] = useState(initial?.country ?? '');
@@ -100,7 +102,12 @@ export default function ConcertForm({
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Date</span>
-        <input type="datetime-local" value={dateStart} onChange={(e) => setDateStart(e.target.value)} required />
+        <input
+          type="datetime-local"
+          value={dateStart}
+          onChange={(e) => setDateStart(e.target.value)}
+          required
+        />
       </label>
 
       <label style={{ display: 'grid', gap: 4 }}>
@@ -114,50 +121,92 @@ export default function ConcertForm({
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Salle</span>
-        <input value={venueName} onChange={(e) => setVenueName(e.target.value)} placeholder="Le Bikini" required />
+        <input
+          value={venueName}
+          onChange={(e) => setVenueName(e.target.value)}
+          placeholder="Le Bikini"
+          required
+        />
       </label>
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Ville</span>
-        <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Toulouse" required />
+        <input
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder="Toulouse"
+          required
+        />
       </label>
 
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
         <label style={{ display: 'grid', gap: 4 }}>
           <span>Pays</span>
-          <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="France" />
+          <input
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            placeholder="France"
+          />
         </label>
         <label style={{ display: 'grid', gap: 4 }}>
           <span>Adresse</span>
-          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rue ..." />
+          <input
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Rue ..."
+          />
         </label>
       </div>
 
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
         <label style={{ display: 'grid', gap: 4 }}>
           <span>Lat</span>
-          <input value={lat} onChange={(e) => setLat(e.target.value)} inputMode="decimal" placeholder="43.6043" />
+          <input
+            value={lat}
+            onChange={(e) => setLat(e.target.value)}
+            inputMode="decimal"
+            placeholder="43.6043"
+          />
         </label>
         <label style={{ display: 'grid', gap: 4 }}>
           <span>Lng</span>
-          <input value={lng} onChange={(e) => setLng(e.target.value)} inputMode="decimal" placeholder="1.4437" />
+          <input
+            value={lng}
+            onChange={(e) => setLng(e.target.value)}
+            inputMode="decimal"
+            placeholder="1.4437"
+          />
         </label>
       </div>
 
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
         <label style={{ display: 'grid', gap: 4 }}>
           <span>Contact</span>
-          <input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Prénom Nom" />
+          <input
+            value={contactName}
+            onChange={(e) => setContactName(e.target.value)}
+            placeholder="Prénom Nom"
+          />
         </label>
         <label style={{ display: 'grid', gap: 4 }}>
           <span>Email</span>
-          <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} inputMode="email" placeholder="contact@salle.com" />
+          <input
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            inputMode="email"
+            placeholder="contact@salle.com"
+          />
         </label>
       </div>
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Notes</span>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} placeholder="Cachet, horaires, etc." />
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={4}
+          placeholder="Cachet, horaires, etc."
+        />
       </label>
 
       <button type="submit" disabled={isSubmitting}>

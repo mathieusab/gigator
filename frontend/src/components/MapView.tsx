@@ -84,19 +84,22 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    const previous = (globalThis as unknown as { gm_authFailure?: (() => void) | undefined }).gm_authFailure;
-    (globalThis as unknown as { gm_authFailure?: (() => void) | undefined }).gm_authFailure = () => {
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      setLoadError(
-        `Google Maps a refusé la requête (clé API / referrer / facturation). ` +
-          (origin ? `Origine: ${origin}. ` : '') +
-          `Vérifiez: (1) facturation activée, (2) API “Maps JavaScript API” activée, ` +
-          `(3) restrictions HTTP referrers qui incluent cette origine.`,
-      );
-    };
+    const previous = (globalThis as unknown as { gm_authFailure?: (() => void) | undefined })
+      .gm_authFailure;
+    (globalThis as unknown as { gm_authFailure?: (() => void) | undefined }).gm_authFailure =
+      () => {
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        setLoadError(
+          `Google Maps a refusé la requête (clé API / referrer / facturation). ` +
+            (origin ? `Origine: ${origin}. ` : '') +
+            `Vérifiez: (1) facturation activée, (2) API “Maps JavaScript API” activée, ` +
+            `(3) restrictions HTTP referrers qui incluent cette origine.`,
+        );
+      };
 
     return () => {
-      (globalThis as unknown as { gm_authFailure?: (() => void) | undefined }).gm_authFailure = previous;
+      (globalThis as unknown as { gm_authFailure?: (() => void) | undefined }).gm_authFailure =
+        previous;
     };
   }, []);
 
@@ -183,7 +186,8 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
           const markerLib = await importer('marker');
           AdvancedMarkerElement = (markerLib as any)?.AdvancedMarkerElement;
         }
-        AdvancedMarkerElement = AdvancedMarkerElement ?? (googleMaps.maps as any).marker?.AdvancedMarkerElement;
+        AdvancedMarkerElement =
+          AdvancedMarkerElement ?? (googleMaps.maps as any).marker?.AdvancedMarkerElement;
       } catch {
         AdvancedMarkerElement = null;
       }
@@ -210,7 +214,11 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
         if (marker?.addListener) {
           marker.addListener(AdvancedMarkerElement ? 'gmp-click' : 'click', clickHandler);
         } else if ((googleMaps.maps as any).event?.addListener) {
-          (googleMaps.maps as any).event.addListener(marker, AdvancedMarkerElement ? 'gmp-click' : 'click', clickHandler);
+          (googleMaps.maps as any).event.addListener(
+            marker,
+            AdvancedMarkerElement ? 'gmp-click' : 'click',
+            clickHandler,
+          );
         }
 
         markersRef.current.push(marker);
@@ -224,7 +232,7 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
         mapRef.current?.fitBounds(bounds);
       }
     })();
-  }, [googleMaps, pins]);
+  }, [googleMaps, pins, resolvedMapId]);
 
   if (!resolvedApiKey) {
     return (
@@ -254,7 +262,9 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
         style={{ width: '100%', height: 460, borderRadius: 8, border: '1px solid #ddd' }}
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+      >
         <p style={{ margin: 0 }} data-testid="map-pin-count">
           {pins.length} concert{pins.length === 1 ? '' : 's'} avec coordonnées
         </p>

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, isAuthorized, useAuth } from './lib/useAuth';
 import AccessDenied from './pages/AccessDenied';
 import CalendarPage from './pages/CalendarPage';
+import ConcertDetail from './pages/ConcertDetail';
 import ConcertEdit from './pages/ConcertEdit';
 import ConcertList from './pages/ConcertList';
 import Login from './pages/Login';
@@ -66,6 +67,14 @@ export default function App() {
           element={
             <RequireAuth>
               <ConcertEdit mode="create" />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/concerts/:id"
+          element={
+            <RequireAuth>
+              <ConcertDetail />
             </RequireAuth>
           }
         />
