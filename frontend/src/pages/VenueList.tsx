@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../lib/useAuth';
 import { autocompletePlaces, geocodePlace, type PlaceSuggestion } from '../services/mapsProxy';
-import { createVenue, listVenues, type Venue } from '../services/venues';
+import { createVenue, deleteVenue, listVenues, type Venue } from '../services/venues';
 
 type PlayedFilter = 'all' | 'played' | 'not_played';
 
@@ -17,6 +17,9 @@ export default function VenueList() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingVenueId, setDeletingVenueId] = useState<string | null>(null);
 
   const [newName, setNewName] = useState('');
   const [resolvedCity, setResolvedCity] = useState<string | null>(null);
@@ -128,6 +131,23 @@ export default function VenueList() {
       return haystack.includes(q);
     });
   }, [venues, locationFilter, playedFilter]);
+
+  async function handleDelete(v: Venue) {
+    setDeleteError(null);
+
+    const ok = window.confirm(`Supprimer la salle "${v.name}" ?`);
+    if (!ok) return;
+
+    setDeletingVenueId(v.id);
+    try {
+      await deleteVenue(v.id);
+      setVenues((prev) => prev.filter((item) => item.id !== v.id));
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : 'Suppression impossible');
+    } finally {
+      setDeletingVenueId((current) => (current === v.id ? null : current));
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -412,6 +432,12 @@ export default function VenueList() {
           </p>
         ) : null}
 
+        {deleteError ? (
+          <p role="alert" style={{ color: 'crimson' }}>
+            {deleteError}
+          </p>
+        ) : null}
+
         {!isLoading && !error ? (
           filtered.length === 0 ? (
             <p>Aucune salle.</p>
@@ -422,29 +448,47 @@ export default function VenueList() {
                   key={v.id}
                   style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/venues/${v.id}`)}
-                    style={{
-                      width: '100%',
-                      textAlign: 'left',
-                      background: 'transparent',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      font: 'inherit',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{v.name}</div>
-                        <div style={{ color: '#4b5563' }}>{venueLocation(v)}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start' }}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/venues/${v.id}`)}
+                      style={{
+                        flex: 1,
+                        textAlign: 'left',
+                        background: 'transparent',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        font: 'inherit',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                        <div>
+                          <div style={{ fontWeight: 700 }}>{v.name}</div>
+                          <div style={{ color: '#4b5563' }}>{venueLocation(v)}</div>
+                        </div>
+                        <div style={{ color: v.has_played ? '#065f46' : '#6b7280', fontSize: 13 }}>
+                          {v.has_played ? 'Déjà joué' : 'Jamais joué'}
+                        </div>
                       </div>
-                      <div style={{ color: v.has_played ? '#065f46' : '#6b7280', fontSize: 13 }}>
-                        {v.has_played ? 'Déjà joué' : 'Jamais joué'}
-                      </div>
+                    </button>
+
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(v)}
+                        disabled={deletingVenueId === v.id}
+                        aria-label={`Supprimer ${v.name}`}
+                        style={{
+                          background: deletingVenueId === v.id ? '#f3f4f6' : '#fee2e2',
+                          border: '1px solid #fecaca',
+                          color: '#991b1b',
+                        }}
+                      >
+                        {deletingVenueId === v.id ? 'Suppression…' : 'Supprimer'}
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 </li>
               ))}
             </ul>

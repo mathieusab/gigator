@@ -73,3 +73,8 @@ export async function createVenue(input: VenueCreateInput): Promise<Venue> {
   const res = await supabase.from('venues').insert(payload).select('*').single();
   return unwrap<Venue>(res);
 }
+
+export async function deleteVenue(id: string): Promise<void> {
+  const res = await supabase.from('venues').delete().eq('id', id);
+  if (res.error) throw new Error(res.error.message);
+}
