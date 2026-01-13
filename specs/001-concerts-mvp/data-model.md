@@ -11,6 +11,7 @@
   - `date_start` (timestamptz, not null)
   - `date_end` (timestamptz, nullable)
   - `status` (enum/text, not null) — values: `scheduled`, `completed`, `cancelled`
+  - `title` (text, not null) — stored title; the frontend derives it as `venue_name — city` when not provided
   - `venue_name` (text, not null)
   - `city` (text, nullable)
   - `country` (text, nullable)
@@ -28,6 +29,8 @@
   - `date_start` must be present and `date_end` if present must be >= `date_start`.
   - `venue_contact_email` must match a simple email regex when provided.
   - `lat`/`lng` if provided must be valid decimal coordinates.
+
+> Implementation note (current UI): the create/edit form currently requires `city` even though the DB model allows it to be null.
 
 - Indexes:
   - Index on `date_start` for chronological queries.

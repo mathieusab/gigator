@@ -50,15 +50,38 @@ async function fetchJson(url: string, accessToken: string) {
 export async function listThreadsForEmail(
   config: GmailProxyConfig,
   email: string,
+  opts?: {
+    maxThreads?: number;
+  },
 ): Promise<GmailThread[]> {
   const q = `from:${email} OR to:${email}`;
-  const listUrl = `https://gmail.googleapis.com/gmail/v1/users/me/threads?q=${encodeURIComponent(q)}&maxResults=10`;
+  const maxThreadsRaw = opts?.maxThreads;
+  const maxThreads =
+    typeof maxThreadsRaw === 'number' && Number.isFinite(maxThreadsRaw)
+      ? Math.max(1, Math.min(200, Math.floor(maxThreadsRaw)))
+      : 20;
 
-  const listJson = (await fetchJson(listUrl, config.accessToken)) as {
-    threads?: Array<{ id?: string; threadId?: string }>;
-  };
+  const threadRefs: Array<{ id?: string; threadId?: string }> = [];
+  let pageToken: string | undefined;
+  while (threadRefs.length < maxThreads) {
+    const remaining = maxThreads - threadRefs.length;
+    const pageSize = Math.max(1, Math.min(100, remaining));
+    const params = new URLSearchParams({ q, maxResults: String(pageSize) });
+    if (pageToken) params.set('pageToken', pageToken);
 
-  const threadRefs = (listJson.threads ?? []).slice(0, 10);
+    const listUrl = `https://gmail.googleapis.com/gmail/v1/users/me/threads?${params.toString()}`;
+    const listJson = (await fetchJson(listUrl, config.accessToken)) as {
+      threads?: Array<{ id?: string; threadId?: string }>;
+      nextPageToken?: string;
+    };
+
+    const pageThreads = listJson.threads ?? [];
+    if (pageThreads.length === 0) break;
+    threadRefs.push(...pageThreads);
+    pageToken = listJson.nextPageToken;
+    if (!pageToken) break;
+  }
+
   if (threadRefs.length === 0) return [];
 
   const threads: GmailThread[] = [];
@@ -79,21 +102,23 @@ export async function listThreadsForEmail(
       }>;
     };
 
+    const messages = (threadJson.messages ?? []).map((m) => {
+      const ms = m.internalDate ? Number(m.internalDate) : NaN;
+      const internalDate = Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
+      return {
+        id: m.id,
+        threadId: m.threadId,
+        snippet: m.snippet,
+        internalDate,
+      };
+    });
+
     threads.push({
       id: threadJson.id ?? threadId,
       threadId: threadJson.id ?? threadId,
       snippet: threadJson.snippet,
       historyId: threadJson.historyId,
-      messages: (threadJson.messages ?? []).slice(0, 5).map((m) => {
-        const ms = m.internalDate ? Number(m.internalDate) : NaN;
-        const internalDate = Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
-        return {
-          id: m.id,
-          threadId: m.threadId,
-          snippet: m.snippet,
-          internalDate,
-        };
-      }),
+      messages,
     });
   }
 

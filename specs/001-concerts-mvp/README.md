@@ -8,6 +8,11 @@ This folder contains the spec artifacts for the Concerts MVP, plus runnable SQL 
 - Concert CRUD in the frontend (list, calendar, map)
 - Gmail thread lookup via backend proxy (`/gmail/threads`) with a connect flow
 
+Notes (current code expectations):
+
+- The frontend expects a `concerts.title` column (it derives a default when not provided).
+- The concert form currently requires `city`.
+
 ## Quickstart (dev)
 
 ### 1) Install deps
@@ -24,6 +29,13 @@ Apply these SQL files in your Supabase SQL editor (in order):
 - `specs/001-concerts-mvp/sql/rls.sql`
 - `specs/001-concerts-mvp/sql/seed_app_users.sql`
 - (optional, for Gmail connect) `specs/001-concerts-mvp/sql/gmail_connections.sql`
+
+If your `concerts` table predates the current frontend, ensure it has the `title` column:
+
+```sql
+alter table public.concerts add column if not exists title text;
+notify pgrst, 'reload schema';
+```
 
 ### 3) Configure env vars
 

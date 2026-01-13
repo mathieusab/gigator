@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import GmailThreads from '../components/GmailThreads';
+import { getContact, type Contact } from '../services/contacts';
 import { getConcert, type Concert } from '../services/concerts';
 
 function formatDateTime(value: string) {
@@ -22,6 +23,7 @@ export default function ConcertDetail() {
   const concertId = id;
 
   const [concert, setConcert] = useState<Concert | null>(null);
+  const [contact, setContact] = useState<Contact | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +55,30 @@ export default function ConcertDetail() {
     };
   }, [concertId]);
 
+  useEffect(() => {
+    const contactId = concert?.contact_id ?? null;
+    if (!contactId) {
+      setContact(null);
+      return;
+    }
+
+    let isMounted = true;
+    void (async () => {
+      try {
+        const c = await getContact(contactId);
+        if (!isMounted) return;
+        setContact(c);
+      } catch {
+        if (!isMounted) return;
+        setContact(null);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [concert?.contact_id]);
+
   return (
     <main
       style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
@@ -82,7 +108,13 @@ export default function ConcertDetail() {
       {!isLoading && !error && concert ? (
         <section style={{ marginTop: 16, display: 'grid', gap: 10 }}>
           <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: 18 }}>{concert.venue_name}</div>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>
+              {concert.venue_id ? (
+                <Link to={`/venues/${concert.venue_id}`}>{concert.venue_name}</Link>
+              ) : (
+                concert.venue_name
+              )}
+            </div>
             <div style={{ color: '#4b5563' }}>{formatDateTime(concert.date_start)}</div>
             <div style={{ color: '#4b5563' }}>
               {concert.city ? concert.city : ''}
@@ -91,10 +123,19 @@ export default function ConcertDetail() {
 
             {concert.address ? <div style={{ marginTop: 8 }}>{concert.address}</div> : null}
 
-            {concert.venue_contact_email ? (
+            {concert.contact_id || concert.venue_contact_email ? (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>Contact email</div>
-                <div>{concert.venue_contact_email}</div>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>Contact</div>
+                {concert.contact_id ? (
+                  <div>
+                    <Link to={`/contacts/${concert.contact_id}`}>
+                      {(contact?.full_name ?? '').trim() || (contact?.email ?? '').trim() || 'Voir la fiche'}
+                    </Link>
+                  </div>
+                ) : null}
+                {contact?.email || concert.venue_contact_email ? (
+                  <div>{contact?.email ?? concert.venue_contact_email}</div>
+                ) : null}
               </div>
             ) : null}
 
@@ -106,8 +147,8 @@ export default function ConcertDetail() {
             ) : null}
           </div>
 
-          {concert.venue_contact_email ? (
-            <GmailThreads email={concert.venue_contact_email} />
+          {contact?.email || concert.venue_contact_email ? (
+            <GmailThreads email={String(contact?.email ?? concert.venue_contact_email)} />
           ) : null}
         </section>
       ) : null}

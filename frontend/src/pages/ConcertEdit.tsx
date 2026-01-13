@@ -8,6 +8,7 @@ import {
   type Concert,
   type ConcertUpsertInput,
 } from '../services/concerts';
+import { upsertVenueContactLink } from '../services/venueContactLinks';
 
 export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
   const navigate = useNavigate();
@@ -47,12 +48,18 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
   async function handleSubmit(input: ConcertUpsertInput) {
     if (mode === 'create') {
       await createConcert(input);
+      if (input.venue_id && input.contact_id) {
+        await upsertVenueContactLink({ venue_id: input.venue_id, contact_id: input.contact_id });
+      }
       navigate('/', { replace: true });
       return;
     }
 
     if (!concertId) throw new Error('Missing concert id');
     await updateConcert(concertId, input);
+    if (input.venue_id && input.contact_id) {
+      await upsertVenueContactLink({ venue_id: input.venue_id, contact_id: input.contact_id });
+    }
     navigate('/', { replace: true });
   }
 
@@ -82,6 +89,7 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
           initial={concert ?? undefined}
           onSubmit={handleSubmit}
           submitLabel={mode === 'create' ? 'Créer' : 'Enregistrer'}
+          mode={mode}
         />
       ) : null}
     </main>

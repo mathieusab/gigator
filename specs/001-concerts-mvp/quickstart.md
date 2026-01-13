@@ -40,7 +40,9 @@ create table if not exists concerts (
   id uuid primary key default gen_random_uuid(),
   date_start timestamptz not null,
   date_end timestamptz,
-  status text not null default 'scheduled',
+  status text not null default 'scheduled' check (status in ('scheduled', 'completed', 'cancelled')),
+  -- The frontend expects a stored title (it derives one when missing)
+  title text not null,
   venue_name text not null,
   city text,
   country text,
@@ -54,6 +56,9 @@ create table if not exists concerts (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table concerts add constraint if not exists date_end_after_start
+  check (date_end is null or date_end >= date_start);
 
 -- Example: simple RLS policy template (adjust as needed)
 -- Enable row-level security
@@ -79,10 +84,17 @@ Run this in the Supabase SQL editor:
 
 ```sql
 alter table public.concerts add column if not exists date_end timestamptz;
+alter table public.concerts add column if not exists title text;
 
 -- refresh PostgREST schema cache
 notify pgrst, 'reload schema';
 ````
+
+## Notes about current UI behavior
+
+- The create/edit concert form currently requires `city` (even though the DB column can be nullable).
+- Concerts are stored and queried directly from the frontend using `@supabase/supabase-js`.
+- Gmail lookup is performed via the backend proxy (`/gmail/*`).
 
 ````
 

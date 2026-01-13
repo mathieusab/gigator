@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Concert, ConcertStatus, ConcertUpsertInput } from '../services/concerts';
+import { listContacts, type Contact } from '../services/contacts';
+import { listVenues, type Venue } from '../services/venues';
 
 function pad2(n: number) {
   return String(n).padStart(2, '0');
@@ -21,10 +23,12 @@ export default function ConcertForm({
   initial,
   onSubmit,
   submitLabel,
+  mode,
 }: {
   initial?: Partial<Concert>;
   onSubmit: (input: ConcertUpsertInput) => Promise<void>;
   submitLabel: string;
+  mode: 'create' | 'edit';
 }) {
   const initialStart = useMemo(() => {
     if (initial?.date_start) return toDateTimeLocalValue(initial.date_start);
@@ -42,47 +46,99 @@ export default function ConcertForm({
   const [status, setStatus] = useState<ConcertStatus>(
     (initial?.status as ConcertStatus) ?? 'scheduled',
   );
-  const [venueName, setVenueName] = useState(initial?.venue_name ?? '');
-  const [city, setCity] = useState(initial?.city ?? '');
-  const [country, setCountry] = useState(initial?.country ?? '');
-  const [address, setAddress] = useState(initial?.address ?? '');
-  const [lat, setLat] = useState(initial?.lat?.toString?.() ?? '');
-  const [lng, setLng] = useState(initial?.lng?.toString?.() ?? '');
-  const [contactName, setContactName] = useState(initial?.venue_contact_name ?? '');
-  const [contactEmail, setContactEmail] = useState(initial?.venue_contact_email ?? '');
+
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [directoryError, setDirectoryError] = useState<string | null>(null);
+
+  const [selectedVenueId, setSelectedVenueId] = useState<string>(initial?.venue_id ?? '');
+  const [selectedContactId, setSelectedContactId] = useState<string>(initial?.contact_id ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    let isMounted = true;
+    void (async () => {
+      setDirectoryError(null);
+      try {
+        const [v, c] = await Promise.all([listVenues(), listContacts()]);
+        if (!isMounted) return;
+        setVenues(Array.isArray(v) ? v : []);
+        setContacts(Array.isArray(c) ? c : []);
+      } catch (e) {
+        if (!isMounted) return;
+        setDirectoryError(e instanceof Error ? e.message : 'Failed to load directories');
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const selectedVenue = useMemo(
+    () => venues.find((x) => x.id === selectedVenueId) ?? null,
+    [venues, selectedVenueId],
+  );
+
+  const selectedContact = useMemo(
+    () => contacts.find((x) => x.id === selectedContactId) ?? null,
+    [contacts, selectedContactId],
+  );
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!venueName.trim()) {
-      setError('Le nom de la salle est requis.');
-      return;
-    }
-    if (!city.trim()) {
-      setError('La ville est requise.');
+    if (mode === 'create' && !selectedVenueId.trim()) {
+      setError('La salle est requise.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const input = {
+      const resolvedVenueId: string | null = selectedVenueId.trim() || null;
+      const resolvedContactId: string | null = selectedContactId.trim() || null;
+
+      const venueFromDirectory = resolvedVenueId ? selectedVenue : null;
+      const venueName = venueFromDirectory?.name ?? initial?.venue_name ?? '';
+
+      if (!venueName.trim()) {
+        setError('La salle est requise.');
+        return;
+      }
+
+      const input: ConcertUpsertInput = {
         date_start: toIsoFromDateTimeLocal(dateStart),
         status,
+        venue_id: resolvedVenueId,
+        contact_id: resolvedContactId,
         venue_name: venueName.trim(),
-        city: city.trim(),
-        country: country.trim() || null,
-        address: address.trim() || null,
-        lat: lat.trim() ? Number(lat) : null,
-        lng: lng.trim() ? Number(lng) : null,
-        venue_contact_name: contactName.trim() || null,
-        venue_contact_email: contactEmail.trim() || null,
+        city: venueFromDirectory?.city ?? initial?.city ?? null,
+        country: venueFromDirectory?.country ?? initial?.country ?? null,
+        address: venueFromDirectory?.address ?? initial?.address ?? null,
+        lat: (() => {
+          const raw = venueFromDirectory?.lat ?? initial?.lat ?? null;
+          if (raw === null || raw === undefined) return null;
+          const n = typeof raw === 'number' ? raw : Number(raw);
+          return Number.isFinite(n) ? n : null;
+        })(),
+        lng: (() => {
+          const raw = venueFromDirectory?.lng ?? initial?.lng ?? null;
+          if (raw === null || raw === undefined) return null;
+          const n = typeof raw === 'number' ? raw : Number(raw);
+          return Number.isFinite(n) ? n : null;
+        })(),
         notes: notes.trim() || null,
-      } satisfies ConcertUpsertInput;
+      };
+
+      // If we attach a contact, we intentionally do not persist ad-hoc email/name on the concert.
+      // Avoid overwriting legacy snapshot fields unless we explicitly set them.
+      if (resolvedContactId) {
+        input.venue_contact_name = null;
+        input.venue_contact_email = null;
+      }
 
       await onSubmit(input);
     } catch (e) {
@@ -97,6 +153,12 @@ export default function ConcertForm({
       {error ? (
         <p role="alert" style={{ color: 'crimson', margin: 0 }}>
           {error}
+        </p>
+      ) : null}
+
+      {directoryError ? (
+        <p role="alert" style={{ color: 'crimson', margin: 0 }}>
+          {directoryError}
         </p>
       ) : null}
 
@@ -121,83 +183,61 @@ export default function ConcertForm({
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Salle</span>
-        <input
-          value={venueName}
-          onChange={(e) => setVenueName(e.target.value)}
-          placeholder="Le Bikini"
-          required
-        />
+        <select
+          value={selectedVenueId}
+          onChange={(e) => setSelectedVenueId(e.target.value)}
+          aria-label="Salle"
+          required={mode === 'create'}
+        >
+          <option value="">— Choisir une salle —</option>
+          {venues.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+              {v.city ? ` — ${v.city}` : ''}
+              {v.country ? (v.city ? `, ${v.country}` : ` — ${v.country}`) : ''}
+            </option>
+          ))}
+        </select>
+        {!venues.length && !directoryError ? (
+          <span style={{ fontSize: 12, color: '#6b7280' }}>
+            Aucune salle dans l’annuaire.
+          </span>
+        ) : null}
+        {mode === 'edit' && !selectedVenueId && initial?.venue_name ? (
+          <span style={{ fontSize: 12, color: '#6b7280' }}>
+            Concert non lié à une salle (valeur existante: {String(initial.venue_name)}).
+          </span>
+        ) : null}
       </label>
 
       <label style={{ display: 'grid', gap: 4 }}>
-        <span>Ville</span>
-        <input
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          placeholder="Toulouse"
-          required
-        />
+        <span>Contact</span>
+        <select
+          value={selectedContactId}
+          onChange={(e) => setSelectedContactId(e.target.value)}
+          aria-label="Contact"
+        >
+          <option value="">— Aucun —</option>
+          {contacts.map((c) => {
+            const label = (c.full_name ?? '').trim() || (c.email ?? '').trim() || c.id;
+            return (
+              <option key={c.id} value={c.id}>
+                {label}
+              </option>
+            );
+          })}
+        </select>
+        {mode === 'edit' && !selectedContactId && (initial?.venue_contact_name || initial?.venue_contact_email) ? (
+          <span style={{ fontSize: 12, color: '#6b7280' }}>
+            Concert non lié à un contact (infos existantes conservées).
+          </span>
+        ) : null}
+        {selectedContact ? (
+          <span style={{ fontSize: 12, color: '#6b7280' }}>
+            {selectedContact.email ? `Email: ${selectedContact.email}` : 'Email non renseigné'}
+          </span>
+        ) : null}
       </label>
-
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
-        <label style={{ display: 'grid', gap: 4 }}>
-          <span>Pays</span>
-          <input
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            placeholder="France"
-          />
-        </label>
-        <label style={{ display: 'grid', gap: 4 }}>
-          <span>Adresse</span>
-          <input
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Rue ..."
-          />
-        </label>
-      </div>
-
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
-        <label style={{ display: 'grid', gap: 4 }}>
-          <span>Lat</span>
-          <input
-            value={lat}
-            onChange={(e) => setLat(e.target.value)}
-            inputMode="decimal"
-            placeholder="43.6043"
-          />
-        </label>
-        <label style={{ display: 'grid', gap: 4 }}>
-          <span>Lng</span>
-          <input
-            value={lng}
-            onChange={(e) => setLng(e.target.value)}
-            inputMode="decimal"
-            placeholder="1.4437"
-          />
-        </label>
-      </div>
-
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
-        <label style={{ display: 'grid', gap: 4 }}>
-          <span>Contact</span>
-          <input
-            value={contactName}
-            onChange={(e) => setContactName(e.target.value)}
-            placeholder="Prénom Nom"
-          />
-        </label>
-        <label style={{ display: 'grid', gap: 4 }}>
-          <span>Email</span>
-          <input
-            value={contactEmail}
-            onChange={(e) => setContactEmail(e.target.value)}
-            inputMode="email"
-            placeholder="contact@salle.com"
-          />
-        </label>
-      </div>
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Notes</span>

@@ -39,8 +39,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void init();
 
-    const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+
+      // Supabase emits auth events (including TOKEN_REFRESHED) that can happen when the tab
+      // regains focus. We should not blank the UI for token refreshes, otherwise pages remount
+      // and any in-progress form state is lost.
+      if (event === 'TOKEN_REFRESHED') {
+        return;
+      }
+
       setIsLoading(true);
       void (async () => {
         try {

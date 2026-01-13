@@ -6,14 +6,20 @@ import CalendarPage from './pages/CalendarPage';
 import ConcertDetail from './pages/ConcertDetail';
 import ConcertEdit from './pages/ConcertEdit';
 import ConcertList from './pages/ConcertList';
+import ContactDetail from './pages/ContactDetail';
+import ContactList from './pages/ContactList';
 import Login from './pages/Login';
 import MapPage from './pages/MapPage';
 import NotFound from './pages/NotFound';
+import VenueDetail from './pages/VenueDetail';
+import VenueList from './pages/VenueList';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, appUser, isLoading } = useAuth();
 
-  if (isLoading) {
+  // Keep the protected UI mounted during background refreshes (e.g. token refresh on tab focus),
+  // otherwise in-progress form state gets wiped by an unmount/remount.
+  if (isLoading && !(session && isAuthorized(appUser))) {
     return (
       <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif' }}>
         <p>Loading…</p>
@@ -59,6 +65,38 @@ export default function App() {
           element={
             <RequireAuth>
               <MapPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/venues"
+          element={
+            <RequireAuth>
+              <VenueList />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/venues/:id"
+          element={
+            <RequireAuth>
+              <VenueDetail />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/contacts"
+          element={
+            <RequireAuth>
+              <ContactList />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/contacts/:id"
+          element={
+            <RequireAuth>
+              <ContactDetail />
             </RequireAuth>
           }
         />

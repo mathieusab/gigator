@@ -17,12 +17,24 @@ function formatDate(value?: string) {
   }).format(d);
 }
 
-export default function GmailThreads({ email }: { email: string }) {
+export default function GmailThreads({
+  email,
+  mode = 'compact',
+}: {
+  email: string;
+  mode?: 'compact' | 'full';
+}) {
   const { session } = useAuth();
   const [threads, setThreads] = useState<GmailThread[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsConnect, setNeedsConnect] = useState(false);
+  const [isFullMode, setIsFullMode] = useState(mode === 'full');
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setIsFullMode(mode === 'full');
+  }, [mode]);
 
   function shouldPromptGmailConnect(message: string) {
     const m = message.toLowerCase();
@@ -63,7 +75,11 @@ export default function GmailThreads({ email }: { email: string }) {
       setError(null);
       setNeedsConnect(false);
       try {
-        const items = await listGmailThreadsForEmail({ appAccessToken, email: trimmedEmail });
+        const items = await listGmailThreadsForEmail({
+          appAccessToken,
+          email: trimmedEmail,
+          maxThreads: isFullMode ? 200 : 20,
+        });
         if (!isMounted) return;
         setThreads(Array.isArray(items) ? items : []);
       } catch (e) {
@@ -80,7 +96,7 @@ export default function GmailThreads({ email }: { email: string }) {
     return () => {
       isMounted = false;
     };
-  }, [email, session]);
+  }, [email, session, isFullMode]);
 
   async function handleConnect() {
     const appAccessToken = (session as any)?.access_token as string | undefined;
@@ -102,6 +118,15 @@ export default function GmailThreads({ email }: { email: string }) {
     <section style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, marginTop: 16 }}>
       <h2 style={{ margin: 0, marginBottom: 8, fontSize: 16 }}>Gmail — Conversations</h2>
       <p style={{ marginTop: 0, color: '#4b5563' }}>{email.trim() || 'No contact email set.'}</p>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => setIsFullMode((v) => !v)} disabled={isLoading}>
+          {isFullMode ? 'Mode compact' : 'Mode complet'}
+        </button>
+        <span style={{ fontSize: 12, color: '#6b7280' }}>
+          {isFullMode ? 'Jusqu’à 200 threads' : 'Jusqu’à 20 threads'}
+        </span>
+      </div>
 
       {isLoading ? <p>Chargement…</p> : null}
       {error ? (
@@ -129,10 +154,21 @@ export default function GmailThreads({ email }: { email: string }) {
                 {t.messages?.length ? (
                   <div style={{ marginTop: 8 }}>
                     <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
-                      Messages (latest)
+                      Messages
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpanded((prev) => ({ ...prev, [t.id]: !Boolean(prev[t.id]) }))
+                      }
+                      style={{ marginBottom: 6 }}
+                    >
+                      {expanded[t.id] ? 'Masquer' : 'Afficher'}
+                    </button>
+
                     <ul style={{ margin: 0, paddingLeft: 16 }}>
-                      {t.messages.slice(0, 3).map((m) => (
+                      {(expanded[t.id] ? t.messages : t.messages.slice(0, 3)).map((m) => (
                         <li
                           key={m.id ?? `${t.id}:${m.internalDate ?? ''}`}
                           style={{ fontSize: 13, marginBottom: 4 }}

@@ -64,6 +64,12 @@ export default function ConcertList() {
       >
         <h1 style={{ margin: 0 }}>Concerts</h1>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" onClick={() => navigate('/venues')}>
+            Salles
+          </button>
+          <button type="button" onClick={() => navigate('/contacts')}>
+            Contacts
+          </button>
           <button type="button" onClick={() => navigate('/calendar')}>
             Calendrier
           </button>

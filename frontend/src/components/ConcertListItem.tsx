@@ -1,4 +1,5 @@
 import type { Concert } from '../services/concerts';
+import { Link } from 'react-router-dom';
 
 function formatDateTime(value: string) {
   const d = new Date(value);
@@ -36,11 +37,25 @@ export default function ConcertListItem({
       }}
     >
       <div>
-        <div style={{ fontWeight: 600 }}>{concert.venue_name}</div>
+        <div style={{ fontWeight: 600 }}>
+          {concert.venue_id ? (
+            <Link to={`/venues/${concert.venue_id}`}>{concert.venue_name}</Link>
+          ) : (
+            concert.venue_name
+          )}
+        </div>
         <div style={{ color: '#4b5563' }}>
           {formatDateTime(concert.date_start)}
           {concert.city ? ` • ${concert.city}` : ''}
         </div>
+
+        {concert.contact_id ? (
+          <div style={{ marginTop: 4, fontSize: 13, color: '#4b5563' }}>
+            <Link to={`/contacts/${concert.contact_id}`}>
+              {(concert.venue_contact_name ?? '').trim() || (concert.venue_contact_email ?? '').trim() || 'Contact'}
+            </Link>
+          </div>
+        ) : null}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="button" onClick={() => onOpen(concert.id)}>

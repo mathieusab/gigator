@@ -14,11 +14,18 @@ export type GmailThread = {
 export async function listGmailThreadsForEmail(params: {
   appAccessToken: string;
   email: string;
+  maxThreads?: number;
 }): Promise<GmailThread[]> {
   const email = params.email.trim();
   if (!email) throw new Error('Missing email');
 
-  const res = await fetch(`/gmail/threads?email=${encodeURIComponent(email)}`, {
+  const maxThreads = typeof params.maxThreads === 'number' ? params.maxThreads : undefined;
+  const qs = new URLSearchParams({ email });
+  if (maxThreads && Number.isFinite(maxThreads)) {
+    qs.set('maxThreads', String(Math.max(1, Math.min(200, Math.floor(maxThreads)))));
+  }
+
+  const res = await fetch(`/gmail/threads?${qs.toString()}`, {
     headers: {
       Authorization: `Bearer ${params.appAccessToken}`,
     },

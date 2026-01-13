@@ -254,6 +254,12 @@ gmailRouter.get('/threads', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Missing required query param: email' });
   }
 
+  const maxThreadsRaw = String(req.query.maxThreads ?? '').trim();
+  const maxThreadsParsed = maxThreadsRaw ? Number(maxThreadsRaw) : NaN;
+  const maxThreads = Number.isFinite(maxThreadsParsed)
+    ? Math.max(1, Math.min(200, Math.floor(maxThreadsParsed)))
+    : undefined;
+
   const clientId = process.env.GMAIL_PROXY_CLIENT_ID ?? '';
   const clientSecret = process.env.GMAIL_PROXY_CLIENT_SECRET ?? '';
   if (!clientId || !clientSecret) {
@@ -293,7 +299,11 @@ gmailRouter.get('/threads', async (req: Request, res: Response) => {
       clientId,
       clientSecret,
     });
-    const threads = await listThreadsForEmail({ clientId, clientSecret, accessToken }, email);
+    const threads = await listThreadsForEmail(
+      { clientId, clientSecret, accessToken },
+      email,
+      { maxThreads },
+    );
     return res.json(threads);
   } catch (e) {
     if (e instanceof GmailProxyError) {

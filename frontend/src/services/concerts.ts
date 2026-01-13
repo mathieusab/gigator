@@ -8,6 +8,8 @@ export type Concert = {
   date_end: string | null;
   status: ConcertStatus;
   title: string;
+  venue_id: string | null;
+  contact_id: string | null;
   venue_name: string;
   city: string | null;
   country: string | null;
@@ -27,6 +29,8 @@ export type ConcertUpsertInput = {
   date_end?: string | null;
   status?: ConcertStatus;
   title?: string;
+  venue_id?: string | null;
+  contact_id?: string | null;
   venue_name: string;
   city?: string | null;
   country?: string | null;
@@ -77,6 +81,8 @@ export async function createConcert(input: ConcertUpsertInput): Promise<Concert>
     created_by: userId,
     title: deriveTitle(input),
     status: input.status ?? 'scheduled',
+    venue_id: 'venue_id' in input ? input.venue_id ?? null : null,
+    contact_id: 'contact_id' in input ? input.contact_id ?? null : null,
     updated_at: new Date().toISOString(),
   };
 
@@ -93,6 +99,8 @@ export async function updateConcert(id: string, input: ConcertUpsertInput): Prom
     ...input,
     title: deriveTitle(input),
     status: input.status ?? 'scheduled',
+    venue_id: 'venue_id' in input ? input.venue_id ?? null : null,
+    contact_id: 'contact_id' in input ? input.contact_id ?? null : null,
     updated_at: new Date().toISOString(),
   };
 

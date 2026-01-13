@@ -10,8 +10,10 @@ Ce PRD s’aligne sur la stack et les patterns observés dans le projet GitHub *
 - Routing: **react-router-dom**
 - UI/Theme: **Tailwind CSS** (darkMode class), design basé sur **CSS variables** (`--primary`, `--background`, etc.), + **tailwindcss-animate**, icônes **lucide-react**
 - Auth & data: **Supabase** via `@supabase/supabase-js`
-- OAuth Google: via **Supabase Auth (provider=google)** en récupérant le **`provider_token`** côté client pour appeler des APIs Google
+- OAuth Google: via **Supabase Auth (provider=google)**. Selon les besoins, `session.provider_token` peut servir à appeler des APIs Google côté client; **dans l’état actuel du repo, Gmail passe par un proxy backend**.
 - Distribution: **PWA** (installable) via Vite (même approche que Validator avec `vite-plugin-pwa`)
+
+> Note (état actuel du repo): l’implémentation actuelle est volontairement minimaliste et n’embarque pas encore le thème Validator (pas de Tailwind/CSS variables à ce stade). L’UI est majoritairement en styles inline.
 
 ## 2) Problème
 
@@ -60,8 +62,17 @@ Fonctionnalités demandées (MVP) :
 Décisions (confirmées) :
 
 - **Source des concerts: saisie manuelle**.
-- **Pipeline booking détaillé** (cf. statuts).
+- **Statuts concerts** simples (état actuel): `scheduled`, `completed`, `cancelled`.
 - **Gmail: lecture de l’historique de conversation par contact (gérant de salle)**.
+
+### État actuel (implémenté)
+
+Cette section décrit le comportement actuellement présent dans le code du repo (et prévaut sur les intentions initiales si elles divergent).
+
+- **Concerts**: CRUD côté client via Supabase (pas d’API backend dédiée aux concerts). Les vues Liste / Calendrier / Carte existent.
+- **Statuts concerts**: `scheduled`, `completed`, `cancelled`.
+- **Accès Gmail**: via un **proxy backend** (`/gmail/*`) + un flow OAuth dédié “Connecter Gmail” (stockage d’un refresh token chiffré dans Supabase). L’app n’appelle pas directement l’API Gmail depuis le navigateur.
+- **PWA**: service worker minimal injecté via `vite-plugin-pwa` pour l’installabilité et un cache très simple.
 
 ## 6) Hors périmètre (pour éviter de dériver)
 
@@ -70,6 +81,8 @@ Décisions (confirmées) :
 ## 7) Parcours utilisateur (UX)
 
 > Note: l’UX doit rester simple et proche du style Validator (Tailwind + tokens via CSS variables). Pas d’ajout de features “nice-to-have” non demandées. Validator et Gigator sont deux applications de la même suite d'application. Le thème doit être le même que Validator.
+
+> Note (état actuel du repo): l’UI est fonctionnelle mais n’est pas encore alignée visuellement sur Validator (styles inline, navigation simple).
 
 ### 7.1 Connexion
 
@@ -84,7 +97,7 @@ Décisions (confirmées) :
 - Chaque concert affiche au minimum:
   - Date / heure
   - Nom de la salle / ville
-  - Statut (pipeline booking détaillé)
+  - Statut (`scheduled` / `completed` / `cancelled`)
 
 Source des données: **saisie manuelle** (création/édition d’un concert dans l’app).
 
@@ -111,6 +124,16 @@ Source des données: **saisie manuelle** (création/édition d’un concert dans
 
 Remarque: on ne vise pas une “boîte mail” générale; uniquement un accès ciblé “conversation avec X”.
 
+#### Implémentation actuelle (proxy backend)
+
+- Depuis la fiche concert, si `venue_contact_email` est renseigné, l’app affiche un bloc “Gmail — Conversations”.
+- Si Gmail n’est pas connecté (ou token invalide), l’UI propose un bouton **“Connecter Gmail”**.
+- Le bouton déclenche un flow OAuth géré par le backend:
+  - `POST /gmail/oauth/start` (authentifié avec le **Supabase access token** en Bearer) renvoie une URL Google OAuth.
+  - Google redirige vers `GET /gmail/oauth/callback`, le backend échange le `code` contre un **refresh token**, lit le profil Gmail, puis stocke le refresh token **chiffré** dans la table `gmail_connections`.
+  - Ensuite, `GET /gmail/threads?email=...` (authentifié) liste les threads correspondant au contact.
+- Scopes demandés par ce flow OAuth: `https://www.googleapis.com/auth/gmail.readonly` + `email`.
+
 ## 8) Données (Supabase)
 
 ### 8.1 Tables minimales
@@ -120,11 +143,11 @@ Remarque: on ne vise pas une “boîte mail” générale; uniquement un accès 
 - `id` (uuid, PK)
 - `date_start` (timestamptz, required)
 - `date_end` (timestamptz, optional)
-- `status` (text/enum, required) — pipeline:
-  - `contacted`
-  - `negotiating`
-  - `accepted`
-  - `refused`
+- `status` (text/enum, required) — valeurs actuellement utilisées par l’app:
+  - `scheduled`
+  - `completed`
+  - `cancelled`
+- `title` (text) — titre “dérivé” côté client si non fourni (ex: `venue_name — city`)
 - `venue_name` (text, required)
 - `city` (text, optional)
 - `country` (text, optional)
@@ -134,10 +157,12 @@ Remarque: on ne vise pas une “boîte mail” générale; uniquement un accès 
 - `venue_contact_name` (text, optional)
 - `venue_contact_email` (text, optional) — clé pour la requête Gmail
 - `notes` (text, optional)
+- `created_by` (uuid) — id de l’utilisateur (référence `app_users.id`)
 - `created_at`, `updated_at`
 
 #### `app_users` (pattern Validator)
 
+- `id` (uuid, PK) — correspond au Supabase Auth UID
 - `email` (text, unique)
 - `is_active` (bool)
 - `last_login_at` (timestamptz)
@@ -156,6 +181,11 @@ Remarque: on ne vise pas une “boîte mail” générale; uniquement un accès 
   - Auth via `supabase.auth.signInWithOAuth({ provider: 'google', options: { scopes, ... }})`
   - Utilisation du **`session.provider_token`** pour appeler ensuite les APIs Google.
 
+État actuel:
+
+- L’app utilise `supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } })`.
+- L’app ne s’appuie pas sur `session.provider_token` pour Gmail: l’accès Gmail passe par un proxy backend.
+
 ### 9.2 Gmail
 
 - Scope recommandé (MVP, lecture seule):
@@ -164,10 +194,11 @@ Remarque: on ne vise pas une “boîte mail” générale; uniquement un accès 
   - `users.threads.list` (filtrer par requête Gmail `q`)
   - `users.threads.get` (récupérer le contenu d’un thread)
 
-Approche MVP (sans backend):
+Approche implémentée (avec backend):
 
-- Appel direct à Gmail depuis le client en utilisant le **`provider_token`** Supabase (OAuth Google).
-- Requête de type: `q=(from:contact@email OR to:contact@email)` pour retrouver les conversations.
+- Backend Express expose `/gmail/*`.
+- OAuth Gmail (offline) réalisé côté backend, refresh token stocké chiffré dans `gmail_connections`.
+- Pour lister les conversations: requête Gmail de type `from:email OR to:email` (limitée à 10 threads, et 5 messages max par thread, format `metadata`).
 
 Évolutions possibles (hors MVP): historiser côté Supabase, sync périodique, ou envoi d’emails (scopes plus permissifs).
 
@@ -185,7 +216,7 @@ Approche MVP (sans backend):
 
 ## 10) Exigences non-fonctionnelles
 
-- Sécurité: ne jamais exposer de secrets côté client (API keys Google ok si restrictions strictes; tokens OAuth via Supabase session seulement).
+- Sécurité: ne jamais exposer de secrets côté client (API keys Google ok si restrictions strictes; tokens OAuth gérés via Supabase côté client, et refresh token Gmail stocké chiffré côté backend).
 - Conformité: accès Gmail = données personnelles → minimiser, ne stocker que ce qui est nécessaire.
 - Performance: liste et carte doivent rester fluides pour un volume réaliste (ex: quelques centaines de concerts).
 
@@ -214,6 +245,11 @@ Critères d’acceptation (MVP):
   - icônes + nom court/long + couleur de thème
   - cache minimal des assets statiques (shell de l’app)
 - Offline: **non requis** pour les données (concerts/emails), mais l’app doit au minimum afficher une page “hors connexion” propre si nécessaire.
+
+État actuel:
+
+- Service worker minimal (injectManifest) avec cache navigation (network-first + fallback) et assets (stale-while-revalidate) pour les requêtes GET same-origin.
+- En cas d’absence de cache et de réseau, la réponse fallback est un texte `Offline` (HTTP 503).
 - Hors périmètre PWA: push notifications.
 
 Critères d’acceptation (MVP):
@@ -240,4 +276,4 @@ Décisions validées:
 
 - **Gmail**: accès ciblé pour récupérer l’historique de conversation avec un contact (gérant de salle).
 - **Concerts**: saisie manuelle.
-- **Statuts**: pipeline détaillé (`contacted`, `negotiating`, `accepted`, `refused`).
+- **Statuts (actuels)**: `scheduled`, `completed`, `cancelled`.

@@ -19,6 +19,9 @@ type Concert = {
   date_start: string;
   date_end: string | null;
   status: 'scheduled' | 'completed' | 'cancelled';
+  title: string;
+  venue_id: string | null;
+  contact_id: string | null;
   venue_name: string;
   city: string | null;
   country: string | null;
@@ -40,6 +43,9 @@ const store: { concerts: Concert[] } = {
       date_start: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       date_end: null,
       status: 'scheduled',
+      title: 'Future Venue — Paris',
+      venue_id: null,
+      contact_id: null,
       venue_name: 'Future Venue',
       city: 'Paris',
       country: null,
@@ -58,6 +64,9 @@ const store: { concerts: Concert[] } = {
       date_start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
       date_end: null,
       status: 'completed',
+      title: 'Past Venue — Lyon',
+      venue_id: null,
+      contact_id: null,
       venue_name: 'Past Venue',
       city: 'Lyon',
       country: null,
@@ -88,6 +97,9 @@ vi.mock('../../src/services/concerts', () => {
         date_start: input.date_start,
         date_end: input.date_end ?? null,
         status: input.status ?? 'scheduled',
+        title: input.title ?? `${input.venue_name}${input.city ? ` — ${input.city}` : ''}`,
+        venue_id: input.venue_id ?? null,
+        contact_id: input.contact_id ?? null,
         venue_name: input.venue_name,
         city: input.city ?? null,
         country: input.country ?? null,
@@ -120,6 +132,85 @@ vi.mock('../../src/services/concerts', () => {
   };
 });
 
+vi.mock('../../src/services/venues', () => {
+  return {
+    listVenues: vi.fn(async () => {
+      return [
+        {
+          id: 'v-new',
+          name: 'New Venue',
+          city: 'Toulouse',
+          country: null,
+          address: null,
+          postal_code: null,
+          region: null,
+          lat: null,
+          lng: null,
+          website: null,
+          instagram: null,
+          facebook: null,
+          capacity: null,
+          has_played: false,
+          load_in_notes: null,
+          parking_notes: null,
+          hospitality_notes: null,
+          tech_notes: null,
+          merch_notes: null,
+          notes: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: 'v-edited',
+          name: 'Edited Venue',
+          city: 'Toulouse',
+          country: null,
+          address: null,
+          postal_code: null,
+          region: null,
+          lat: null,
+          lng: null,
+          website: null,
+          instagram: null,
+          facebook: null,
+          capacity: null,
+          has_played: false,
+          load_in_notes: null,
+          parking_notes: null,
+          hospitality_notes: null,
+          tech_notes: null,
+          merch_notes: null,
+          notes: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ];
+    }),
+  };
+});
+
+vi.mock('../../src/services/contacts', () => {
+  return {
+    listContacts: vi.fn(async () => {
+      return [
+        {
+          id: 'ct-1',
+          full_name: 'Alice',
+          email: 'alice@example.com',
+          phone: null,
+          last_contact_at: null,
+          role: null,
+          organization: null,
+          preferred_language: null,
+          notes: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ];
+    }),
+  };
+});
+
 import App from '../../src/App';
 
 test('US2 flow: list groups, create, edit, delete', async () => {
@@ -139,8 +230,7 @@ test('US2 flow: list groups, create, edit, delete', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
   expect(await screen.findByText('Nouveau concert')).toBeInTheDocument();
 
-  fireEvent.change(screen.getByLabelText('Salle'), { target: { value: 'New Venue' } });
-  fireEvent.change(screen.getByLabelText('Ville'), { target: { value: 'Toulouse' } });
+  fireEvent.change(screen.getByLabelText('Salle'), { target: { value: 'v-new' } });
   fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 
   expect(await screen.findByText('Concerts')).toBeInTheDocument();
@@ -148,7 +238,7 @@ test('US2 flow: list groups, create, edit, delete', async () => {
 
   fireEvent.click(screen.getAllByRole('button', { name: 'Modifier' })[0]);
   expect(await screen.findByText('Modifier le concert')).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Salle'), { target: { value: 'Edited Venue' } });
+  fireEvent.change(screen.getByLabelText('Salle'), { target: { value: 'v-edited' } });
   fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
   expect(await screen.findByText('Concerts')).toBeInTheDocument();

@@ -1,82 +1,35 @@
 openapi: 3.0.3
 info:
-  title: Gigator Concerts MVP API (spec contracts)
-  version: 0.1.0
+  title: Gigator Backend API (Gmail proxy)
+  version: 0.2.0
+  description: |
+    This OpenAPI document describes the backend Express API currently implemented in this repo.
+
+    Notes:
+    - Concerts CRUD is performed directly by the frontend via Supabase (PostgREST). There is no `/concerts` backend route.
+    - Gmail access is proxied by this backend and authorized using the Supabase access token (JWT) as a Bearer token.
 servers:
   - url: http://localhost:3000
 paths:
-  /concerts:
+  /health:
     get:
-      summary: List concerts (upcoming and past)
-      parameters:
-        - name: upcoming
-          in: query
-          schema:
-            type: boolean
-          description: If true, return upcoming concerts only
+      summary: Health check
       responses:
         '200':
-          description: Concert list
+          description: OK
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Concert'
-    post:
-      summary: Create a concert
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConcertCreate'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Concert'
-  /concerts/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      summary: Get concert by id
-      responses:
-        '200':
-          description: Concert
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Concert'
-    put:
-      summary: Update concert
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConcertUpdate'
-      responses:
-        '200':
-          description: Updated concert
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Concert'
-    delete:
-      summary: Delete concert
-      responses:
-        '204':
-          description: Deleted
+                type: object
+                properties:
+                  ok:
+                    type: boolean
 
   /gmail/threads:
     get:
       summary: Lookup Gmail threads for a contact email (proxied)
+      security:
+        - bearerAuth: []
       parameters:
         - name: email
           in: query
@@ -84,6 +37,14 @@ paths:
           schema:
             type: string
           description: Contact email to search threads for
+        - name: maxThreads
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+          description: Maximum number of threads to return (default is server-defined)
       responses:
         '200':
           description: Thread list
@@ -95,124 +56,77 @@ paths:
                   $ref: '#/components/schemas/GmailThread'
         '401':
           description: Unauthorized or missing Gmail permission
+        '403':
+          description: Access denied (inactive app user)
+
+  /gmail/oauth/start:
+    post:
+      summary: Start Gmail OAuth (returns Google OAuth URL)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                redirectTo:
+                  type: string
+                  description: Relative path in the frontend (e.g. /concerts/123)
+              required: [redirectTo]
+      responses:
+        '200':
+          description: OAuth URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                required: [url]
+        '401':
+          description: Unauthorized
+        '403':
+          description: Access denied (inactive app user)
+
+  /gmail/oauth/callback:
+    get:
+      summary: OAuth callback (Google redirects here)
+      description: |
+        Exchanges the OAuth `code` for access/refresh tokens, reads Gmail profile,
+        stores the encrypted refresh token in Supabase, then redirects back to the frontend.
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect back to the frontend
+        '200':
+          description: HTML confirmation page (when FRONTEND_ORIGIN is not configured)
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Missing or invalid parameters
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
-    Concert:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        date_start:
-          type: string
-          format: date-time
-        date_end:
-          type: string
-          format: date-time
-          nullable: true
-        status:
-          type: string
-          enum: [scheduled, completed, cancelled]
-        venue_name:
-          type: string
-        city:
-          type: string
-        country:
-          type: string
-        address:
-          type: string
-        lat:
-          type: number
-          format: float
-          nullable: true
-        lng:
-          type: number
-          format: float
-          nullable: true
-        venue_contact_name:
-          type: string
-          nullable: true
-        venue_contact_email:
-          type: string
-          nullable: true
-        notes:
-          type: string
-          nullable: true
-        created_by:
-          type: string
-          format: uuid
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-    ConcertCreate:
-      type: object
-      required: [date_start, venue_name, created_by]
-      properties:
-        date_start:
-          type: string
-          format: date-time
-        date_end:
-          type: string
-          format: date-time
-        venue_name:
-          type: string
-        city:
-          type: string
-        country:
-          type: string
-        address:
-          type: string
-        lat:
-          type: number
-          format: float
-        lng:
-          type: number
-          format: float
-        venue_contact_name:
-          type: string
-        venue_contact_email:
-          type: string
-        notes:
-          type: string
-        created_by:
-          type: string
-          format: uuid
-    ConcertUpdate:
-      type: object
-      properties:
-        date_start:
-          type: string
-          format: date-time
-        date_end:
-          type: string
-          format: date-time
-        status:
-          type: string
-          enum: [scheduled, completed, cancelled]
-        venue_name:
-          type: string
-        city:
-          type: string
-        country:
-          type: string
-        address:
-          type: string
-        lat:
-          type: number
-          format: float
-        lng:
-          type: number
-          format: float
-        venue_contact_name:
-          type: string
-        venue_contact_email:
-          type: string
-        notes:
-          type: string
     GmailThread:
       type: object
       properties:
@@ -239,4 +153,3 @@ components:
                 type: string
                 format: date-time
 
-security: []
