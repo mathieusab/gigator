@@ -76,5 +76,26 @@ export async function createVenue(input: VenueCreateInput): Promise<Venue> {
 
 export async function deleteVenue(id: string): Promise<void> {
   const res = await supabase.from('venues').delete().eq('id', id);
-  if (res.error) throw new Error(res.error.message);
+  if (res.error) {
+    const code = String((res.error as any).code ?? '');
+    const message = String(res.error.message ?? '');
+
+    // Postgres foreign key violation.
+    if (
+      code === '23503' ||
+      /foreign key/i.test(message) ||
+      /violates foreign key constraint/i.test(message)
+    ) {
+      throw new Error(
+        "Impossible de supprimer cette salle car elle est liée à d’autres données (concerts, contacts, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
+      );
+    }
+
+    // RLS / permission errors (common when policy forbids delete).
+    if (code === '42501' || /permission denied/i.test(message) || /row level security/i.test(message)) {
+      throw new Error("Vous n'avez pas les droits pour supprimer cette salle.");
+    }
+
+    throw new Error(res.error.message);
+  }
 }

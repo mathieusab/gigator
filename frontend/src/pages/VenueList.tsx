@@ -143,7 +143,8 @@ export default function VenueList() {
       await deleteVenue(v.id);
       setVenues((prev) => prev.filter((item) => item.id !== v.id));
     } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : 'Suppression impossible');
+      const msg = e instanceof Error ? e.message : 'Suppression impossible';
+      setDeleteError(`Suppression de "${v.name}" impossible. ${msg}`);
     } finally {
       setDeletingVenueId((current) => (current === v.id ? null : current));
     }

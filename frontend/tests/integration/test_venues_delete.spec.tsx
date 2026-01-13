@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 vi.mock('../../src/lib/useAuth', () => {
   return {
@@ -40,7 +40,10 @@ type Venue = {
 };
 
 const store: { venues: Venue[] } = {
-  venues: [
+  venues: [],
+};
+
+const initialVenues: Venue[] = [
     {
       id: 'v-1',
       name: 'Le Bikini',
@@ -89,8 +92,15 @@ const store: { venues: Venue[] } = {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
-  ],
-};
+];
+
+beforeEach(() => {
+  store.venues = initialVenues.map((v) => ({ ...v }));
+});
+
+afterEach(() => {
+  cleanup();
+});
 
 vi.mock('../../src/services/venues', () => {
   return {
@@ -133,4 +143,30 @@ test('Salles: supprimer une salle depuis la liste', async () => {
 
   await waitFor(() => expect(screen.queryByText('Le Bikini')).not.toBeInTheDocument());
   expect(screen.getByText('Rock School Barbey')).toBeInTheDocument();
+});
+
+test('Salles: affiche une erreur claire si la suppression est impossible', async () => {
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+  const venues = await import('../../src/services/venues');
+  vi.mocked(venues.deleteVenue).mockRejectedValueOnce(
+    new Error(
+      "Impossible de supprimer cette salle car elle est liée à d’autres données (concerts, contacts, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
+    ),
+  );
+
+  render(
+    <MemoryRouter initialEntries={['/venues']}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText('Salles')).toBeInTheDocument();
+  expect(await screen.findByText('Le Bikini')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Supprimer Le Bikini' }));
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Suppression de "Le Bikini" impossible');
+  expect(alert).toHaveTextContent(/liée à d’autres données/i);
 });
