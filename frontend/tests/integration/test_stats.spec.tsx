@@ -58,7 +58,6 @@ type ConcertFinancialItem = {
   kind: 'income' | 'expense';
   label: string;
   amount_cents: number;
-  effective_at: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -214,7 +213,6 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
       kind: 'income',
       label: 'Billetterie',
       amount_cents: 20000,
-      effective_at: null,
       created_by: 'user-1',
       created_at: now.toISOString(),
       updated_at: now.toISOString(),
@@ -225,7 +223,6 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
       kind: 'expense',
       label: 'Parking',
       amount_cents: 500,
-      effective_at: null,
       created_by: 'user-1',
       created_at: now.toISOString(),
       updated_at: now.toISOString(),

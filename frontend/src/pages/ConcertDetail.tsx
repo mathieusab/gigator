@@ -30,23 +30,6 @@ function formatCentsEUR(cents: number): string {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(cents / 100);
 }
 
-function pad2(n: number) {
-  return String(n).padStart(2, '0');
-}
-
-function toDateInputValue(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function toIsoFromDateInput(localDate: string): string {
-  // Interpret as local midnight.
-  const d = new Date(`${localDate}T00:00:00`);
-  if (Number.isNaN(d.getTime())) throw new Error('Date invalide.');
-  return d.toISOString();
-}
-
 function formatDateTime(value: string | null) {
   if (!value) return 'Date à définir';
   const d = new Date(value);
@@ -75,7 +58,6 @@ export default function ConcertDetail() {
   const [kind, setKind] = useState<ConcertFinancialItemKind>('income');
   const [label, setLabel] = useState<ConcertFinancialCategory>('Cachet');
   const [amount, setAmount] = useState('');
-  const [effectiveDate, setEffectiveDate] = useState('');
   const [isSavingFinancial, setIsSavingFinancial] = useState(false);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -177,7 +159,6 @@ export default function ConcertDetail() {
     setKind('income');
     setLabel('Cachet');
     setAmount('');
-    setEffectiveDate('');
   }
 
   async function submitFinancial(e: React.FormEvent) {
@@ -188,8 +169,7 @@ export default function ConcertDetail() {
     setIsSavingFinancial(true);
     try {
       const amountCents = parseAmountToCents(amount);
-      const effectiveAt = effectiveDate.trim() ? toIsoFromDateInput(effectiveDate.trim()) : null;
-      const payload = { kind, label, amount_cents: amountCents, effective_at: effectiveAt };
+      const payload = { kind, label, amount_cents: amountCents };
 
       if (editingFinancialId) {
         const updated = await updateConcertFinancialItem(editingFinancialId, payload);
@@ -213,7 +193,6 @@ export default function ConcertDetail() {
     setKind(item.kind);
     setLabel(item.label);
     setAmount(String((item.amount_cents / 100).toFixed(2)));
-    setEffectiveDate(item.effective_at ? toDateInputValue(item.effective_at) : '');
   }
 
   return (
@@ -317,9 +296,6 @@ export default function ConcertDetail() {
                       <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
                         Libellé
                       </th>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                        Date
-                      </th>
                       <th style={{ textAlign: 'right', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
                         Montant
                       </th>
@@ -338,9 +314,6 @@ export default function ConcertDetail() {
                               {item.kind === 'income' ? 'Revenu' : 'Coût'}
                             </td>
                             <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{item.label}</td>
-                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6', color: '#6b7280' }}>
-                              {item.effective_at ? formatDateTime(item.effective_at) : '—'}
-                            </td>
                             <td
                               style={{
                                 padding: '6px 8px',
@@ -368,7 +341,7 @@ export default function ConcertDetail() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={5} style={{ padding: 8, color: '#6b7280' }}>
+                        <td colSpan={4} style={{ padding: 8, color: '#6b7280' }}>
                           Aucune ligne pour l’instant.
                         </td>
                       </tr>
@@ -400,7 +373,7 @@ export default function ConcertDetail() {
                 </label>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 1fr', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 10 }}>
                 <label style={{ display: 'grid', gap: 4 }}>
                   <span>Montant (€)</span>
                   <input
@@ -409,11 +382,6 @@ export default function ConcertDetail() {
                     inputMode="decimal"
                     placeholder="0,00"
                   />
-                </label>
-
-                <label style={{ display: 'grid', gap: 4 }}>
-                  <span>Date (optionnel)</span>
-                  <input value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} type="date" />
                 </label>
 
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, justifyContent: 'flex-end' }}>

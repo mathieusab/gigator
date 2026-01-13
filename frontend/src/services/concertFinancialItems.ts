@@ -19,7 +19,6 @@ export type ConcertFinancialItem = {
   kind: ConcertFinancialItemKind;
   label: ConcertFinancialCategory;
   amount_cents: number;
-  effective_at: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -29,7 +28,6 @@ export type ConcertFinancialItemUpsertInput = {
   kind: ConcertFinancialItemKind;
   label: ConcertFinancialCategory;
   amount_cents: number;
-  effective_at?: string | null;
 };
 
 function assertCategory(label: string): asserts label is ConcertFinancialCategory {
@@ -56,7 +54,6 @@ export async function listConcertFinancialItems(): Promise<ConcertFinancialItem[
   const res = await supabase
     .from('concert_financial_items')
     .select('*')
-    .order('effective_at', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
   return unwrap<ConcertFinancialItem[]>(res);
 }
@@ -68,7 +65,6 @@ export async function listConcertFinancialItemsForConcert(
     .from('concert_financial_items')
     .select('*')
     .eq('concert_id', concertId)
-    .order('effective_at', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true });
   return unwrap<ConcertFinancialItem[]>(res);
 }
@@ -86,7 +82,6 @@ export async function createConcertFinancialItem(
     kind: input.kind,
     label: input.label,
     amount_cents: input.amount_cents,
-    effective_at: 'effective_at' in input ? input.effective_at ?? null : null,
     created_by: userId,
     updated_at: new Date().toISOString(),
   };
@@ -111,10 +106,6 @@ export async function updateConcertFinancialItem(
     amount_cents: input.amount_cents,
     updated_at: new Date().toISOString(),
   };
-
-  if ('effective_at' in input) {
-    payload.effective_at = input.effective_at ?? null;
-  }
 
   const res = await supabase
     .from('concert_financial_items')

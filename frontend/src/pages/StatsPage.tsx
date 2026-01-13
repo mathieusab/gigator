@@ -82,7 +82,7 @@ function buildNetGainsBuckets(
   for (const item of items) {
     const concert = concertById.get(item.concert_id);
 
-    const dateIso = item.effective_at ?? concert?.date_start ?? null;
+    const dateIso = concert?.date_start ?? null;
     if (!dateIso) continue;
     const d = new Date(dateIso);
     if (!Number.isFinite(d.getTime())) continue;
