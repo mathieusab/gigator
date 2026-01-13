@@ -5,7 +5,8 @@ import GmailThreads from '../components/GmailThreads';
 import { getContact, type Contact } from '../services/contacts';
 import { getConcert, type Concert } from '../services/concerts';
 
-function formatDateTime(value: string) {
+function formatDateTime(value: string | null) {
+  if (!value) return 'Date à définir';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return new Intl.DateTimeFormat(undefined, {

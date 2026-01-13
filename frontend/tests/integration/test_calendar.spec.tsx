@@ -20,7 +20,7 @@ vi.mock('../../src/lib/useAuth', () => {
 
 type Concert = {
   id: string;
-  date_start: string;
+  date_start: string | null;
   date_end: string | null;
   status: 'scheduled' | 'completed' | 'cancelled';
   title: string;

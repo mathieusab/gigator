@@ -4,7 +4,8 @@ import ConcertListItem from '../components/ConcertListItem';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { deleteConcert, listConcerts, type Concert } from '../services/concerts';
 
-function isUpcoming(dateStart: string) {
+function isUpcoming(dateStart: string | null) {
+  if (!dateStart) return false;
   return new Date(dateStart).getTime() >= Date.now();
 }
 
@@ -38,14 +39,18 @@ export default function ConcertList() {
     };
   }, []);
 
-  const { upcoming, past } = useMemo(() => {
+  const { unscheduled, upcoming, past } = useMemo(() => {
+    const unscheduled = concerts.filter((c) => !c.date_start);
+
     const upcoming = concerts
-      .filter((c) => isUpcoming(c.date_start))
-      .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
+      .filter((c) => c.date_start && isUpcoming(c.date_start))
+      .sort((a, b) => new Date(a.date_start as string).getTime() - new Date(b.date_start as string).getTime());
+
     const past = concerts
-      .filter((c) => !isUpcoming(c.date_start))
-      .sort((a, b) => new Date(b.date_start).getTime() - new Date(a.date_start).getTime());
-    return { upcoming, past };
+      .filter((c) => c.date_start && !isUpcoming(c.date_start))
+      .sort((a, b) => new Date(b.date_start as string).getTime() - new Date(a.date_start as string).getTime());
+
+    return { unscheduled, upcoming, past };
   }, [concerts]);
 
   function requestDelete(id: string) {
@@ -131,6 +136,23 @@ export default function ConcertList() {
 
       {!isLoading && !error ? (
         <section style={{ marginTop: 16 }}>
+          <h2>À planifier</h2>
+          {unscheduled.length === 0 ? <p>Aucun concert sans date.</p> : null}
+          {unscheduled.length ? (
+            <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
+              {unscheduled.map((c) => (
+                <ConcertListItem
+                  key={c.id}
+                  concert={c}
+                  onOpen={(id) => navigate(`/concerts/${id}`)}
+                  onEdit={(id) => navigate(`/concerts/${id}/edit`)}
+                  onDelete={requestDelete}
+                  isDeleting={deletingConcertId === c.id}
+                />
+              ))}
+            </ul>
+          ) : null}
+
           <h2>À venir</h2>
           {upcoming.length === 0 ? <p>Aucun concert à venir.</p> : null}
           {upcoming.length ? (

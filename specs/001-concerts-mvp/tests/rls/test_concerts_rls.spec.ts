@@ -65,7 +65,7 @@ test('concerts RLS policies enforce active user + creator-only writes', async (t
       () =>
         withAuthContext(client, activeUserId, async () => {
           await client.query(
-            "insert into concerts (date_start, venue_name, created_by) values (now(), 'Test Venue', $1)",
+            "insert into concerts (venue_name, created_by) values ('Test Venue', $1)",
             ['00000000-0000-0000-0000-000000000000'],
           );
         }),

@@ -16,7 +16,7 @@ vi.mock('../../src/lib/useAuth', () => {
 
 type Concert = {
   id: string;
-  date_start: string;
+  date_start: string | null;
   date_end: string | null;
   status: 'scheduled' | 'completed' | 'cancelled';
   title: string;
@@ -94,7 +94,7 @@ vi.mock('../../src/services/concerts', () => {
     createConcert: vi.fn(async (input: any) => {
       const created: Concert = {
         id: `c-${store.concerts.length + 1}`,
-        date_start: input.date_start,
+        date_start: input.date_start ?? null,
         date_end: input.date_end ?? null,
         status: input.status ?? 'scheduled',
         title: input.title ?? `${input.venue_name}${input.city ? ` — ${input.city}` : ''}`,
@@ -254,4 +254,24 @@ test('US2 flow: list groups, create, edit, delete', async () => {
   const dialog = await screen.findByRole('dialog');
   fireEvent.click(within(dialog).getByRole('button', { name: 'Oui, supprimer' }));
   await waitFor(() => expect(screen.queryByText('Edited Venue')).not.toBeInTheDocument());
+});
+
+test('create concert without date (date_start=null)', async () => {
+  render(
+    <MemoryRouter initialEntries={['/concerts/new']}>
+      <App />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText('Nouveau concert')).toBeInTheDocument();
+
+  // Date is optional: keep it as "Date à définir" and create.
+  expect(screen.getByLabelText('Date à définir')).toBeChecked();
+
+  fireEvent.change(screen.getByLabelText('Salle'), { target: { value: 'v-new' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
+
+  expect(await screen.findByText('Concerts')).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText('New Venue')).toBeInTheDocument());
+  expect(screen.getByText(/Date à définir/i)).toBeInTheDocument();
 });

@@ -38,6 +38,7 @@ function buildPastConcertsBuckets(concerts: Concert[], now: Date, months = 24): 
   const bucketByKey = new Map(buckets.map((b) => [b.key, b]));
 
   for (const c of concerts) {
+    if (!c.date_start) continue;
     const d = new Date(c.date_start);
     if (!Number.isFinite(d.getTime())) continue;
     if (d.getTime() >= now.getTime()) continue; // only past concerts
@@ -185,6 +186,7 @@ export default function StatsPage() {
     const now = new Date();
     const buckets = buildPastConcertsBuckets(concerts, now, 24);
     const totalPast = concerts.filter((c) => {
+      if (!c.date_start) return false;
       const d = new Date(c.date_start);
       return Number.isFinite(d.getTime()) && d.getTime() < now.getTime();
     }).length;

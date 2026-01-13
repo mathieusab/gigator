@@ -59,7 +59,8 @@ type Props = {
   mapId?: string;
 };
 
-function formatDate(dateIso: string) {
+function formatDate(dateIso: string | null) {
+  if (!dateIso) return 'Date à définir';
   try {
     return new Date(dateIso).toLocaleString('fr-FR', {
       dateStyle: 'medium',

@@ -1,7 +1,8 @@
 import type { Concert } from '../services/concerts';
 import { Link } from 'react-router-dom';
 
-function formatDateTime(value: string) {
+function formatDateTime(value: string | null) {
+  if (!value) return 'Date à définir';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return new Intl.DateTimeFormat(undefined, {

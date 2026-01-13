@@ -65,6 +65,7 @@ export default function CalendarView({
   const concertsByDay = useMemo(() => {
     const map = new Map<string, Concert[]>();
     for (const c of concerts) {
+      if (!c.date_start) continue;
       const key = isoDateFromDateTimeUTC(c.date_start);
       const arr = map.get(key);
       if (arr) arr.push(c);
@@ -72,7 +73,7 @@ export default function CalendarView({
     }
 
     for (const [key, arr] of map.entries()) {
-      arr.sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
+      arr.sort((a, b) => new Date(a.date_start as string).getTime() - new Date(b.date_start as string).getTime());
       map.set(key, arr);
     }
 

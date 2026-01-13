@@ -7,6 +7,17 @@ function pad2(n: number) {
   return String(n).padStart(2, '0');
 }
 
+function defaultLocalStartValue() {
+  const d = new Date();
+  d.setHours(d.getHours() + 1);
+  const minutes = d.getMinutes();
+  const roundedUpMinutes = minutes % 5 === 0 ? minutes : minutes + (5 - (minutes % 5));
+  d.setMinutes(roundedUpMinutes);
+  d.setSeconds(0);
+  d.setMilliseconds(0);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
 function toDateTimeLocalValue(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -32,17 +43,11 @@ export default function ConcertForm({
 }) {
   const initialStart = useMemo(() => {
     if (initial?.date_start) return toDateTimeLocalValue(initial.date_start);
-    const d = new Date();
-    d.setHours(d.getHours() + 1);
-    const minutes = d.getMinutes();
-    const roundedUpMinutes = minutes % 5 === 0 ? minutes : minutes + (5 - (minutes % 5));
-    d.setMinutes(roundedUpMinutes);
-    d.setSeconds(0);
-    d.setMilliseconds(0);
-    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    return '';
   }, [initial?.date_start]);
 
   const [dateStart, setDateStart] = useState(initialStart);
+  const [isDateTbd, setIsDateTbd] = useState(() => !initial?.date_start);
   const [status, setStatus] = useState<ConcertStatus>(
     (initial?.status as ConcertStatus) ?? 'scheduled',
   );
@@ -147,7 +152,7 @@ export default function ConcertForm({
       }
 
       const input: ConcertUpsertInput = {
-        date_start: toIsoFromDateTimeLocal(dateStart),
+        date_start: isDateTbd ? null : dateStart.trim() ? toIsoFromDateTimeLocal(dateStart) : null,
         status,
         venue_id: resolvedVenueId,
         contact_id: resolvedPrimaryContactId,
@@ -199,15 +204,40 @@ export default function ConcertForm({
         </p>
       ) : null}
 
-      <label style={{ display: 'grid', gap: 4 }}>
-        <span>Date</span>
+      <div style={{ display: 'grid', gap: 6 }}>
+        <label htmlFor="concert-date-start">Date</label>
         <input
+          id="concert-date-start"
           type="datetime-local"
           value={dateStart}
-          onChange={(e) => setDateStart(e.target.value)}
-          required
+          onChange={(e) => {
+            const v = e.target.value;
+            setDateStart(v);
+            if (v.trim()) setIsDateTbd(false);
+          }}
+          aria-label="Date"
         />
-      </label>
+        <label
+          style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: '#4b5563' }}
+        >
+          <input
+            type="checkbox"
+            checked={isDateTbd}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setIsDateTbd(true);
+                setDateStart('');
+                return;
+              }
+
+              // If the user re-enables the date, provide a sensible default.
+              setIsDateTbd(false);
+              setDateStart(defaultLocalStartValue());
+            }}
+          />
+          Date à définir
+        </label>
+      </div>
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Statut</span>

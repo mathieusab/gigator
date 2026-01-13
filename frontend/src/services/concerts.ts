@@ -4,7 +4,7 @@ export type ConcertStatus = 'scheduled' | 'completed' | 'cancelled';
 
 export type Concert = {
   id: string;
-  date_start: string;
+  date_start: string | null;
   date_end: string | null;
   status: ConcertStatus;
   title: string;
@@ -25,7 +25,7 @@ export type Concert = {
 };
 
 export type ConcertUpsertInput = {
-  date_start: string;
+  date_start?: string | null;
   date_end?: string | null;
   status?: ConcertStatus;
   title?: string;
@@ -64,7 +64,10 @@ function deriveTitle(input: ConcertUpsertInput): string {
 }
 
 export async function listConcerts(): Promise<Concert[]> {
-  const res = await supabase.from('concerts').select('*').order('date_start', { ascending: true });
+  const res = await supabase
+    .from('concerts')
+    .select('*')
+    .order('date_start', { ascending: true, nullsFirst: false });
   return unwrap<Concert[]>(res);
 }
 
