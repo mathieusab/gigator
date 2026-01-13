@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
 import crypto from 'node:crypto';
-import { GmailProxyError, listThreadsForEmail } from '../proxy/gmail.js';
+import { GmailProxyError, getThreadById, listThreadsForEmail } from '../proxy/gmail.js';
 import { decryptToken, encryptToken, hmacSha256Base64Url } from '../lib/cryptoTokens.js';
 import { getSupabaseAdmin } from '../lib/supabaseAdmin.js';
 import { getBearerTokenFromHeader, verifySupabaseAccessToken } from '../lib/supabaseJwt.js';
@@ -93,6 +93,45 @@ async function exchangeRefreshTokenForAccessToken(params: {
   if (!accessToken)
     throw new GmailProxyError(401, 'Failed to refresh Gmail access token. Reconnect Gmail.');
   return accessToken;
+}
+
+async function getGmailAccessTokenForRequest(req: Request): Promise<string> {
+  const clientId = process.env.GMAIL_PROXY_CLIENT_ID ?? '';
+  const clientSecret = process.env.GMAIL_PROXY_CLIENT_SECRET ?? '';
+  if (!clientId || !clientSecret) {
+    throw new GmailProxyError(500, 'Gmail proxy is not configured');
+  }
+
+  const tokenKey = process.env.GMAIL_TOKEN_ENCRYPTION_KEY ?? '';
+  if (!tokenKey) {
+    throw new GmailProxyError(500, 'Gmail token encryption is not configured');
+  }
+
+  const userId = await requireActiveAppUserId(req);
+  const supabase = getSupabaseAdmin();
+  const { data: conn, error: connErr } = await supabase
+    .from('gmail_connections')
+    .select('refresh_token_ciphertext,refresh_token_iv,refresh_token_tag')
+    .eq('app_user_id', userId)
+    .maybeSingle();
+
+  if (connErr) throw new Error(connErr.message);
+  if (!conn) throw new GmailProxyError(401, 'Gmail not connected');
+
+  const refreshToken = decryptToken(
+    {
+      ciphertextB64: conn.refresh_token_ciphertext,
+      ivB64: conn.refresh_token_iv,
+      tagB64: conn.refresh_token_tag,
+    },
+    tokenKey,
+  );
+
+  return await exchangeRefreshTokenForAccessToken({
+    refreshToken,
+    clientId,
+    clientSecret,
+  });
 }
 
 gmailRouter.post('/oauth/start', async (req: Request, res: Response) => {
@@ -260,45 +299,14 @@ gmailRouter.get('/threads', async (req: Request, res: Response) => {
     ? Math.max(1, Math.min(200, Math.floor(maxThreadsParsed)))
     : undefined;
 
-  const clientId = process.env.GMAIL_PROXY_CLIENT_ID ?? '';
-  const clientSecret = process.env.GMAIL_PROXY_CLIENT_SECRET ?? '';
-  if (!clientId || !clientSecret) {
-    return res.status(500).json({ error: 'Gmail proxy is not configured' });
-  }
-
-  const tokenKey = process.env.GMAIL_TOKEN_ENCRYPTION_KEY ?? '';
-  if (!tokenKey) {
-    return res.status(500).json({ error: 'Gmail token encryption is not configured' });
-  }
-
   try {
-    const userId = await requireActiveAppUserId(req);
-    const supabase = getSupabaseAdmin();
-    const { data: conn, error: connErr } = await supabase
-      .from('gmail_connections')
-      .select('refresh_token_ciphertext,refresh_token_iv,refresh_token_tag')
-      .eq('app_user_id', userId)
-      .maybeSingle();
-
-    if (connErr) throw new Error(connErr.message);
-    if (!conn) {
-      throw new GmailProxyError(401, 'Gmail not connected');
+    const clientId = process.env.GMAIL_PROXY_CLIENT_ID ?? '';
+    const clientSecret = process.env.GMAIL_PROXY_CLIENT_SECRET ?? '';
+    if (!clientId || !clientSecret) {
+      return res.status(500).json({ error: 'Gmail proxy is not configured' });
     }
 
-    const refreshToken = decryptToken(
-      {
-        ciphertextB64: conn.refresh_token_ciphertext,
-        ivB64: conn.refresh_token_iv,
-        tagB64: conn.refresh_token_tag,
-      },
-      tokenKey,
-    );
-
-    const accessToken = await exchangeRefreshTokenForAccessToken({
-      refreshToken,
-      clientId,
-      clientSecret,
-    });
+    const accessToken = await getGmailAccessTokenForRequest(req);
     const threads = await listThreadsForEmail(
       { clientId, clientSecret, accessToken },
       email,
@@ -310,5 +318,29 @@ gmailRouter.get('/threads', async (req: Request, res: Response) => {
       return res.status(e.status).json({ error: e.message });
     }
     return res.status(500).json({ error: 'Failed to query Gmail' });
+  }
+});
+
+gmailRouter.get('/threads/:threadId', async (req: Request, res: Response) => {
+  const threadId = String(req.params.threadId ?? '').trim();
+  if (!threadId) {
+    return res.status(400).json({ error: 'Missing required route param: threadId' });
+  }
+
+  try {
+    const clientId = process.env.GMAIL_PROXY_CLIENT_ID ?? '';
+    const clientSecret = process.env.GMAIL_PROXY_CLIENT_SECRET ?? '';
+    if (!clientId || !clientSecret) {
+      return res.status(500).json({ error: 'Gmail proxy is not configured' });
+    }
+
+    const accessToken = await getGmailAccessTokenForRequest(req);
+    const thread = await getThreadById({ clientId, clientSecret, accessToken }, threadId);
+    return res.json(thread);
+  } catch (e) {
+    if (e instanceof GmailProxyError) {
+      return res.status(e.status).json({ error: e.message });
+    }
+    return res.status(500).json({ error: 'Failed to query Gmail thread' });
   }
 });

@@ -188,3 +188,57 @@ describe('GET /gmail/threads', () => {
     expect(res.body.error).toContain('Gmail not connected');
   });
 });
+
+describe('GET /gmail/threads/:threadId', () => {
+  beforeEach(() => {
+    process.env.GMAIL_PROXY_CLIENT_ID = 'test-client-id';
+    process.env.GMAIL_PROXY_CLIENT_SECRET = 'test-client-secret';
+    process.env.GMAIL_TOKEN_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64');
+  });
+
+  test('returns full thread with decoded body (happy path)', async () => {
+    const supabaseAdmin = await import('../../src/lib/supabaseAdmin');
+    (supabaseAdmin as any).__setGmailConnection({
+      refresh_token_ciphertext: 'cipher',
+      refresh_token_iv: 'iv',
+      refresh_token_tag: 'tag',
+    });
+
+    // "hello" in base64url is aGVsbG8
+    mockFetchSequence([
+      { status: 200, json: { access_token: 'gmail-access-token' } },
+      {
+        status: 200,
+        json: {
+          id: 't1',
+          snippet: 'Thread snippet',
+          messages: [
+            {
+              id: 'm1',
+              threadId: 't1',
+              internalDate: String(Date.now()),
+              payload: {
+                mimeType: 'text/plain',
+                headers: [
+                  { name: 'Subject', value: 'Hello' },
+                  { name: 'From', value: 'Sender <sender@example.com>' },
+                ],
+                body: { data: 'aGVsbG8' },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const app = createApp();
+    const res = await request(app)
+      .get('/gmail/threads/t1')
+      .set('Authorization', 'Bearer supabase-access-token')
+      .expect(200);
+
+    expect(res.body).toMatchObject({ id: 't1' });
+    expect(res.body.messages?.[0]?.bodyText).toBe('hello');
+    expect(res.body.messages?.[0]?.headers?.subject).toBe('Hello');
+  });
+});

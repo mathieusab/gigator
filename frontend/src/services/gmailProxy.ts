@@ -8,6 +8,14 @@ export type GmailThread = {
     threadId?: string;
     snippet?: string;
     internalDate?: string;
+    headers?: {
+      from?: string;
+      to?: string;
+      subject?: string;
+      date?: string;
+    };
+    bodyText?: string;
+    bodyHtml?: string;
   }>;
 };
 
@@ -42,6 +50,32 @@ export async function listGmailThreadsForEmail(params: {
   }
 
   return (await res.json()) as GmailThread[];
+}
+
+export async function getGmailThreadById(params: {
+  appAccessToken: string;
+  threadId: string;
+}): Promise<GmailThread> {
+  const threadId = params.threadId.trim();
+  if (!threadId) throw new Error('Missing threadId');
+
+  const res = await fetch(`/gmail/threads/${encodeURIComponent(threadId)}`, {
+    headers: {
+      Authorization: `Bearer ${params.appAccessToken}`,
+    },
+  });
+
+  if (res.status === 401) {
+    const body = (await res.json().catch(() => null)) as any;
+    throw new Error(body?.error ?? 'Unauthorized');
+  }
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as any;
+    throw new Error(body?.error ?? `Gmail proxy error (${res.status})`);
+  }
+
+  return (await res.json()) as GmailThread;
 }
 
 export async function startGmailOAuth(params: {

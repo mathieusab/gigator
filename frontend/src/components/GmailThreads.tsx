@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/useAuth';
 import {
+  getGmailThreadById,
   listGmailThreadsForEmail,
   startGmailOAuth,
   type GmailThread,
@@ -31,6 +32,7 @@ export default function GmailThreads({
   const [needsConnect, setNeedsConnect] = useState(false);
   const [isFullMode, setIsFullMode] = useState(mode === 'full');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [loadingThread, setLoadingThread] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setIsFullMode(mode === 'full');
@@ -98,6 +100,39 @@ export default function GmailThreads({
     };
   }, [email, session, isFullMode]);
 
+  async function ensureThreadFullyLoaded(threadId: string) {
+    const appAccessToken = (session as any)?.access_token as string | undefined;
+    if (!appAccessToken) {
+      setError('Session missing. Please sign in again.');
+      return;
+    }
+
+    if (loadingThread[threadId]) return;
+
+    const existing = threads.find((t) => t.id === threadId || t.threadId === threadId);
+    const looksFull = Boolean(
+      existing?.messages?.some((m) => Boolean(m.bodyText) || Boolean(m.bodyHtml) || Boolean(m.headers)),
+    );
+    if (looksFull) return;
+
+    setLoadingThread((prev) => ({ ...prev, [threadId]: true }));
+    try {
+      const full = await getGmailThreadById({ appAccessToken, threadId });
+      setThreads((prev) =>
+        prev.map((t) => {
+          const id = t.id ?? t.threadId;
+          return id === threadId ? full : t;
+        }),
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to load Gmail thread';
+      setError(msg);
+      setNeedsConnect(shouldPromptGmailConnect(msg));
+    } finally {
+      setLoadingThread((prev) => ({ ...prev, [threadId]: false }));
+    }
+  }
+
   async function handleConnect() {
     const appAccessToken = (session as any)?.access_token as string | undefined;
     if (!appAccessToken) {
@@ -159,13 +194,21 @@ export default function GmailThreads({
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setExpanded((prev) => ({ ...prev, [t.id]: !Boolean(prev[t.id]) }))
-                      }
+                      onClick={() => {
+                        const next = !Boolean(expanded[t.id]);
+                        setExpanded((prev) => ({ ...prev, [t.id]: next }));
+                        if (next) void ensureThreadFullyLoaded(t.id);
+                      }}
                       style={{ marginBottom: 6 }}
                     >
                       {expanded[t.id] ? 'Masquer' : 'Afficher'}
                     </button>
+
+                    {expanded[t.id] && loadingThread[t.id] ? (
+                      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>
+                        Chargement du contenu complet…
+                      </div>
+                    ) : null}
 
                     <ul style={{ margin: 0, paddingLeft: 16 }}>
                       {(expanded[t.id] ? t.messages : t.messages.slice(0, 3)).map((m) => (
@@ -178,7 +221,49 @@ export default function GmailThreads({
                               {formatDate(m.internalDate)} —{' '}
                             </span>
                           ) : null}
-                          {m.snippet ?? ''}
+                          <span style={{ fontWeight: 600 }}>
+                            {m.headers?.subject ? m.headers.subject : m.snippet ?? ''}
+                          </span>
+
+                          {expanded[t.id] ? (
+                            <div style={{ marginTop: 6 }}>
+                              {m.headers?.from ? (
+                                <div style={{ fontSize: 12, color: '#6b7280' }}>{m.headers.from}</div>
+                              ) : null}
+
+                              {m.bodyText ? (
+                                <pre
+                                  style={{
+                                    margin: '6px 0 0',
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-word',
+                                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                    fontSize: 12,
+                                    background: '#f9fafb',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: 6,
+                                    padding: 8,
+                                  }}
+                                >
+                                  {m.bodyText}
+                                </pre>
+                              ) : m.bodyHtml ? (
+                                <iframe
+                                  title={`gmail-html-${m.id ?? ''}`}
+                                  sandbox=""
+                                  srcDoc={m.bodyHtml}
+                                  style={{
+                                    marginTop: 6,
+                                    width: '100%',
+                                    minHeight: 120,
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: 6,
+                                    background: 'white',
+                                  }}
+                                />
+                              ) : null}
+                            </div>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
