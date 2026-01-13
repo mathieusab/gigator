@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../lib/useAuth';
+import { autocompletePlaces, geocodePlace, type PlaceSuggestion } from '../services/mapsProxy';
 import { createVenue, listVenues, type Venue } from '../services/venues';
 
 type PlayedFilter = 'all' | 'played' | 'not_played';
@@ -11,18 +13,31 @@ function venueLocation(v: Venue): string {
 
 export default function VenueList() {
   const navigate = useNavigate();
+  const { session } = useAuth();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [newName, setNewName] = useState('');
-  const [newCity, setNewCity] = useState('');
-  const [newCountry, setNewCountry] = useState('');
-  const [newAddress, setNewAddress] = useState('');
-  const [newLat, setNewLat] = useState('');
-  const [newLng, setNewLng] = useState('');
+  const [resolvedCity, setResolvedCity] = useState<string | null>(null);
+  const [resolvedRegion, setResolvedRegion] = useState<string | null>(null);
+  const [resolvedCountry, setResolvedCountry] = useState<string | null>(null);
+  const [resolvedPostalCode, setResolvedPostalCode] = useState<string | null>(null);
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  const [resolvedLat, setResolvedLat] = useState<number | null>(null);
+  const [resolvedLng, setResolvedLng] = useState<number | null>(null);
+
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const lastSuggestQueryRef = useRef<string>('');
 
   const [locationFilter, setLocationFilter] = useState('');
   const [playedFilter, setPlayedFilter] = useState<PlayedFilter>('all');
@@ -48,6 +63,57 @@ export default function VenueList() {
     };
   }, []);
 
+  useEffect(() => {
+    const token = String(session?.access_token ?? '').trim();
+    const input = newName.trim();
+
+    // Keep suggestions quiet when not meaningful.
+    if (!token || input.length < 3 || !showSuggestions) {
+      setIsSuggesting(false);
+      setSuggestions([]);
+      return;
+    }
+
+    // If user edits after selecting a suggestion, clear resolved details.
+    if (selectedPlaceId) setSelectedPlaceId(null);
+    if (resolvedAddress || resolvedLat !== null || resolvedLng !== null) {
+      setResolvedAddress(null);
+      setResolvedCity(null);
+      setResolvedRegion(null);
+      setResolvedCountry(null);
+      setResolvedPostalCode(null);
+      setResolvedLat(null);
+      setResolvedLng(null);
+    }
+
+    const current = input;
+    lastSuggestQueryRef.current = current;
+
+    setIsSuggesting(true);
+    const t = setTimeout(() => {
+      void (async () => {
+        try {
+          const items = await autocompletePlaces({
+            appAccessToken: token,
+            input: current,
+            language: 'fr',
+          });
+          if (lastSuggestQueryRef.current !== current) return;
+          setSuggestions(items);
+        } catch {
+          if (lastSuggestQueryRef.current !== current) return;
+          setSuggestions([]);
+        } finally {
+          if (lastSuggestQueryRef.current === current) setIsSuggesting(false);
+        }
+      })();
+    }, 300);
+
+    return () => {
+      clearTimeout(t);
+    };
+  }, [newName, session?.access_token, showSuggestions, selectedPlaceId, resolvedAddress, resolvedLat, resolvedLng]);
+
   const filtered = useMemo(() => {
     const q = locationFilter.trim().toLowerCase();
     return venues.filter((v) => {
@@ -66,20 +132,65 @@ export default function VenueList() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setCreateError(null);
+    setResolveError(null);
     const name = newName.trim();
     if (!name) {
       setCreateError('Le nom de la salle est requis.');
       return;
     }
 
-    const lat = newLat.trim() ? Number(newLat) : null;
-    const lng = newLng.trim() ? Number(newLng) : null;
-    if (lat !== null && !Number.isFinite(lat)) {
-      setCreateError('Latitude invalide.');
+    const token = String(session?.access_token ?? '').trim();
+    if (!token) {
+      setCreateError('Session manquante. Reconnectez-vous.');
       return;
     }
-    if (lng !== null && !Number.isFinite(lng)) {
-      setCreateError('Longitude invalide.');
+
+    let city = resolvedCity;
+    let region = resolvedRegion;
+    let country = resolvedCountry;
+    let postal_code = resolvedPostalCode;
+    let address = resolvedAddress;
+    let lat = resolvedLat;
+    let lng = resolvedLng;
+
+    // If we don't have resolved details yet (or user typed a free name), resolve now.
+    if (!address && lat === null && lng === null) {
+      setIsResolving(true);
+      try {
+        const place = await geocodePlace({
+          appAccessToken: token,
+          query: name,
+          placeId: selectedPlaceId ?? undefined,
+          language: 'fr',
+          region: 'fr',
+        });
+
+        address = place.address || place.formatted_address;
+        city = place.city;
+        region = place.region;
+        country = place.country;
+        postal_code = place.postal_code;
+        lat = place.lat;
+        lng = place.lng;
+
+        setResolvedAddress(address);
+        setResolvedCity(city);
+        setResolvedRegion(region);
+        setResolvedCountry(country);
+        setResolvedPostalCode(postal_code);
+        setResolvedLat(lat);
+        setResolvedLng(lng);
+      } catch (err) {
+        setCreateError(err instanceof Error ? err.message : 'Résolution impossible');
+        return;
+      } finally {
+        setIsResolving(false);
+      }
+    }
+
+    // If Google didn't return anything useful, avoid creating unusable venues.
+    if (!address && lat === null && lng === null) {
+      setCreateError("Lieu introuvable. Essayez une orthographe différente.");
       return;
     }
 
@@ -87,9 +198,11 @@ export default function VenueList() {
     try {
       const created = await createVenue({
         name,
-        city: newCity.trim() || null,
-        country: newCountry.trim() || null,
-        address: newAddress.trim() || null,
+        city,
+        region,
+        country,
+        postal_code,
+        address,
         lat,
         lng,
       });
@@ -99,15 +212,58 @@ export default function VenueList() {
         return next;
       });
       setNewName('');
-      setNewCity('');
-      setNewCountry('');
-      setNewAddress('');
-      setNewLat('');
-      setNewLng('');
+      setSelectedPlaceId(null);
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setResolvedAddress(null);
+      setResolvedCity(null);
+      setResolvedRegion(null);
+      setResolvedCountry(null);
+      setResolvedPostalCode(null);
+      setResolvedLat(null);
+      setResolvedLng(null);
     } catch (e2) {
       setCreateError(e2 instanceof Error ? e2.message : 'Création impossible');
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function handlePickSuggestion(s: PlaceSuggestion) {
+    setResolveError(null);
+    setSelectedPlaceId(s.place_id);
+    setShowSuggestions(false);
+    setSuggestions([]);
+
+    if (s.name) setNewName(s.name);
+
+    const token = String(session?.access_token ?? '').trim();
+    if (!token) return;
+
+    setIsResolving(true);
+    try {
+      const place = await geocodePlace({
+        appAccessToken: token,
+        placeId: s.place_id,
+        language: 'fr',
+        region: 'fr',
+      });
+
+      setResolvedAddress(place.address || place.formatted_address);
+      setResolvedCity(place.city);
+      setResolvedRegion(place.region);
+      setResolvedCountry(place.country);
+      setResolvedPostalCode(place.postal_code);
+      setResolvedLat(place.lat);
+      setResolvedLng(place.lng);
+
+      if (!place.address && !place.formatted_address && place.lat === null && place.lng === null) {
+        setResolveError('Aucune info exploitable trouvée.');
+      }
+    } catch (e) {
+      setResolveError(e instanceof Error ? e.message : 'Résolution impossible');
+    } finally {
+      setIsResolving(false);
     }
   }
 
@@ -131,6 +287,12 @@ export default function VenueList() {
         >
           <div style={{ fontWeight: 700 }}>Ajouter une salle</div>
 
+          {resolveError ? (
+            <p role="alert" style={{ color: 'crimson', margin: 0 }}>
+              {resolveError}
+            </p>
+          ) : null}
+
           {createError ? (
             <p role="alert" style={{ color: 'crimson', margin: 0 }}>
               {createError}
@@ -140,36 +302,82 @@ export default function VenueList() {
           <div style={{ display: 'grid', gap: 10, gridTemplateColumns: '2fr 1fr 1fr' }}>
             <label style={{ display: 'grid', gap: 4 }}>
               <span style={{ fontSize: 12, color: '#6b7280' }}>Nom</span>
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Le Bikini" />
+              <div style={{ position: 'relative' }}>
+                <input
+                  value={newName}
+                  onChange={(e) => {
+                    setNewName(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => {
+                    // Let click handlers run before hiding.
+                    setTimeout(() => setShowSuggestions(false), 150);
+                  }}
+                  placeholder="Le Bikini"
+                  autoComplete="off"
+                />
+
+                {showSuggestions && (isSuggesting || suggestions.length > 0) ? (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      zIndex: 10,
+                      top: 'calc(100% + 6px)',
+                      left: 0,
+                      right: 0,
+                      background: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      boxShadow: '0 10px 20px rgba(0,0,0,0.08)',
+                    }}
+                  >
+                    {isSuggesting ? (
+                      <div style={{ padding: 10, fontSize: 13, color: '#6b7280' }}>Recherche…</div>
+                    ) : null}
+                    {suggestions.map((s) => (
+                      <button
+                        key={s.place_id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          void handlePickSuggestion(s);
+                        }}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: 10,
+                          border: 'none',
+                          background: 'white',
+                          cursor: 'pointer',
+                          display: 'grid',
+                          gap: 2,
+                        }}
+                      >
+                        <div style={{ fontWeight: 650 }}>{s.name ?? s.description ?? 'Lieu'}</div>
+                        {s.secondary_text ? (
+                          <div style={{ fontSize: 12, color: '#6b7280' }}>{s.secondary_text}</div>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </label>
-            <label style={{ display: 'grid', gap: 4 }}>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>Ville</span>
-              <input value={newCity} onChange={(e) => setNewCity(e.target.value)} placeholder="Toulouse" />
-            </label>
-            <label style={{ display: 'grid', gap: 4 }}>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>Pays</span>
-              <input value={newCountry} onChange={(e) => setNewCountry(e.target.value)} placeholder="France" />
-            </label>
+            <div />
+            <div />
           </div>
 
-          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: '2fr 1fr 1fr' }}>
-            <label style={{ display: 'grid', gap: 4 }}>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>Adresse</span>
-              <input value={newAddress} onChange={(e) => setNewAddress(e.target.value)} placeholder="Rue …" />
-            </label>
-            <label style={{ display: 'grid', gap: 4 }}>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>Lat</span>
-              <input value={newLat} onChange={(e) => setNewLat(e.target.value)} inputMode="decimal" placeholder="43.6043" />
-            </label>
-            <label style={{ display: 'grid', gap: 4 }}>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>Lng</span>
-              <input value={newLng} onChange={(e) => setNewLng(e.target.value)} inputMode="decimal" placeholder="1.4437" />
-            </label>
-          </div>
+          {resolvedAddress || resolvedCity || resolvedCountry ? (
+            <div style={{ fontSize: 13, color: '#4b5563' }}>
+              Résolu: {[resolvedAddress, resolvedCity, resolvedCountry].filter(Boolean).join(' · ')}
+            </div>
+          ) : null}
 
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button type="submit" disabled={isCreating}>
-              {isCreating ? 'Création…' : 'Ajouter'}
+            <button type="submit" disabled={isCreating || isResolving}>
+              {isCreating ? 'Création…' : isResolving ? 'Recherche…' : 'Ajouter'}
             </button>
           </div>
         </form>

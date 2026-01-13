@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 
 import { gmailRouter } from './routes/gmail.js';
+import { mapsRouter } from './routes/maps.js';
 
 export function createApp() {
   const app = express();
@@ -14,6 +15,7 @@ export function createApp() {
   });
 
   app.use('/gmail', gmailRouter);
+  app.use('/maps', mapsRouter);
 
   return app;
 }
