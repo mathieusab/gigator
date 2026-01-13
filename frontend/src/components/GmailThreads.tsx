@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/useAuth';
 import {
-  getGmailThreadById,
+  getGmailMessageById,
   listGmailThreadsForEmail,
   startGmailOAuth,
   type GmailThread,
@@ -32,7 +32,10 @@ export default function GmailThreads({
   const [needsConnect, setNeedsConnect] = useState(false);
   const [isFullMode, setIsFullMode] = useState(mode === 'full');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [loadingThread, setLoadingThread] = useState<Record<string, boolean>>({});
+  const [loadingMessage, setLoadingMessage] = useState<Record<string, boolean>>({});
+  const [openMessageByThread, setOpenMessageByThread] = useState<Record<string, string | null>>(
+    {},
+  );
 
   useEffect(() => {
     setIsFullMode(mode === 'full');
@@ -100,28 +103,30 @@ export default function GmailThreads({
     };
   }, [email, session, isFullMode]);
 
-  async function ensureThreadFullyLoaded(threadId: string) {
+  async function ensureMessageFullyLoaded(threadId: string, messageId: string) {
     const appAccessToken = (session as any)?.access_token as string | undefined;
     if (!appAccessToken) {
       setError('Session missing. Please sign in again.');
       return;
     }
 
-    if (loadingThread[threadId]) return;
+    const key = `${threadId}:${messageId}`;
+    if (loadingMessage[key]) return;
 
-    const existing = threads.find((t) => t.id === threadId || t.threadId === threadId);
-    const looksFull = Boolean(
-      existing?.messages?.some((m) => Boolean(m.bodyText) || Boolean(m.bodyHtml) || Boolean(m.headers)),
-    );
+    const existingThread = threads.find((t) => t.id === threadId || t.threadId === threadId);
+    const existingMessage = existingThread?.messages?.find((m) => m.id === messageId);
+    const looksFull = Boolean(existingMessage?.bodyText || existingMessage?.bodyHtml);
     if (looksFull) return;
 
-    setLoadingThread((prev) => ({ ...prev, [threadId]: true }));
+    setLoadingMessage((prev) => ({ ...prev, [key]: true }));
     try {
-      const full = await getGmailThreadById({ appAccessToken, threadId });
+      const fullMessage = await getGmailMessageById({ appAccessToken, messageId });
       setThreads((prev) =>
         prev.map((t) => {
           const id = t.id ?? t.threadId;
-          return id === threadId ? full : t;
+          if (id !== threadId) return t;
+          const messages = (t.messages ?? []).map((m) => (m.id === messageId ? { ...m, ...fullMessage } : m));
+          return { ...t, messages };
         }),
       );
     } catch (e) {
@@ -129,7 +134,7 @@ export default function GmailThreads({
       setError(msg);
       setNeedsConnect(shouldPromptGmailConnect(msg));
     } finally {
-      setLoadingThread((prev) => ({ ...prev, [threadId]: false }));
+      setLoadingMessage((prev) => ({ ...prev, [key]: false }));
     }
   }
 
@@ -197,18 +202,11 @@ export default function GmailThreads({
                       onClick={() => {
                         const next = !Boolean(expanded[t.id]);
                         setExpanded((prev) => ({ ...prev, [t.id]: next }));
-                        if (next) void ensureThreadFullyLoaded(t.id);
                       }}
                       style={{ marginBottom: 6 }}
                     >
                       {expanded[t.id] ? 'Masquer' : 'Afficher'}
                     </button>
-
-                    {expanded[t.id] && loadingThread[t.id] ? (
-                      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>
-                        Chargement du contenu complet…
-                      </div>
-                    ) : null}
 
                     <ul style={{ margin: 0, paddingLeft: 16 }}>
                       {(expanded[t.id] ? t.messages : t.messages.slice(0, 3)).map((m) => (
@@ -225,7 +223,21 @@ export default function GmailThreads({
                             {m.headers?.subject ? m.headers.subject : m.snippet ?? ''}
                           </span>
 
-                          {expanded[t.id] ? (
+                          {expanded[t.id] && m.id ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextId = openMessageByThread[t.id] === m.id ? null : m.id;
+                                setOpenMessageByThread((prev) => ({ ...prev, [t.id]: nextId }));
+                                if (nextId) void ensureMessageFullyLoaded(t.id, m.id);
+                              }}
+                              style={{ marginLeft: 8 }}
+                            >
+                              {openMessageByThread[t.id] === m.id ? 'Masquer le message' : 'Ouvrir'}
+                            </button>
+                          ) : null}
+
+                          {expanded[t.id] && openMessageByThread[t.id] === (m.id ?? null) ? (
                             <div style={{ marginTop: 6 }}>
                               {m.headers?.from ? (
                                 <div style={{ fontSize: 12, color: '#6b7280' }}>{m.headers.from}</div>
@@ -261,7 +273,16 @@ export default function GmailThreads({
                                     background: 'white',
                                   }}
                                 />
-                              ) : null}
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => (m.id ? void ensureMessageFullyLoaded(t.id, m.id) : undefined)}
+                                  disabled={Boolean(m.id) ? Boolean(loadingMessage[`${t.id}:${m.id}`]) : true}
+                                  style={{ marginTop: 6 }}
+                                >
+                                  Charger le message complet
+                                </button>
+                              )}
                             </div>
                           ) : null}
                         </li>

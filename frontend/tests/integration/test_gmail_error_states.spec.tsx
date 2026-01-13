@@ -6,6 +6,7 @@ const gmailProxyMocks = vi.hoisted(() => {
     listGmailThreadsForEmail: vi.fn(),
     startGmailOAuth: vi.fn(),
     getGmailThreadById: vi.fn(),
+    getGmailMessageById: vi.fn(),
   };
 });
 

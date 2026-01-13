@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
 import crypto from 'node:crypto';
-import { GmailProxyError, getThreadById, listThreadsForEmail } from '../proxy/gmail.js';
+import { GmailProxyError, getMessageById, getThreadById, listThreadsForEmail } from '../proxy/gmail.js';
 import { decryptToken, encryptToken, hmacSha256Base64Url } from '../lib/cryptoTokens.js';
 import { getSupabaseAdmin } from '../lib/supabaseAdmin.js';
 import { getBearerTokenFromHeader, verifySupabaseAccessToken } from '../lib/supabaseJwt.js';
@@ -342,5 +342,29 @@ gmailRouter.get('/threads/:threadId', async (req: Request, res: Response) => {
       return res.status(e.status).json({ error: e.message });
     }
     return res.status(500).json({ error: 'Failed to query Gmail thread' });
+  }
+});
+
+gmailRouter.get('/messages/:messageId', async (req: Request, res: Response) => {
+  const messageId = String(req.params.messageId ?? '').trim();
+  if (!messageId) {
+    return res.status(400).json({ error: 'Missing required route param: messageId' });
+  }
+
+  try {
+    const clientId = process.env.GMAIL_PROXY_CLIENT_ID ?? '';
+    const clientSecret = process.env.GMAIL_PROXY_CLIENT_SECRET ?? '';
+    if (!clientId || !clientSecret) {
+      return res.status(500).json({ error: 'Gmail proxy is not configured' });
+    }
+
+    const accessToken = await getGmailAccessTokenForRequest(req);
+    const message = await getMessageById({ clientId, clientSecret, accessToken }, messageId);
+    return res.json(message);
+  } catch (e) {
+    if (e instanceof GmailProxyError) {
+      return res.status(e.status).json({ error: e.message });
+    }
+    return res.status(500).json({ error: 'Failed to query Gmail message' });
   }
 });

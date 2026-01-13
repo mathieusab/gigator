@@ -78,6 +78,32 @@ export async function getGmailThreadById(params: {
   return (await res.json()) as GmailThread;
 }
 
+export async function getGmailMessageById(params: {
+  appAccessToken: string;
+  messageId: string;
+}): Promise<NonNullable<GmailThread['messages']>[number]> {
+  const messageId = params.messageId.trim();
+  if (!messageId) throw new Error('Missing messageId');
+
+  const res = await fetch(`/gmail/messages/${encodeURIComponent(messageId)}`, {
+    headers: {
+      Authorization: `Bearer ${params.appAccessToken}`,
+    },
+  });
+
+  if (res.status === 401) {
+    const body = (await res.json().catch(() => null)) as any;
+    throw new Error(body?.error ?? 'Unauthorized');
+  }
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as any;
+    throw new Error(body?.error ?? `Gmail proxy error (${res.status})`);
+  }
+
+  return (await res.json()) as NonNullable<GmailThread['messages']>[number];
+}
+
 export async function startGmailOAuth(params: {
   appAccessToken: string;
   redirectTo: string;

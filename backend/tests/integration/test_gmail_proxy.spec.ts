@@ -242,3 +242,47 @@ describe('GET /gmail/threads/:threadId', () => {
     expect(res.body.messages?.[0]?.headers?.subject).toBe('Hello');
   });
 });
+
+describe('GET /gmail/messages/:messageId', () => {
+  beforeEach(() => {
+    process.env.GMAIL_PROXY_CLIENT_ID = 'test-client-id';
+    process.env.GMAIL_PROXY_CLIENT_SECRET = 'test-client-secret';
+    process.env.GMAIL_TOKEN_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64');
+  });
+
+  test('returns message with decoded body (happy path)', async () => {
+    const supabaseAdmin = await import('../../src/lib/supabaseAdmin');
+    (supabaseAdmin as any).__setGmailConnection({
+      refresh_token_ciphertext: 'cipher',
+      refresh_token_iv: 'iv',
+      refresh_token_tag: 'tag',
+    });
+
+    mockFetchSequence([
+      { status: 200, json: { access_token: 'gmail-access-token' } },
+      {
+        status: 200,
+        json: {
+          id: 'm1',
+          threadId: 't1',
+          internalDate: String(Date.now()),
+          payload: {
+            mimeType: 'text/plain',
+            headers: [{ name: 'Subject', value: 'Only one message' }],
+            body: { data: 'aGVsbG8' },
+          },
+        },
+      },
+    ]);
+
+    const app = createApp();
+    const res = await request(app)
+      .get('/gmail/messages/m1')
+      .set('Authorization', 'Bearer supabase-access-token')
+      .expect(200);
+
+    expect(res.body).toMatchObject({ id: 'm1', threadId: 't1' });
+    expect(res.body.bodyText).toBe('hello');
+    expect(res.body.headers?.subject).toBe('Only one message');
+  });
+});

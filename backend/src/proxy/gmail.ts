@@ -34,6 +34,10 @@ export type GmailThreadFull = {
   messages?: GmailMessageFull[];
 };
 
+export type GmailMessageResult = GmailMessageFull & {
+  id: string;
+};
+
 export type GmailProxyConfig = {
   clientId: string;
   clientSecret: string;
@@ -95,6 +99,39 @@ function extractBodies(payload: GmailApiMessagePart | undefined): { text?: strin
 
   visit(payload);
   return out;
+}
+
+function mapApiMessageToFull(m: {
+  id?: string;
+  threadId?: string;
+  snippet?: string;
+  internalDate?: string;
+  payload?: GmailApiMessagePart;
+}): GmailMessageFull {
+  const ms = m.internalDate ? Number(m.internalDate) : NaN;
+  const internalDate = Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
+
+  const headersRaw = m.payload?.headers;
+  const from = normalizeHeaderValue(headersRaw, 'From');
+  const to = normalizeHeaderValue(headersRaw, 'To');
+  const subject = normalizeHeaderValue(headersRaw, 'Subject');
+  const date = normalizeHeaderValue(headersRaw, 'Date');
+  const bodies = extractBodies(m.payload);
+
+  return {
+    id: m.id,
+    threadId: m.threadId,
+    snippet: m.snippet,
+    internalDate,
+    headers: {
+      from: from || undefined,
+      to: to || undefined,
+      subject: subject || undefined,
+      date: date || undefined,
+    },
+    bodyText: bodies.text || undefined,
+    bodyHtml: bodies.html || undefined,
+  };
 }
 
 async function fetchJson(url: string, accessToken: string) {
@@ -217,33 +254,7 @@ export async function getThreadById(
     }>;
   };
 
-  const messages: GmailMessageFull[] = (threadJson.messages ?? []).map((m) => {
-    const ms = m.internalDate ? Number(m.internalDate) : NaN;
-    const internalDate = Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
-
-    const headersRaw = m.payload?.headers;
-    const from = normalizeHeaderValue(headersRaw, 'From');
-    const to = normalizeHeaderValue(headersRaw, 'To');
-    const subject = normalizeHeaderValue(headersRaw, 'Subject');
-    const date = normalizeHeaderValue(headersRaw, 'Date');
-
-    const bodies = extractBodies(m.payload);
-
-    return {
-      id: m.id,
-      threadId: m.threadId,
-      snippet: m.snippet,
-      internalDate,
-      headers: {
-        from: from || undefined,
-        to: to || undefined,
-        subject: subject || undefined,
-        date: date || undefined,
-      },
-      bodyText: bodies.text || undefined,
-      bodyHtml: bodies.html || undefined,
-    };
-  });
+  const messages: GmailMessageFull[] = (threadJson.messages ?? []).map(mapApiMessageToFull);
 
   return {
     id: threadJson.id ?? id,
@@ -251,5 +262,29 @@ export async function getThreadById(
     snippet: threadJson.snippet,
     historyId: threadJson.historyId,
     messages,
+  };
+}
+
+export async function getMessageById(
+  config: GmailProxyConfig,
+  messageId: string,
+): Promise<GmailMessageResult> {
+  const id = String(messageId ?? '').trim();
+  if (!id) throw new GmailProxyError(400, 'Missing messageId');
+
+  const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(id)}?format=full`;
+  const json = (await fetchJson(url, config.accessToken)) as {
+    id?: string;
+    threadId?: string;
+    snippet?: string;
+    internalDate?: string;
+    payload?: GmailApiMessagePart;
+  };
+
+  const mapped = mapApiMessageToFull(json);
+  const returnedId = String(mapped.id ?? id).trim();
+  return {
+    ...mapped,
+    id: returnedId,
   };
 }
