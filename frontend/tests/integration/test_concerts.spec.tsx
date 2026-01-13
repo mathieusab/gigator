@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
 
@@ -211,19 +211,24 @@ vi.mock('../../src/services/contacts', () => {
   };
 });
 
+vi.mock('../../src/services/concertContactLinks', () => {
+  return {
+    replaceContactsForConcert: vi.fn(async () => undefined),
+    listContactsForConcert: vi.fn(async () => []),
+  };
+});
+
 import App from '../../src/App';
 
 test('US2 flow: list groups, create, edit, delete', async () => {
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
-
   render(
     <MemoryRouter initialEntries={['/']}>
       <App />
     </MemoryRouter>,
   );
 
-  expect(await screen.findByText('À venir')).toBeInTheDocument();
-  expect(screen.getByText('Passés')).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { level: 2, name: /À venir/ })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 2, name: /Passés/ })).toBeInTheDocument();
   expect(screen.getByText('Future Venue')).toBeInTheDocument();
   expect(screen.getByText('Past Venue')).toBeInTheDocument();
 
@@ -244,6 +249,9 @@ test('US2 flow: list groups, create, edit, delete', async () => {
   expect(await screen.findByText('Concerts')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByText('Edited Venue')).toBeInTheDocument());
 
-  fireEvent.click(screen.getAllByRole('button', { name: 'Supprimer' })[0]);
+  fireEvent.click(screen.getByRole('button', { name: 'Supprimer Edited Venue' }));
+
+  const dialog = await screen.findByRole('dialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Oui, supprimer' }));
   await waitFor(() => expect(screen.queryByText('Edited Venue')).not.toBeInTheDocument());
 });

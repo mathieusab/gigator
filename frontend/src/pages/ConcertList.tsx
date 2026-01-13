@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ConcertListItem from '../components/ConcertListItem';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { deleteConcert, listConcerts, type Concert } from '../services/concerts';
 
 function isUpcoming(dateStart: string) {
@@ -12,6 +13,9 @@ export default function ConcertList() {
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [pendingDeleteConcert, setPendingDeleteConcert] = useState<Concert | null>(null);
+  const [deletingConcertId, setDeletingConcertId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -44,14 +48,25 @@ export default function ConcertList() {
     return { upcoming, past };
   }, [concerts]);
 
-  async function handleDelete(id: string) {
-    const ok = window.confirm('Supprimer ce concert ?');
-    if (!ok) return;
+  function requestDelete(id: string) {
+    const found = concerts.find((c) => c.id === id);
+    if (!found) return;
+    setError(null);
+    setPendingDeleteConcert(found);
+  }
+
+  async function handleConfirmDelete() {
+    if (!pendingDeleteConcert) return;
+    const id = pendingDeleteConcert.id;
+    setDeletingConcertId(id);
     try {
       await deleteConcert(id);
       setConcerts((prev) => prev.filter((c) => c.id !== id));
+      setPendingDeleteConcert(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete concert');
+    } finally {
+      setDeletingConcertId((current) => (current === id ? null : current));
     }
   }
 
@@ -59,6 +74,28 @@ export default function ConcertList() {
     <main
       style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
     >
+      <ConfirmDialog
+        open={pendingDeleteConcert !== null}
+        title={
+          pendingDeleteConcert
+            ? `Supprimer \"${pendingDeleteConcert.venue_name}\" ?`
+            : 'Supprimer ce concert ?'
+        }
+        description={
+          pendingDeleteConcert
+            ? 'Cette action est définitive.'
+            : undefined
+        }
+        confirmText="Oui, supprimer"
+        cancelText="Annuler"
+        isConfirming={pendingDeleteConcert ? deletingConcertId === pendingDeleteConcert.id : false}
+        onCancel={() => {
+          if (pendingDeleteConcert && deletingConcertId === pendingDeleteConcert.id) return;
+          setPendingDeleteConcert(null);
+        }}
+        onConfirm={() => void handleConfirmDelete()}
+      />
+
       <header
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
       >
@@ -75,6 +112,9 @@ export default function ConcertList() {
           </button>
           <button type="button" onClick={() => navigate('/map')}>
             Carte
+          </button>
+          <button type="button" onClick={() => navigate('/stats')}>
+            Stats
           </button>
           <button type="button" onClick={() => navigate('/concerts/new')}>
             Ajouter
@@ -101,7 +141,8 @@ export default function ConcertList() {
                   concert={c}
                   onOpen={(id) => navigate(`/concerts/${id}`)}
                   onEdit={(id) => navigate(`/concerts/${id}/edit`)}
-                  onDelete={handleDelete}
+                  onDelete={requestDelete}
+                  isDeleting={deletingConcertId === c.id}
                 />
               ))}
             </ul>
@@ -117,7 +158,8 @@ export default function ConcertList() {
                   concert={c}
                   onOpen={(id) => navigate(`/concerts/${id}`)}
                   onEdit={(id) => navigate(`/concerts/${id}/edit`)}
-                  onDelete={handleDelete}
+                  onDelete={requestDelete}
+                  isDeleting={deletingConcertId === c.id}
                 />
               ))}
             </ul>

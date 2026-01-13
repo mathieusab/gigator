@@ -11,6 +11,7 @@ import ContactList from './pages/ContactList';
 import Login from './pages/Login';
 import MapPage from './pages/MapPage';
 import NotFound from './pages/NotFound';
+import StatsPage from './pages/StatsPage';
 import VenueDetail from './pages/VenueDetail';
 import VenueList from './pages/VenueList';
 
@@ -65,6 +66,14 @@ export default function App() {
           element={
             <RequireAuth>
               <MapPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/stats"
+          element={
+            <RequireAuth>
+              <StatsPage />
             </RequireAuth>
           }
         />

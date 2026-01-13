@@ -53,3 +53,29 @@ export async function createContact(input: ContactCreateInput): Promise<Contact>
   const res = await supabase.from('contacts').insert(payload).select('*').single();
   return unwrap<Contact>(res);
 }
+
+export async function deleteContact(id: string): Promise<void> {
+  const res = await supabase.from('contacts').delete().eq('id', id);
+  if (res.error) {
+    const code = String((res.error as any).code ?? '');
+    const message = String(res.error.message ?? '');
+
+    // Postgres foreign key violation.
+    if (
+      code === '23503' ||
+      /foreign key/i.test(message) ||
+      /violates foreign key constraint/i.test(message)
+    ) {
+      throw new Error(
+        "Impossible de supprimer ce contact car il est lié à d’autres données (concerts, salles, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
+      );
+    }
+
+    // RLS / permission errors.
+    if (code === '42501' || /permission denied/i.test(message) || /row level security/i.test(message)) {
+      throw new Error("Vous n'avez pas les droits pour supprimer ce contact.");
+    }
+
+    throw new Error(res.error.message);
+  }
+}

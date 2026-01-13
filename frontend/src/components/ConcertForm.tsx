@@ -26,7 +26,7 @@ export default function ConcertForm({
   mode,
 }: {
   initial?: Partial<Concert>;
-  onSubmit: (input: ConcertUpsertInput) => Promise<void>;
+  onSubmit: (input: ConcertUpsertInput, contactIds: string[]) => Promise<void>;
   submitLabel: string;
   mode: 'create' | 'edit';
 }) {
@@ -52,7 +52,9 @@ export default function ConcertForm({
   const [directoryError, setDirectoryError] = useState<string | null>(null);
 
   const [selectedVenueId, setSelectedVenueId] = useState<string>(initial?.venue_id ?? '');
-  const [selectedContactId, setSelectedContactId] = useState<string>(initial?.contact_id ?? '');
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>(() =>
+    initial?.contact_id ? [initial.contact_id] : [],
+  );
   const [notes, setNotes] = useState(initial?.notes ?? '');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,10 +84,42 @@ export default function ConcertForm({
     [venues, selectedVenueId],
   );
 
-  const selectedContact = useMemo(
-    () => contacts.find((x) => x.id === selectedContactId) ?? null,
-    [contacts, selectedContactId],
+  const selectedContacts = useMemo(() => {
+    const ids = new Set(selectedContactIds);
+    return contacts.filter((c) => ids.has(c.id));
+  }, [contacts, selectedContactIds]);
+
+  const primaryContact = selectedContacts[0] ?? null;
+
+  const hasSelectedContacts = useMemo(
+    () => selectedContactIds.some((x) => String(x).trim().length > 0),
+    [selectedContactIds],
   );
+
+  const contactRows = useMemo(
+    () => (selectedContactIds.length ? selectedContactIds : ['']),
+    [selectedContactIds],
+  );
+
+  function addContactRow() {
+    setSelectedContactIds((prev) => (prev.length ? [...prev, ''] : ['', '']));
+  }
+
+  function removeContactRow(index: number) {
+    setSelectedContactIds((prev) => {
+      if (prev.length <= 1) return [''];
+      const next = prev.filter((_, i) => i !== index);
+      return next.length ? next : [''];
+    });
+  }
+
+  function setContactRowValue(index: number, contactId: string) {
+    setSelectedContactIds((prev) => {
+      const next = prev.slice();
+      next[index] = contactId;
+      return next;
+    });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -99,7 +133,10 @@ export default function ConcertForm({
     setIsSubmitting(true);
     try {
       const resolvedVenueId: string | null = selectedVenueId.trim() || null;
-      const resolvedContactId: string | null = selectedContactId.trim() || null;
+      const resolvedContactIds: string[] = Array.from(
+        new Set(selectedContactIds.map((x) => String(x).trim()).filter(Boolean)),
+      );
+      const resolvedPrimaryContactId: string | null = resolvedContactIds[0] ?? null;
 
       const venueFromDirectory = resolvedVenueId ? selectedVenue : null;
       const venueName = venueFromDirectory?.name ?? initial?.venue_name ?? '';
@@ -113,7 +150,7 @@ export default function ConcertForm({
         date_start: toIsoFromDateTimeLocal(dateStart),
         status,
         venue_id: resolvedVenueId,
-        contact_id: resolvedContactId,
+        contact_id: resolvedPrimaryContactId,
         venue_name: venueName.trim(),
         city: venueFromDirectory?.city ?? initial?.city ?? null,
         country: venueFromDirectory?.country ?? initial?.country ?? null,
@@ -135,12 +172,12 @@ export default function ConcertForm({
 
       // If we attach a contact, we intentionally do not persist ad-hoc email/name on the concert.
       // Avoid overwriting legacy snapshot fields unless we explicitly set them.
-      if (resolvedContactId) {
+      if (resolvedPrimaryContactId) {
         input.venue_contact_name = null;
         input.venue_contact_email = null;
       }
 
-      await onSubmit(input);
+      await onSubmit(input, resolvedContactIds);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Enregistrement impossible');
     } finally {
@@ -210,34 +247,74 @@ export default function ConcertForm({
         ) : null}
       </label>
 
-      <label style={{ display: 'grid', gap: 4 }}>
-        <span>Contact</span>
-        <select
-          value={selectedContactId}
-          onChange={(e) => setSelectedContactId(e.target.value)}
-          aria-label="Contact"
-        >
-          <option value="">— Aucun —</option>
-          {contacts.map((c) => {
-            const label = (c.full_name ?? '').trim() || (c.email ?? '').trim() || c.id;
+      <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+          <span>Contacts</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" onClick={() => setSelectedContactIds([''])} disabled={!hasSelectedContacts}>
+              Aucun
+            </button>
+            <button type="button" onClick={addContactRow} disabled={!contacts.length}>
+              + Ajouter un contact
+            </button>
+          </div>
+        </div>
+
+        {!contacts.length && !directoryError ? (
+          <span style={{ fontSize: 12, color: '#6b7280' }}>Aucun contact dans l’annuaire.</span>
+        ) : null}
+
+        <div role="group" aria-label="Contacts" style={{ display: 'grid', gap: 8 }}>
+          {contactRows.map((value, idx) => {
+            const alreadySelected = new Set(
+              contactRows
+                .filter((_, i) => i !== idx)
+                .map((x) => String(x).trim())
+                .filter(Boolean),
+            );
+
             return (
-              <option key={c.id} value={c.id}>
-                {label}
-              </option>
+              <div key={`contact-row-${idx}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <select
+                  value={value}
+                  onChange={(e) => setContactRowValue(idx, e.target.value)}
+                  aria-label={idx === 0 ? 'Contact principal' : `Contact ${idx + 1}`}
+                  style={{ flex: 1 }}
+                >
+                  <option value="">— Choisir un contact —</option>
+                  {contacts.map((c) => {
+                    const label = (c.full_name ?? '').trim() || (c.email ?? '').trim() || c.id;
+                    const disabled = alreadySelected.has(c.id);
+                    return (
+                      <option key={c.id} value={c.id} disabled={disabled}>
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                <button type="button" onClick={() => removeContactRow(idx)} disabled={contactRows.length <= 1}>
+                  Retirer
+                </button>
+              </div>
             );
           })}
-        </select>
-        {mode === 'edit' && !selectedContactId && (initial?.venue_contact_name || initial?.venue_contact_email) ? (
+        </div>
+
+        {mode === 'edit' && !selectedContactIds.map((x) => x.trim()).filter(Boolean).length && (initial?.venue_contact_name || initial?.venue_contact_email) ? (
           <span style={{ fontSize: 12, color: '#6b7280' }}>
             Concert non lié à un contact (infos existantes conservées).
           </span>
         ) : null}
-        {selectedContact ? (
+
+        {primaryContact ? (
           <span style={{ fontSize: 12, color: '#6b7280' }}>
-            {selectedContact.email ? `Email: ${selectedContact.email}` : 'Email non renseigné'}
+            Contact principal: {(primaryContact.full_name ?? '').trim() || primaryContact.id}
+            {primaryContact.email ? ` — ${primaryContact.email}` : ''}
+            {selectedContacts.length > 1 ? ` (+${selectedContacts.length - 1})` : ''}
           </span>
         ) : null}
-      </label>
+      </div>
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Notes</span>

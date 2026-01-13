@@ -8,6 +8,7 @@ import {
   type Concert,
   type ConcertUpsertInput,
 } from '../services/concerts';
+import { replaceContactsForConcert } from '../services/concertContactLinks';
 import { upsertVenueContactLink } from '../services/venueContactLinks';
 
 export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
@@ -45,11 +46,22 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
     };
   }, [mode, concertId]);
 
-  async function handleSubmit(input: ConcertUpsertInput) {
+  async function handleSubmit(input: ConcertUpsertInput, contactIds: string[]) {
     if (mode === 'create') {
-      await createConcert(input);
-      if (input.venue_id && input.contact_id) {
-        await upsertVenueContactLink({ venue_id: input.venue_id, contact_id: input.contact_id });
+      const created = await createConcert(input);
+
+      if (input.venue_id && contactIds.length) {
+        await Promise.all(
+          contactIds.map((contactId) =>
+            upsertVenueContactLink({ venue_id: input.venue_id as string, contact_id: contactId }),
+          ),
+        );
+      }
+
+      // Multi-contact support is stored in a join table. We only require it when the user selects >1 contact
+      // so existing deployments (with only `concerts.contact_id`) keep working for the common case.
+      if (contactIds.length > 1) {
+        await replaceContactsForConcert(created.id, contactIds);
       }
       navigate('/', { replace: true });
       return;
@@ -57,8 +69,17 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
 
     if (!concertId) throw new Error('Missing concert id');
     await updateConcert(concertId, input);
-    if (input.venue_id && input.contact_id) {
-      await upsertVenueContactLink({ venue_id: input.venue_id, contact_id: input.contact_id });
+
+    if (input.venue_id && contactIds.length) {
+      await Promise.all(
+        contactIds.map((contactId) =>
+          upsertVenueContactLink({ venue_id: input.venue_id as string, contact_id: contactId }),
+        ),
+      );
+    }
+
+    if (contactIds.length > 1) {
+      await replaceContactsForConcert(concertId, contactIds);
     }
     navigate('/', { replace: true });
   }

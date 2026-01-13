@@ -18,11 +18,13 @@ export default function ConcertListItem({
   onOpen,
   onEdit,
   onDelete,
+  isDeleting = false,
 }: {
   concert: Concert;
   onOpen: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  isDeleting?: boolean;
 }) {
   return (
     <li
@@ -64,7 +66,12 @@ export default function ConcertListItem({
         <button type="button" onClick={() => onEdit(concert.id)}>
           Modifier
         </button>
-        <button type="button" onClick={() => onDelete(concert.id)}>
+        <button
+          type="button"
+          onClick={() => onDelete(concert.id)}
+          disabled={isDeleting}
+          aria-label={`Supprimer ${concert.venue_name}`}
+        >
           Supprimer
         </button>
       </div>
