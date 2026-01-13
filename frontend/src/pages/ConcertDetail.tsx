@@ -11,6 +11,8 @@ import {
   listConcertFinancialItemsForConcert,
   updateConcertFinancialItem,
   type ConcertFinancialItem,
+  CONCERT_FINANCIAL_CATEGORIES,
+  type ConcertFinancialCategory,
   type ConcertFinancialItemKind,
 } from '../services/concertFinancialItems';
 
@@ -71,7 +73,7 @@ export default function ConcertDetail() {
 
   const [editingFinancialId, setEditingFinancialId] = useState<string | null>(null);
   const [kind, setKind] = useState<ConcertFinancialItemKind>('income');
-  const [label, setLabel] = useState('');
+  const [label, setLabel] = useState<ConcertFinancialCategory>('Cachet');
   const [amount, setAmount] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [isSavingFinancial, setIsSavingFinancial] = useState(false);
@@ -173,7 +175,7 @@ export default function ConcertDetail() {
   function resetFinancialForm() {
     setEditingFinancialId(null);
     setKind('income');
-    setLabel('');
+    setLabel('Cachet');
     setAmount('');
     setEffectiveDate('');
   }
@@ -187,8 +189,7 @@ export default function ConcertDetail() {
     try {
       const amountCents = parseAmountToCents(amount);
       const effectiveAt = effectiveDate.trim() ? toIsoFromDateInput(effectiveDate.trim()) : null;
-      const payload = { kind, label: label.trim(), amount_cents: amountCents, effective_at: effectiveAt };
-      if (!payload.label) throw new Error('Le libellé est requis.');
+      const payload = { kind, label, amount_cents: amountCents, effective_at: effectiveAt };
 
       if (editingFinancialId) {
         const updated = await updateConcertFinancialItem(editingFinancialId, payload);
@@ -388,8 +389,14 @@ export default function ConcertDetail() {
                 </label>
 
                 <label style={{ display: 'grid', gap: 4 }}>
-                  <span>Libellé</span>
-                  <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Cachet, Billetterie, Parking…" />
+                  <span>Catégorie</span>
+                  <select value={label} onChange={(e) => setLabel(e.target.value as ConcertFinancialCategory)}>
+                    {CONCERT_FINANCIAL_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
 

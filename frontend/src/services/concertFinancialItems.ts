@@ -2,11 +2,22 @@ import { supabase } from '../lib/supabaseClient';
 
 export type ConcertFinancialItemKind = 'income' | 'expense';
 
+export const CONCERT_FINANCIAL_CATEGORIES = [
+  'Cachet',
+  'Billetterie',
+  'Merch',
+  'Parking',
+  'Transport',
+  'Hébergement',
+] as const;
+
+export type ConcertFinancialCategory = (typeof CONCERT_FINANCIAL_CATEGORIES)[number];
+
 export type ConcertFinancialItem = {
   id: string;
   concert_id: string;
   kind: ConcertFinancialItemKind;
-  label: string;
+  label: ConcertFinancialCategory;
   amount_cents: number;
   effective_at: string | null;
   created_by: string;
@@ -16,10 +27,16 @@ export type ConcertFinancialItem = {
 
 export type ConcertFinancialItemUpsertInput = {
   kind: ConcertFinancialItemKind;
-  label: string;
+  label: ConcertFinancialCategory;
   amount_cents: number;
   effective_at?: string | null;
 };
+
+function assertCategory(label: string): asserts label is ConcertFinancialCategory {
+  if (!CONCERT_FINANCIAL_CATEGORIES.includes(label as ConcertFinancialCategory)) {
+    throw new Error('Catégorie invalide.');
+  }
+}
 
 async function requireUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
@@ -62,10 +79,12 @@ export async function createConcertFinancialItem(
 ): Promise<ConcertFinancialItem> {
   const userId = await requireUserId();
 
+  assertCategory(input.label);
+
   const payload: Record<string, unknown> = {
     concert_id: concertId,
     kind: input.kind,
-    label: input.label.trim(),
+    label: input.label,
     amount_cents: input.amount_cents,
     effective_at: 'effective_at' in input ? input.effective_at ?? null : null,
     created_by: userId,
@@ -84,9 +103,11 @@ export async function updateConcertFinancialItem(
   id: string,
   input: ConcertFinancialItemUpsertInput,
 ): Promise<ConcertFinancialItem> {
+  assertCategory(input.label);
+
   const payload: Record<string, unknown> = {
     kind: input.kind,
-    label: input.label.trim(),
+    label: input.label,
     amount_cents: input.amount_cents,
     updated_at: new Date().toISOString(),
   };

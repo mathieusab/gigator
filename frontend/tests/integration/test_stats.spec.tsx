@@ -89,6 +89,7 @@ vi.mock('../../src/services/concerts', () => {
 
 vi.mock('../../src/services/concertFinancialItems', () => {
   return {
+    CONCERT_FINANCIAL_CATEGORIES: ['Cachet', 'Billetterie', 'Merch', 'Parking', 'Transport', 'Hébergement'],
     listConcertFinancialItems: vi.fn(async () => store.financialItems.slice()),
     listConcertFinancialItemsForConcert: vi.fn(async () => []),
     createConcertFinancialItem: vi.fn(async () => {

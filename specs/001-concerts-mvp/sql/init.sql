@@ -43,7 +43,7 @@ create table if not exists concert_financial_items (
   id uuid primary key default gen_random_uuid(),
   concert_id uuid not null references concerts(id) on delete cascade,
   kind text not null check (kind in ('income', 'expense')),
-  label text not null,
+  label text not null check (label in ('Cachet', 'Billetterie', 'Merch', 'Parking', 'Transport', 'Hébergement')),
   amount_cents integer not null check (amount_cents >= 0),
   effective_at timestamptz,
   created_by uuid not null references app_users(id),
