@@ -258,6 +258,10 @@ describe('GET /gmail/messages/:messageId', () => {
       refresh_token_tag: 'tag',
     });
 
+    const body = Buffer.from('Hello\n\n> quoted line\n> another quoted\n\nWorld', 'utf8').toString(
+      'base64url',
+    );
+
     mockFetchSequence([
       { status: 200, json: { access_token: 'gmail-access-token' } },
       {
@@ -269,7 +273,7 @@ describe('GET /gmail/messages/:messageId', () => {
           payload: {
             mimeType: 'text/plain',
             headers: [{ name: 'Subject', value: 'Only one message' }],
-            body: { data: 'aGVsbG8' },
+            body: { data: body },
           },
         },
       },
@@ -282,7 +286,7 @@ describe('GET /gmail/messages/:messageId', () => {
       .expect(200);
 
     expect(res.body).toMatchObject({ id: 'm1', threadId: 't1' });
-    expect(res.body.bodyText).toBe('hello');
+    expect(res.body.bodyText).toBe('Hello\n\nWorld');
     expect(res.body.headers?.subject).toBe('Only one message');
   });
 });

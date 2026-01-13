@@ -78,6 +78,14 @@ function decodeBase64UrlUtf8(data: string): string {
   }
 }
 
+function stripQuotedLines(text: string): string {
+  const s = String(text ?? '');
+  if (!s) return '';
+  const lines = s.split(/\r?\n/);
+  const kept = lines.filter((line) => !line.trimStart().startsWith('>'));
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function extractBodies(payload: GmailApiMessagePart | undefined): { text?: string; html?: string } {
   const out: { text?: string; html?: string } = {};
   const visit = (part: GmailApiMessagePart | undefined) => {
@@ -129,7 +137,7 @@ function mapApiMessageToFull(m: {
       subject: subject || undefined,
       date: date || undefined,
     },
-    bodyText: bodies.text || undefined,
+    bodyText: bodies.text ? stripQuotedLines(bodies.text) || undefined : undefined,
     bodyHtml: bodies.html || undefined,
   };
 }
