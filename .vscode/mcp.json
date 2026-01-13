@@ -20,11 +20,11 @@
 			"args": [
 				"-y",
 				"@supabase/mcp-server-supabase@latest",
-				"--project-ref=tfocwpxrdwiqhydvisuf"
+				"--project-ref=${input:supabase-project-ref}"
 			],
 			"env": {
 				"SUPABASE_ACCESS_TOKEN": "${input:supabase-access-token}",
-				"SUPABASE_PROJECT_REF": "tfocwpxrdwiqhydvisuf"
+				"SUPABASE_PROJECT_REF": "${input:supabase-project-ref}"
 			}
 		},
 		"io.github.github/github-mcp-server": {
@@ -37,16 +37,19 @@
 			"version": "0.26.3"
 		},
 		"microsoft/playwright-mcp": {
-			"type": "stdio",
-			"command": "npx",
-			"args": [
-				"@playwright/mcp@latest"
-			],
+			"type": "http",
+			"url": "http://localhost:8931/mcp",
 			"gallery": "https://api.mcp.github.com",
 			"version": "0.0.1-seed"
 		}
 	},
 	"inputs": [
+		{
+			"id": "supabase-project-ref",
+			"type": "promptString",
+			"description": "Supabase project ref (e.g. abcdefghijklmnop)",
+			"password": false
+		},
 		{
 			"id": "supabase-access-token",
 			"type": "promptString",

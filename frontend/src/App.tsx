@@ -2,8 +2,11 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AuthProvider, isAuthorized, useAuth } from './lib/useAuth';
 import AccessDenied from './pages/AccessDenied';
+import CalendarPage from './pages/CalendarPage';
+import ConcertEdit from './pages/ConcertEdit';
 import ConcertList from './pages/ConcertList';
 import Login from './pages/Login';
+import MapPage from './pages/MapPage';
 import NotFound from './pages/NotFound';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -39,6 +42,38 @@ export default function App() {
           element={
             <RequireAuth>
               <ConcertList />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/calendar"
+          element={
+            <RequireAuth>
+              <CalendarPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/map"
+          element={
+            <RequireAuth>
+              <MapPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/concerts/new"
+          element={
+            <RequireAuth>
+              <ConcertEdit mode="create" />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/concerts/:id/edit"
+          element={
+            <RequireAuth>
+              <ConcertEdit mode="edit" />
             </RequireAuth>
           }
         />

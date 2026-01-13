@@ -48,11 +48,11 @@ description: "Generated tasks for Concerts MVP"
 
 **Independent Test**: Create a concert → appears in upcoming list and calendar; edit persists; delete removes it.
 
-- [ ] T016 [P] [US2] Create `frontend/src/services/concerts.ts` implementing CRUD via `@supabase/supabase-js`
-- [ ] T017 [P] [US2] Implement `frontend/src/pages/ConcertList.tsx` (group upcoming / past)
-- [ ] T018 [P] [US2] Implement `frontend/src/components/ConcertForm.tsx` and `frontend/src/pages/ConcertEdit.tsx` for create/edit
-- [ ] T019 [US2] [US2] Add integration test `frontend/tests/integration/test_concerts.spec.ts` covering create → list → edit → delete
-- [ ] T020 [US2] [P] Implement chronological ordering and the `À venir` / `Passés` UI in `frontend/src/components/ConcertListItem.tsx`
+- [X] T016 [P] [US2] Create `frontend/src/services/concerts.ts` implementing CRUD via `@supabase/supabase-js`
+- [X] T017 [P] [US2] Implement `frontend/src/pages/ConcertList.tsx` (group upcoming / past)
+- [X] T018 [P] [US2] Implement `frontend/src/components/ConcertForm.tsx` and `frontend/src/pages/ConcertEdit.tsx` for create/edit
+- [X] T019 [US2] [US2] Add integration test `frontend/tests/integration/test_concerts.spec.ts` covering create → list → edit → delete
+- [X] T020 [US2] [P] Implement chronological ordering and the `À venir` / `Passés` UI in `frontend/src/components/ConcertListItem.tsx`
 
 ---
 
@@ -62,9 +62,9 @@ description: "Generated tasks for Concerts MVP"
 
 **Independent Test**: Open calendar, navigate months, click event to preview details.
 
-- [ ] T021 [P] [US3] Implement `frontend/src/components/CalendarView.tsx` (month navigation + event indicators)
-- [ ] T022 [P] [US3] Add `frontend/src/pages/CalendarPage.tsx` that uses `CalendarView`
-- [ ] T023 [US3] Add integration test `frontend/tests/integration/test_calendar.spec.ts` for navigation and event click behavior
+- [X] T021 [P] [US3] Implement `frontend/src/components/CalendarView.tsx` (month navigation + event indicators)
+- [X] T022 [P] [US3] Add `frontend/src/pages/CalendarPage.tsx` that uses `CalendarView`
+- [X] T023 [US3] Add integration test `frontend/tests/integration/test_calendar.spec.ts` for navigation and event click behavior
 
 ---
 
@@ -77,6 +77,9 @@ description: "Generated tasks for Concerts MVP"
 - [ ] T024 [P] [US4] Implement `frontend/src/components/MapView.tsx` using `@googlemaps/js-api-loader` and render pins
 - [ ] T025 [P] [US4] Add `frontend/src/pages/MapPage.tsx` and route to it
 - [ ] T026 [P] [US4] Add integration test `frontend/tests/integration/test_map.spec.ts` that stubs map loader and checks pin rendering logic
+- [X] T024 [P] [US4] Implement `frontend/src/components/MapView.tsx` using `@googlemaps/js-api-loader` and render pins
+- [X] T025 [P] [US4] Add `frontend/src/pages/MapPage.tsx` and route to it
+- [X] T026 [P] [US4] Add integration test `frontend/tests/integration/test_map.spec.ts` that stubs map loader and checks pin rendering logic
 
 ---
 

@@ -61,6 +61,21 @@ create policy "select_for_active_users" on concerts
 create policy "insert_for_auth" on concerts
   for insert
   with check (auth.uid() is not null);
+
+## If you see "schema cache" errors
+
+If you get an error like `Could not find the 'date_end' column of 'concerts' in the schema cache`, it means either:
+- your `concerts` table was created without that column (common if you created it before updating SQL), or
+- PostgREST (Supabase API) hasn’t refreshed its schema cache yet.
+
+Run this in the Supabase SQL editor:
+
+```sql
+alter table public.concerts add column if not exists date_end timestamptz;
+
+-- refresh PostgREST schema cache
+notify pgrst, 'reload schema';
+```
 ```
 
 ## Run frontend (development)

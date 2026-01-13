@@ -33,3 +33,7 @@ create table if not exists concerts (
 );
 
 create index if not exists concerts_date_start_idx on concerts(date_start);
+
+-- If the table already existed from a previous iteration, ensure key columns exist.
+-- (CREATE TABLE IF NOT EXISTS does not add new columns.)
+alter table concerts add column if not exists date_end timestamptz;
