@@ -215,26 +215,42 @@ function NetBarChart({ buckets }: { buckets: MonthNetBucket[] }) {
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
 
+  // Auto-scale the Y axis to the data range, while always including 0.
+  // This avoids wasting vertical space when all values are positive (min=0)
+  // or all values are negative (max=0).
   const min = Math.min(0, ...buckets.map((b) => b.netCents));
   const max = Math.max(0, ...buckets.map((b) => b.netCents));
-  const maxAbs = Math.max(1, Math.abs(min), Math.abs(max));
+
+  function niceStepCents(targetStep: number): number {
+    const abs = Math.abs(targetStep);
+    if (!Number.isFinite(abs) || abs === 0) return 1000;
+    const pow10 = Math.pow(10, Math.floor(Math.log10(abs)));
+    const scaled = abs / pow10;
+    const niceScaled = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
+    return niceScaled * pow10;
+  }
+
+  const rawRange = max - min;
+  const safeRange = rawRange === 0 ? 1 : rawRange;
+  const tickCount = 6; // number of labels including ends
+  const step = niceStepCents(safeRange / (tickCount - 1));
+
+  const yMin = min === 0 ? 0 : Math.floor(min / step) * step;
+  const yMax = max === 0 ? 0 : Math.ceil(max / step) * step;
+  const yRange = yMax - yMin === 0 ? 1 : yMax - yMin;
 
   const barGap = 2;
   const barW = Math.max(1, plotW / buckets.length - barGap);
 
   function y(value: number) {
-    // Map [-maxAbs, +maxAbs] to [bottom, top]
-    const t = (value + maxAbs) / (2 * maxAbs);
+    // Map [yMin, yMax] to [bottom, top]
+    const t = (value - yMin) / yRange;
     return margin.top + plotH * (1 - t);
   }
 
   const y0 = y(0);
 
-  const ticks = 5;
-  const tickValues = Array.from({ length: ticks * 2 + 1 }, (_, i) => {
-    const v = -maxAbs + (i * (2 * maxAbs)) / (ticks * 2);
-    return Math.round(v / 1000) * 1000; // keep labels stable (in cents)
-  });
+  const tickValues = Array.from({ length: tickCount }, (_, i) => yMin + i * step);
 
   return (
     <svg
