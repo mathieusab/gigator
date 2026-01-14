@@ -6,6 +6,7 @@ import { deleteConcert, listConcerts, type Concert } from '../services/concerts'
 import { listContacts } from '../services/contacts';
 import { useAuth } from '../lib/useAuth';
 import { getGmailConnection, listGmailThreadsForEmail, type GmailThread } from '../services/gmailProxy';
+import { listOpenGmailTodoThreads, upsertGmailTodoThreads } from '../services/gmailTodoThreads';
 
 function isUpcoming(dateStart: string | null) {
   if (!dateStart) return false;
@@ -16,6 +17,7 @@ export default function ConcertList() {
   const navigate = useNavigate();
   const { session } = useAuth();
   const appAccessToken = (session as any)?.access_token as string | undefined;
+  const appUserId = (session as any)?.user?.id as string | undefined;
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +34,40 @@ export default function ConcertList() {
 
   const [pendingDeleteConcert, setPendingDeleteConcert] = useState<Concert | null>(null);
   const [deletingConcertId, setDeletingConcertId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!appUserId) return () => {
+      isMounted = false;
+    };
+
+    // Best-effort: show persisted items quickly, then refresh from Gmail.
+    void (async () => {
+      try {
+        const rows = await listOpenGmailTodoThreads({ limit: 20 });
+        if (!isMounted) return;
+
+        const next = rows.map((r) => {
+          const thread: GmailThread = { id: r.thread_id };
+          return {
+            thread,
+            counterpartEmail: r.counterpart_email,
+            subject: String(r.subject ?? '').trim() || 'Conversation',
+            snippet: String(r.snippet ?? '').trim(),
+            date: r.last_message_at,
+          };
+        });
+
+        setTodoThreads((prev) => (prev.length ? prev : next));
+      } catch {
+        // Silent: persistence is optional UX.
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [appUserId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -153,6 +189,21 @@ export default function ConcertList() {
           });
 
         if (isMounted) setTodoThreads(next);
+
+        // Persist best-effort for offline/fast load later.
+        if (appUserId) {
+          void upsertGmailTodoThreads({
+            appUserId,
+            gmailEmail: email,
+            threads: next.map((t) => ({
+              threadId: t.thread.id,
+              counterpartEmail: t.counterpartEmail,
+              subject: t.subject,
+              snippet: t.snippet,
+              lastMessageAt: t.date,
+            })),
+          }).catch(() => undefined);
+        }
       } catch {
         // Deliberately silent: concerts page should not show Gmail errors.
         if (isMounted) setTodoThreads([]);
