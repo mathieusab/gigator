@@ -62,6 +62,13 @@ function PieChart({
                 Aucun
               </text>
             </g>
+          ) : slices.length === 1 ? (
+            <g>
+              <circle cx={cx} cy={cy} r={r} fill={slices[0].color} stroke="white" strokeWidth={1} />
+              <title>
+                {slices[0].label}: {formatCentsEUR(slices[0].valueCents)}
+              </title>
+            </g>
           ) : (
             slices.map((s) => {
               const frac = s.valueCents / total;
