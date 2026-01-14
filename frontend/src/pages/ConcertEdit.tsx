@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ConcertForm from '../components/ConcertForm';
+import ConcertFinancesEditor from '../components/ConcertFinancesEditor';
 import {
   createConcert,
   getConcert,
@@ -106,12 +107,23 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
       {isLoading ? <p>Chargement…</p> : null}
 
       {!isLoading && !error ? (
-        <ConcertForm
-          initial={concert ?? undefined}
-          onSubmit={handleSubmit}
-          submitLabel={mode === 'create' ? 'Créer' : 'Enregistrer'}
-          mode={mode}
-        />
+        <section style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+          <ConcertForm
+            initial={concert ?? undefined}
+            onSubmit={handleSubmit}
+            submitLabel={mode === 'create' ? 'Créer' : 'Enregistrer'}
+            mode={mode}
+          />
+
+          {mode === 'edit' && concertId ? (
+            <ConcertFinancesEditor concertId={concertId} />
+          ) : (
+            <section style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, color: '#6b7280' }}>
+              <div style={{ fontWeight: 700, color: '#111827' }}>Finances</div>
+              <div style={{ marginTop: 6 }}>Enregistre d’abord le concert, puis ajoute les recettes et dépenses ici.</div>
+            </section>
+          )}
+        </section>
       ) : null}
     </main>
   );

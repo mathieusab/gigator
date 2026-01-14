@@ -1,33 +1,98 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import GmailThreads from '../components/GmailThreads';
-import ConfirmDialog from '../components/ConfirmDialog';
 import { getContact, type Contact } from '../services/contacts';
 import { getConcert, type Concert } from '../services/concerts';
 import {
-  createConcertFinancialItem,
-  deleteConcertFinancialItem,
   listConcertFinancialItemsForConcert,
-  updateConcertFinancialItem,
   type ConcertFinancialItem,
   CONCERT_FINANCIAL_CATEGORIES,
   type ConcertFinancialCategory,
-  type ConcertFinancialItemKind,
 } from '../services/concertFinancialItems';
-
-function parseAmountToCents(raw: string): number {
-  const normalized = raw.trim().replace(',', '.');
-  if (!normalized) throw new Error('Le montant est requis.');
-  const n = Number(normalized);
-  if (!Number.isFinite(n)) throw new Error('Montant invalide.');
-  const cents = Math.round(n * 100);
-  if (cents < 0) throw new Error('Le montant doit être positif.');
-  return cents;
-}
 
 function formatCentsEUR(cents: number): string {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(cents / 100);
+}
+
+function pickColor(index: number) {
+  const palette = ['#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#a78bfa', '#fb7185'];
+  return palette[index % palette.length];
+}
+
+function PieChart({
+  title,
+  values,
+}: {
+  title: string;
+  values: Array<{ label: string; valueCents: number; color: string }>;
+}) {
+  const size = 180;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = 70;
+
+  const total = values.reduce((acc, v) => acc + v.valueCents, 0);
+
+  function arcPath(startAngle: number, endAngle: number) {
+    const start = {
+      x: cx + r * Math.cos(startAngle),
+      y: cy + r * Math.sin(startAngle),
+    };
+    const end = {
+      x: cx + r * Math.cos(endAngle),
+      y: cy + r * Math.sin(endAngle),
+    };
+    const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
+    return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
+  }
+
+  let angle = -Math.PI / 2;
+  const slices = total > 0 ? values.filter((v) => v.valueCents > 0) : [];
+
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      <div style={{ fontWeight: 700 }}>{title}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 12, alignItems: 'center' }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={title}>
+          {total === 0 ? (
+            <g>
+              <circle cx={cx} cy={cy} r={r} fill="#f3f4f6" stroke="#e5e7eb" />
+              <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fill="#6b7280" fontSize={12}>
+                Aucun
+              </text>
+            </g>
+          ) : (
+            slices.map((s) => {
+              const frac = s.valueCents / total;
+              const start = angle;
+              const end = angle + frac * 2 * Math.PI;
+              angle = end;
+              return (
+                <path key={s.label} d={arcPath(start, end)} fill={s.color} stroke="white" strokeWidth={1}>
+                  <title>
+                    {s.label}: {formatCentsEUR(s.valueCents)}
+                  </title>
+                </path>
+              );
+            })
+          )}
+        </svg>
+
+        <div style={{ display: 'grid', gap: 6 }}>
+          {values.map((v) => (
+            <div key={v.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 12, height: 12, borderRadius: 3, background: v.valueCents ? v.color : '#e5e7eb', border: '1px solid #e5e7eb' }} />
+                <span style={{ color: '#374151' }}>{v.label}</span>
+              </div>
+              <span style={{ fontVariantNumeric: 'tabular-nums', color: '#111827' }}>{formatCentsEUR(v.valueCents)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function formatDateTime(value: string | null) {
@@ -54,14 +119,6 @@ export default function ConcertDetail() {
   const [financialError, setFinancialError] = useState<string | null>(null);
   const [isFinancialLoading, setIsFinancialLoading] = useState(false);
 
-  const [editingFinancialId, setEditingFinancialId] = useState<string | null>(null);
-  const [kind, setKind] = useState<ConcertFinancialItemKind>('income');
-  const [label, setLabel] = useState<ConcertFinancialCategory>('Cachet');
-  const [amount, setAmount] = useState('');
-  const [isSavingFinancial, setIsSavingFinancial] = useState(false);
-
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -140,68 +197,59 @@ export default function ConcertDetail() {
     };
   }, [concert?.contact_id]);
 
-  const totals = (() => {
+  const totals = useMemo(() => {
     let incomeCents = 0;
     let expenseCents = 0;
-    for (const item of financialItems) {
-      if (item.kind === 'income') incomeCents += item.amount_cents;
-      else expenseCents += item.amount_cents;
+    const incomeByCategory = new Map<ConcertFinancialCategory, number>();
+    const expenseByCategory = new Map<ConcertFinancialCategory, number>();
+
+    for (const c of CONCERT_FINANCIAL_CATEGORIES) {
+      incomeByCategory.set(c, 0);
+      expenseByCategory.set(c, 0);
     }
+
+    for (const item of financialItems) {
+      if (item.kind === 'income') {
+        incomeCents += item.amount_cents;
+        incomeByCategory.set(item.label, (incomeByCategory.get(item.label) ?? 0) + item.amount_cents);
+      } else {
+        expenseCents += item.amount_cents;
+        expenseByCategory.set(item.label, (expenseByCategory.get(item.label) ?? 0) + item.amount_cents);
+      }
+    }
+
     return {
       incomeCents,
       expenseCents,
       netCents: incomeCents - expenseCents,
+      incomeByCategory,
+      expenseByCategory,
     };
-  })();
+  }, [financialItems]);
 
-  function resetFinancialForm() {
-    setEditingFinancialId(null);
-    setKind('income');
-    setLabel('Cachet');
-    setAmount('');
-  }
+  const incomeSeries = useMemo(
+    () =>
+      CONCERT_FINANCIAL_CATEGORIES.map((c, i) => ({
+        label: c,
+        valueCents: totals.incomeByCategory.get(c) ?? 0,
+        color: pickColor(i),
+      })),
+    [totals.incomeByCategory],
+  );
 
-  async function submitFinancial(e: React.FormEvent) {
-    e.preventDefault();
-    if (!concertId) return;
-
-    setFinancialError(null);
-    setIsSavingFinancial(true);
-    try {
-      const amountCents = parseAmountToCents(amount);
-      const payload = { kind, label, amount_cents: amountCents };
-
-      if (editingFinancialId) {
-        const updated = await updateConcertFinancialItem(editingFinancialId, payload);
-        setFinancialItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-        resetFinancialForm();
-        return;
-      }
-
-      const created = await createConcertFinancialItem(concertId, payload);
-      setFinancialItems((prev) => [...prev, created]);
-      resetFinancialForm();
-    } catch (e) {
-      setFinancialError(e instanceof Error ? e.message : 'Enregistrement impossible');
-    } finally {
-      setIsSavingFinancial(false);
-    }
-  }
-
-  function startEdit(item: ConcertFinancialItem) {
-    setEditingFinancialId(item.id);
-    setKind(item.kind);
-    setLabel(item.label);
-    setAmount(String((item.amount_cents / 100).toFixed(2)));
-  }
+  const expenseSeries = useMemo(
+    () =>
+      CONCERT_FINANCIAL_CATEGORIES.map((c, i) => ({
+        label: c,
+        valueCents: totals.expenseByCategory.get(c) ?? 0,
+        color: pickColor(i),
+      })),
+    [totals.expenseByCategory],
+  );
 
   return (
-    <main
-      style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
-    >
-      <header
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
-      >
+    <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <h1 style={{ margin: 0 }}>Détail du concert</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Link to="/">Retour</Link>
@@ -225,11 +273,7 @@ export default function ConcertDetail() {
         <section style={{ marginTop: 16, display: 'grid', gap: 10 }}>
           <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
             <div style={{ fontWeight: 700, fontSize: 18 }}>
-              {concert.venue_id ? (
-                <Link to={`/venues/${concert.venue_id}`}>{concert.venue_name}</Link>
-              ) : (
-                concert.venue_name
-              )}
+              {concert.venue_id ? <Link to={`/venues/${concert.venue_id}`}>{concert.venue_name}</Link> : concert.venue_name}
             </div>
             <div style={{ color: '#4b5563' }}>{formatDateTime(concert.date_start)}</div>
             <div style={{ color: '#4b5563' }}>
@@ -249,9 +293,7 @@ export default function ConcertDetail() {
                     </Link>
                   </div>
                 ) : null}
-                {contact?.email || concert.venue_contact_email ? (
-                  <div>{contact?.email ?? concert.venue_contact_email}</div>
-                ) : null}
+                {contact?.email || concert.venue_contact_email ? <div>{contact?.email ?? concert.venue_contact_email}</div> : null}
               </div>
             ) : null}
 
@@ -263,18 +305,12 @@ export default function ConcertDetail() {
             ) : null}
           </div>
 
-          {contact?.email || concert.venue_contact_email ? (
-            <GmailThreads email={String(contact?.email ?? concert.venue_contact_email)} />
-          ) : null}
+          {contact?.email || concert.venue_contact_email ? <GmailThreads email={String(contact?.email ?? concert.venue_contact_email)} /> : null}
 
           <section style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-              <h2 style={{ margin: 0, fontSize: 16 }}>Finances</h2>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                <span style={{ color: '#065f46' }}>Revenus: {formatCentsEUR(totals.incomeCents)}</span>
-                <span style={{ color: '#991b1b' }}>Coûts: {formatCentsEUR(totals.expenseCents)}</span>
-                <span style={{ fontWeight: 700 }}>Net: {formatCentsEUR(totals.netCents)}</span>
-              </div>
+              <h2 style={{ margin: 0, fontSize: 16 }}>Finances (résumé)</h2>
+              <div style={{ fontWeight: 800, fontSize: 18 }}>Net: {formatCentsEUR(totals.netCents)}</div>
             </div>
 
             {financialError ? (
@@ -286,148 +322,17 @@ export default function ConcertDetail() {
             {isFinancialLoading ? <p style={{ marginTop: 8 }}>Chargement…</p> : null}
 
             {!isFinancialLoading ? (
-              <div style={{ marginTop: 10, overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                        Type
-                      </th>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                        Libellé
-                      </th>
-                      <th style={{ textAlign: 'right', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                        Montant
-                      </th>
-                      <th style={{ textAlign: 'right', padding: '6px 8px', borderBottom: '1px solid #e5e7eb' }}>
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {financialItems.length ? (
-                      financialItems.map((item) => {
-                        const signed = item.kind === 'income' ? item.amount_cents : -item.amount_cents;
-                        return (
-                          <tr key={item.id}>
-                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                              {item.kind === 'income' ? 'Revenu' : 'Coût'}
-                            </td>
-                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>{item.label}</td>
-                            <td
-                              style={{
-                                padding: '6px 8px',
-                                borderBottom: '1px solid #f3f4f6',
-                                textAlign: 'right',
-                                color: item.kind === 'income' ? '#065f46' : '#991b1b',
-                                fontVariantNumeric: 'tabular-nums',
-                              }}
-                            >
-                              {signed < 0 ? '-' : ''}
-                              {formatCentsEUR(Math.abs(signed))}
-                            </td>
-                            <td style={{ padding: '6px 8px', borderBottom: '1px solid #f3f4f6', textAlign: 'right' }}>
-                              <div style={{ display: 'inline-flex', gap: 8 }}>
-                                <button type="button" onClick={() => startEdit(item)}>
-                                  Modifier
-                                </button>
-                                <button type="button" onClick={() => setDeleteId(item.id)}>
-                                  Supprimer
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan={4} style={{ padding: 8, color: '#6b7280' }}>
-                          Aucune ligne pour l’instant.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            ) : null}
-
-            <form onSubmit={submitFinancial} style={{ marginTop: 12, display: 'grid', gap: 10 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 10 }}>
-                <label style={{ display: 'grid', gap: 4 }}>
-                  <span>Type</span>
-                  <select value={kind} onChange={(e) => setKind(e.target.value as ConcertFinancialItemKind)}>
-                    <option value="income">Revenu</option>
-                    <option value="expense">Coût</option>
-                  </select>
-                </label>
-
-                <label style={{ display: 'grid', gap: 4 }}>
-                  <span>Catégorie</span>
-                  <select value={label} onChange={(e) => setLabel(e.target.value as ConcertFinancialCategory)}>
-                    {CONCERT_FINANCIAL_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 10 }}>
-                <label style={{ display: 'grid', gap: 4 }}>
-                  <span>Montant (€)</span>
-                  <input
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    inputMode="decimal"
-                    placeholder="0,00"
-                  />
-                </label>
-
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, justifyContent: 'flex-end' }}>
-                  {editingFinancialId ? (
-                    <button type="button" onClick={resetFinancialForm} disabled={isSavingFinancial}>
-                      Annuler
-                    </button>
-                  ) : null}
-                  <button type="submit" disabled={isSavingFinancial}>
-                    {isSavingFinancial ? 'Enregistrement…' : editingFinancialId ? 'Enregistrer' : 'Ajouter'}
-                  </button>
+              <div style={{ marginTop: 12, display: 'grid', gap: 16 }}>
+                <PieChart title="Recettes par catégorie" values={incomeSeries} />
+                <PieChart title="Dépenses par catégorie" values={expenseSeries} />
+                <div style={{ color: '#6b7280', fontSize: 13 }}>
+                  Pour modifier ces montants, utilise le bouton “Modifier” puis la section Finances.
                 </div>
               </div>
-            </form>
+            ) : null}
           </section>
         </section>
       ) : null}
-
-      <ConfirmDialog
-        open={Boolean(deleteId)}
-        title="Supprimer la ligne ?"
-        description="Cette action est irréversible."
-        confirmText="Oui, supprimer"
-        isConfirming={isDeleting}
-        onCancel={() => {
-          if (isDeleting) return;
-          setDeleteId(null);
-        }}
-        onConfirm={() => {
-          if (!deleteId) return;
-          setFinancialError(null);
-          setIsDeleting(true);
-          void (async () => {
-            try {
-              await deleteConcertFinancialItem(deleteId);
-              setFinancialItems((prev) => prev.filter((x) => x.id !== deleteId));
-              if (editingFinancialId === deleteId) resetFinancialForm();
-              setDeleteId(null);
-            } catch (e) {
-              setFinancialError(e instanceof Error ? e.message : 'Suppression impossible');
-            } finally {
-              setIsDeleting(false);
-            }
-          })();
-        }}
-      />
     </main>
   );
 }

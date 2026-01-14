@@ -218,6 +218,23 @@ vi.mock('../../src/services/concertContactLinks', () => {
   };
 });
 
+vi.mock('../../src/services/concertFinancialItems', () => {
+  return {
+    CONCERT_FINANCIAL_CATEGORIES: ['Cachet', 'Billetterie', 'Merch', 'Parking', 'Transport', 'Hébergement'],
+    listConcertFinancialItems: vi.fn(async () => []),
+    listConcertFinancialItemsForConcert: vi.fn(async () => []),
+    createConcertFinancialItem: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    updateConcertFinancialItem: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+    deleteConcertFinancialItem: vi.fn(async () => {
+      throw new Error('not used');
+    }),
+  };
+});
+
 import App from '../../src/App';
 
 test('US2 flow: list groups, create, edit, delete', async () => {
