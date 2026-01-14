@@ -265,6 +265,16 @@ export default function GmailThreads({
     }
   }
 
+  function openLatestMessage(threadId: string, thread: GmailThread) {
+    const sorted = sortMessagesAntichrono(thread.messages ?? []);
+    const latest = sorted[0];
+    const latestId = String(latest?.id ?? '').trim();
+    if (!latestId) return;
+
+    setOpenMessageByThread((prev) => ({ ...prev, [threadId]: latestId }));
+    void ensureMessageFullyLoaded(threadId, latestId);
+  }
+
   function mergeThreadsKeepingBodies(prevThread: GmailThread, nextThread: GmailThread): GmailThread {
     const prevMessages = prevThread.messages ?? [];
     const nextMessages = nextThread.messages ?? [];
@@ -289,7 +299,7 @@ export default function GmailThreads({
     return { ...prevThread, ...nextThread, messages: mergedMessages };
   }
 
-  async function ensureThreadHeadersLoaded(threadId: string) {
+  async function ensureThreadHeadersLoaded(threadId: string, opts?: { autoOpenLatest?: boolean }) {
     const appAccessToken = (session as any)?.access_token as string | undefined;
     if (!appAccessToken) {
       setError('Session missing. Please sign in again.');
@@ -315,6 +325,17 @@ export default function GmailThreads({
           return mergeThreadsKeepingBodies(t, fullThread);
         }),
       );
+
+      if (opts?.autoOpenLatest) {
+        const latestId = String(sortMessagesAntichrono(fullThread.messages ?? [])[0]?.id ?? '').trim();
+        if (latestId) {
+          setOpenMessageByThread((prev) => {
+            if (prev[threadId]) return prev;
+            return { ...prev, [threadId]: latestId };
+          });
+          void ensureMessageFullyLoaded(threadId, latestId);
+        }
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to load Gmail thread';
       setError(msg);
@@ -503,7 +524,8 @@ export default function GmailThreads({
                         if (!next) {
                           setOpenMessageByThread((prev) => ({ ...prev, [threadId]: null }));
                         } else {
-                          void ensureThreadHeadersLoaded(threadId);
+                          void ensureThreadHeadersLoaded(threadId, { autoOpenLatest: true });
+                          if (!openMessageByThread[threadId]) openLatestMessage(threadId, t);
                         }
                       }}
                       aria-expanded={isExpanded}
@@ -607,9 +629,8 @@ export default function GmailThreads({
                               const from = parseFromHeader(m.headers?.from);
                               const senderLabel = from.display || 'Expéditeur inconnu';
                               const subject = formatOneLine(String(m.headers?.subject ?? '').trim());
-                              const preview = formatOneLine(String(m.snippet ?? '').trim());
                               const subjectLine = subject || '(sans objet)';
-                              const secondaryLine = preview ? `${subjectLine} — ${preview}` : subjectLine;
+                              const secondaryLine = subjectLine;
                               const date = m.internalDate ? formatDate(m.internalDate) : '';
                               const canOpen = Boolean(m.id);
                               const loadingKey = canOpen ? `${threadId}:${m.id}` : '';
