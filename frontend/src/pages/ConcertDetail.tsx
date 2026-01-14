@@ -79,17 +79,21 @@ function PieChart({
           )}
         </svg>
 
-        <div style={{ display: 'grid', gap: 6 }}>
-          {values.map((v) => (
-            <div key={v.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 12, height: 12, borderRadius: 3, background: v.valueCents ? v.color : '#e5e7eb', border: '1px solid #e5e7eb' }} />
-                <span style={{ color: '#374151' }}>{v.label}</span>
+        {values.length ? (
+          <div style={{ display: 'grid', gap: 6 }}>
+            {values.map((v) => (
+              <div key={v.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 3, background: v.color, border: '1px solid #e5e7eb' }} />
+                  <span style={{ color: '#374151' }}>{v.label}</span>
+                </div>
+                <span style={{ fontVariantNumeric: 'tabular-nums', color: '#111827' }}>{formatCentsEUR(v.valueCents)}</span>
               </div>
-              <span style={{ fontVariantNumeric: 'tabular-nums', color: '#111827' }}>{formatCentsEUR(v.valueCents)}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ color: '#6b7280', fontSize: 13 }}>Aucune catégorie renseignée.</div>
+        )}
       </div>
     </div>
   );
@@ -227,13 +231,15 @@ export default function ConcertDetail() {
     };
   }, [financialItems]);
 
+  const hasAnyFinance = totals.incomeCents !== 0 || totals.expenseCents !== 0;
+
   const incomeSeries = useMemo(
     () =>
       CONCERT_FINANCIAL_CATEGORIES.map((c, i) => ({
         label: c,
         valueCents: totals.incomeByCategory.get(c) ?? 0,
         color: pickColor(i),
-      })),
+      })).filter((x) => x.valueCents > 0),
     [totals.incomeByCategory],
   );
 
@@ -243,7 +249,7 @@ export default function ConcertDetail() {
         label: c,
         valueCents: totals.expenseByCategory.get(c) ?? 0,
         color: pickColor(i),
-      })),
+      })).filter((x) => x.valueCents > 0),
     [totals.expenseByCategory],
   );
 
@@ -307,30 +313,32 @@ export default function ConcertDetail() {
 
           {contact?.email || concert.venue_contact_email ? <GmailThreads email={String(contact?.email ?? concert.venue_contact_email)} /> : null}
 
-          <section style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-              <h2 style={{ margin: 0, fontSize: 16 }}>Finances (résumé)</h2>
-              <div style={{ fontWeight: 800, fontSize: 18 }}>Net: {formatCentsEUR(totals.netCents)}</div>
-            </div>
-
-            {financialError ? (
-              <p role="alert" style={{ color: 'crimson', marginTop: 8 }}>
-                {financialError}
-              </p>
-            ) : null}
-
-            {isFinancialLoading ? <p style={{ marginTop: 8 }}>Chargement…</p> : null}
-
-            {!isFinancialLoading ? (
-              <div style={{ marginTop: 12, display: 'grid', gap: 16 }}>
-                <PieChart title="Recettes par catégorie" values={incomeSeries} />
-                <PieChart title="Dépenses par catégorie" values={expenseSeries} />
-                <div style={{ color: '#6b7280', fontSize: 13 }}>
-                  Pour modifier ces montants, utilise le bouton “Modifier” puis la section Finances.
-                </div>
+          {hasAnyFinance ? (
+            <section style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+                <h2 style={{ margin: 0, fontSize: 16 }}>Finances (résumé)</h2>
+                <div style={{ fontWeight: 800, fontSize: 18 }}>Net: {formatCentsEUR(totals.netCents)}</div>
               </div>
-            ) : null}
-          </section>
+
+              {financialError ? (
+                <p role="alert" style={{ color: 'crimson', marginTop: 8 }}>
+                  {financialError}
+                </p>
+              ) : null}
+
+              {isFinancialLoading ? <p style={{ marginTop: 8 }}>Chargement…</p> : null}
+
+              {!isFinancialLoading ? (
+                <div style={{ marginTop: 12, display: 'grid', gap: 16 }}>
+                  <PieChart title="Recettes par catégorie" values={incomeSeries} />
+                  <PieChart title="Dépenses par catégorie" values={expenseSeries} />
+                  <div style={{ color: '#6b7280', fontSize: 13 }}>
+                    Pour modifier ces montants, utilise le bouton “Modifier” puis la section Finances.
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
         </section>
       ) : null}
     </main>
