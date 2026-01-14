@@ -68,6 +68,25 @@ function getThreadLatestMessage(t: GmailThread) {
   return withDate[0]?.m ?? null;
 }
 
+function getMessageMs(internalDate?: string) {
+  if (!internalDate) return Number.NaN;
+  const ms = new Date(internalDate).getTime();
+  return Number.isFinite(ms) ? ms : Number.NaN;
+}
+
+function sortMessagesAntichrono<T extends { internalDate?: string }>(messages: T[]) {
+  const withIndex = messages.map((m, idx) => ({ m, idx, ms: getMessageMs(m.internalDate) }));
+  withIndex.sort((a, b) => {
+    const aHas = Number.isFinite(a.ms);
+    const bHas = Number.isFinite(b.ms);
+    if (aHas && bHas) return b.ms - a.ms;
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+    return a.idx - b.idx;
+  });
+  return withIndex.map((x) => x.m);
+}
+
 function getThreadTitle(t: GmailThread) {
   const latest = getThreadLatestMessage(t);
   const subject = formatOneLine(String(latest?.headers?.subject ?? '').trim());
@@ -362,7 +381,17 @@ export default function GmailThreads({
             <div style={{ color: '#4b5563' }}>Aucun résultat.</div>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
-              {safeThreads.map((t, idx) => {
+              {[...safeThreads]
+                .map((t, idx) => ({ t, idx, ms: getMessageMs(getThreadLatestMessage(t)?.internalDate) }))
+                .sort((a, b) => {
+                  const aHas = Number.isFinite(a.ms);
+                  const bHas = Number.isFinite(b.ms);
+                  if (aHas && bHas) return b.ms - a.ms;
+                  if (aHas && !bHas) return -1;
+                  if (!aHas && bHas) return 1;
+                  return a.idx - b.idx;
+                })
+                .map(({ t }, idx) => {
                 const threadId = String(t.id ?? t.threadId ?? `thread-${idx}`);
                 const isExpanded = Boolean(expanded[threadId]);
                 const latest = getThreadLatestMessage(t);
@@ -370,6 +399,7 @@ export default function GmailThreads({
                 const title = getThreadTitle(t);
                 const subtitle = getThreadSubtitle(t);
                 const messageCount = t.messages?.length ?? 0;
+                const sortedMessages = sortMessagesAntichrono(t.messages ?? []);
 
                 return (
                   <li key={threadId} style={{ borderTop: idx === 0 ? 'none' : '1px solid #e5e7eb' }}>
@@ -479,9 +509,9 @@ export default function GmailThreads({
                           </div>
                         ) : null}
 
-                        {t.messages?.length ? (
+                        {sortedMessages.length ? (
                           <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'grid', gap: 8 }}>
-                            {(showAllMessages[threadId] ? t.messages : t.messages.slice(0, 3)).map((m, mIdx) => {
+                            {(showAllMessages[threadId] ? sortedMessages : sortedMessages.slice(0, 3)).map((m, mIdx) => {
                               const messageKey = m.id ?? `${threadId}:${m.internalDate ?? ''}:${mIdx}`;
                               const isOpen = openMessageByThread[threadId] === (m.id ?? null);
                               const from = formatOneLine(String(m.headers?.from ?? '').trim());
