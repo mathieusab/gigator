@@ -7,6 +7,83 @@ import {
   type GmailThread,
 } from '../services/gmailProxy';
 
+function IconChevronDown({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M6 9l6 6 6-6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconChevronRight({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M9 6l6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function formatOneLine(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function getThreadLatestMessage(t: GmailThread) {
+  const messages = t.messages ?? [];
+  if (messages.length === 0) return null;
+
+  const withDate = messages
+    .map((m) => ({ m, ms: m.internalDate ? new Date(m.internalDate).getTime() : Number.NaN }))
+    .filter((x) => Number.isFinite(x.ms));
+
+  if (withDate.length === 0) return messages[0] ?? null;
+  withDate.sort((a, b) => b.ms - a.ms);
+  return withDate[0]?.m ?? null;
+}
+
+function getThreadTitle(t: GmailThread) {
+  const latest = getThreadLatestMessage(t);
+  const subject = formatOneLine(String(latest?.headers?.subject ?? '').trim());
+  if (subject) return subject;
+  const snippet = formatOneLine(String(t.snippet ?? '').trim());
+  return snippet || 'Conversation';
+}
+
+function getThreadSubtitle(t: GmailThread) {
+  const latest = getThreadLatestMessage(t);
+  const from = formatOneLine(String(latest?.headers?.from ?? '').trim());
+  const snippet = formatOneLine(String(t.snippet ?? '').trim());
+  if (from && snippet) return `${from} — ${snippet}`;
+  return from || snippet;
+}
+
 function formatDate(value?: string) {
   if (!value) return '';
   const d = new Date(value);
@@ -32,6 +109,7 @@ export default function GmailThreads({
   const [needsConnect, setNeedsConnect] = useState(false);
   const [isFullMode, setIsFullMode] = useState(mode === 'full');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [showAllMessages, setShowAllMessages] = useState<Record<string, boolean>>({});
   const [loadingMessage, setLoadingMessage] = useState<Record<string, boolean>>({});
   const [openMessageByThread, setOpenMessageByThread] = useState<Record<string, string | null>>(
     {},
@@ -103,6 +181,9 @@ export default function GmailThreads({
     };
   }, [email, session, isFullMode]);
 
+  const trimmedEmail = email.trim();
+  const maxThreads = isFullMode ? 200 : 20;
+
   async function ensureMessageFullyLoaded(threadId: string, messageId: string) {
     const appAccessToken = (session as any)?.access_token as string | undefined;
     if (!appAccessToken) {
@@ -155,146 +236,425 @@ export default function GmailThreads({
   }
 
   return (
-    <section style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, marginTop: 16 }}>
-      <h2 style={{ margin: 0, marginBottom: 8, fontSize: 16 }}>Gmail — Conversations</h2>
-      <p style={{ marginTop: 0, color: '#4b5563' }}>{email.trim() || 'No contact email set.'}</p>
+    <section
+      style={{
+        border: '1px solid #e5e7eb',
+        borderRadius: 10,
+        background: 'white',
+        overflow: 'hidden',
+        marginTop: 16,
+      }}
+    >
+      <header
+        style={{
+          padding: '12px 12px 10px',
+          borderBottom: '1px solid #e5e7eb',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+          background: '#f9fafb',
+        }}
+      >
+        <div style={{ minWidth: 240, flex: '1 1 320px' }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Gmail</h2>
+          <div style={{ marginTop: 2, color: '#6b7280', fontSize: 13, overflowWrap: 'anywhere' }}>
+            {trimmedEmail || 'No contact email set.'}
+          </div>
+        </div>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button type="button" onClick={() => setIsFullMode((v) => !v)} disabled={isLoading}>
-          {isFullMode ? 'Mode compact' : 'Mode complet'}
-        </button>
-        <span style={{ fontSize: 12, color: '#6b7280' }}>
-          {isFullMode ? 'Jusqu’à 200 threads' : 'Jusqu’à 20 threads'}
-        </span>
-      </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div
+            role="group"
+            aria-label="Mode d’affichage"
+            style={{
+              display: 'inline-flex',
+              border: '1px solid #e5e7eb',
+              borderRadius: 9999,
+              background: '#f3f4f6',
+              padding: 2,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsFullMode(false)}
+              disabled={isLoading}
+              aria-pressed={!isFullMode}
+              style={{
+                border: 0,
+                background: !isFullMode ? 'white' : 'transparent',
+                borderRadius: 9999,
+                padding: '6px 10px',
+                fontSize: 13,
+                fontWeight: 700,
+                color: !isFullMode ? '#111827' : '#4b5563',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                boxShadow: !isFullMode ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+              }}
+            >
+              Compact
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFullMode(true)}
+              disabled={isLoading}
+              aria-pressed={isFullMode}
+              style={{
+                border: 0,
+                background: isFullMode ? 'white' : 'transparent',
+                borderRadius: 9999,
+                padding: '6px 10px',
+                fontSize: 13,
+                fontWeight: 700,
+                color: isFullMode ? '#111827' : '#4b5563',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                boxShadow: isFullMode ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+              }}
+            >
+              Complet
+            </button>
+          </div>
 
-      {isLoading ? <p>Chargement…</p> : null}
-      {error ? (
-        <p role="alert" style={{ color: 'crimson' }}>
-          {error}
-        </p>
-      ) : null}
+          <div style={{ fontSize: 12, color: '#6b7280' }}>Jusqu’à {maxThreads} threads</div>
+        </div>
+      </header>
 
-      {needsConnect ? (
-        <button type="button" onClick={() => void handleConnect()}>
-          Connecter Gmail
-        </button>
-      ) : null}
+      <div style={{ padding: 12 }}>
+        {isLoading ? <div style={{ color: '#4b5563' }}>Chargement…</div> : null}
 
-      {!isLoading && !error ? (
-        safeThreads.length === 0 ? (
-          <p>Aucun résultat.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
-            {safeThreads.map((t) => (
-              <li key={t.id} style={{ padding: 10, border: '1px solid #e5e7eb', borderRadius: 8 }}>
-                <div style={{ fontWeight: 600 }}>Thread {t.id}</div>
-                {t.snippet ? <div style={{ color: '#4b5563' }}>{t.snippet}</div> : null}
+        {error ? (
+          <div
+            style={{
+              border: '1px solid #fecaca',
+              background: '#fef2f2',
+              color: '#991b1b',
+              borderRadius: 10,
+              padding: 10,
+              marginBottom: 10,
+            }}
+          >
+            <div role="alert" style={{ fontWeight: 700 }}>
+              {error}
+            </div>
+            {needsConnect ? (
+              <button
+                type="button"
+                onClick={() => void handleConnect()}
+                style={{
+                  marginTop: 8,
+                  border: '1px solid #e5e7eb',
+                  background: 'white',
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Connecter Gmail
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
-                {t.messages?.length ? (
-                  <div style={{ marginTop: 8 }}>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
-                      Messages
-                    </div>
+        {!isLoading && !error ? (
+          safeThreads.length === 0 ? (
+            <div style={{ color: '#4b5563' }}>Aucun résultat.</div>
+          ) : (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
+              {safeThreads.map((t, idx) => {
+                const threadId = String(t.id ?? t.threadId ?? `thread-${idx}`);
+                const isExpanded = Boolean(expanded[threadId]);
+                const latest = getThreadLatestMessage(t);
+                const dateLabel = latest?.internalDate ? formatDate(latest.internalDate) : '';
+                const title = getThreadTitle(t);
+                const subtitle = getThreadSubtitle(t);
+                const messageCount = t.messages?.length ?? 0;
 
+                return (
+                  <li key={threadId} style={{ borderTop: idx === 0 ? 'none' : '1px solid #e5e7eb' }}>
                     <button
                       type="button"
                       onClick={() => {
-                        const next = !Boolean(expanded[t.id]);
-                        setExpanded((prev) => ({ ...prev, [t.id]: next }));
+                        const next = !isExpanded;
+
+                        setExpanded((prev) => {
+                          if (!isFullMode) return { [threadId]: next };
+                          return { ...prev, [threadId]: next };
+                        });
+
+                        if (!next) {
+                          setOpenMessageByThread((prev) => ({ ...prev, [threadId]: null }));
+                        }
                       }}
-                      style={{ marginBottom: 6 }}
+                      aria-expanded={isExpanded}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 12px',
+                        border: 0,
+                        background: isExpanded ? '#f9fafb' : 'white',
+                        cursor: 'pointer',
+                      }}
                     >
-                      {expanded[t.id] ? 'Masquer' : 'Afficher'}
+                      <span style={{ color: '#6b7280', display: 'inline-flex', alignItems: 'center' }}>
+                        {isExpanded ? <IconChevronDown /> : <IconChevronRight />}
+                      </span>
+                      <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+                        <div
+                          style={{
+                            fontWeight: 800,
+                            color: '#111827',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                          title={title}
+                        >
+                          {title}
+                        </div>
+                        {subtitle ? (
+                          <div
+                            style={{
+                              marginTop: 2,
+                              fontSize: 13,
+                              color: '#6b7280',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                            title={subtitle}
+                          >
+                            {subtitle}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
+                        {dateLabel ? <span style={{ fontSize: 12, color: '#6b7280' }}>{dateLabel}</span> : null}
+                        {messageCount > 0 ? (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 800,
+                              color: '#374151',
+                              background: '#f3f4f6',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: 9999,
+                              padding: '2px 8px',
+                            }}
+                            aria-label={`${messageCount} messages`}
+                          >
+                            {messageCount}
+                          </span>
+                        ) : null}
+                      </div>
                     </button>
 
-                    <ul style={{ margin: 0, paddingLeft: 16 }}>
-                      {(expanded[t.id] ? t.messages : t.messages.slice(0, 3)).map((m) => (
-                        <li
-                          key={m.id ?? `${t.id}:${m.internalDate ?? ''}`}
-                          style={{ fontSize: 13, marginBottom: 4 }}
-                        >
-                          {m.internalDate ? (
-                            <span style={{ color: '#6b7280' }}>
-                              {formatDate(m.internalDate)} —{' '}
-                            </span>
-                          ) : null}
-                          <span style={{ fontWeight: 600 }}>
-                            {m.headers?.subject ? m.headers.subject : m.snippet ?? ''}
-                          </span>
+                    {isExpanded ? (
+                      <div style={{ padding: '10px 12px', background: 'white' }}>
+                        {messageCount > 0 ? (
+                          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: '#6b7280' }}>Messages</div>
 
-                          {expanded[t.id] && m.id ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const nextId = openMessageByThread[t.id] === m.id ? null : m.id;
-                                setOpenMessageByThread((prev) => ({ ...prev, [t.id]: nextId }));
-                                if (nextId) void ensureMessageFullyLoaded(t.id, m.id);
-                              }}
-                              style={{ marginLeft: 8 }}
-                            >
-                              {openMessageByThread[t.id] === m.id ? 'Masquer le message' : 'Ouvrir'}
-                            </button>
-                          ) : null}
+                            {messageCount > 3 ? (
+                              <button
+                                type="button"
+                                onClick={() => setShowAllMessages((prev) => ({ ...prev, [threadId]: !Boolean(prev[threadId]) }))}
+                                style={{
+                                  border: 0,
+                                  padding: 0,
+                                  background: 'transparent',
+                                  color: '#2563eb',
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                {showAllMessages[threadId] ? 'Afficher moins' : `Afficher tout (${messageCount})`}
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
 
-                          {expanded[t.id] && openMessageByThread[t.id] === (m.id ?? null) ? (
-                            <div style={{ marginTop: 6 }}>
-                              {m.headers?.from ? (
-                                <div style={{ fontSize: 12, color: '#6b7280' }}>{m.headers.from}</div>
-                              ) : null}
+                        {t.messages?.length ? (
+                          <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'grid', gap: 8 }}>
+                            {(showAllMessages[threadId] ? t.messages : t.messages.slice(0, 3)).map((m, mIdx) => {
+                              const messageKey = m.id ?? `${threadId}:${m.internalDate ?? ''}:${mIdx}`;
+                              const isOpen = openMessageByThread[threadId] === (m.id ?? null);
+                              const from = formatOneLine(String(m.headers?.from ?? '').trim());
+                              const subject = formatOneLine(String(m.headers?.subject ?? m.snippet ?? '').trim());
+                              const date = m.internalDate ? formatDate(m.internalDate) : '';
+                              const canOpen = Boolean(m.id);
+                              const loadingKey = canOpen ? `${threadId}:${m.id}` : '';
 
-                              {m.bodyText ? (
-                                <pre
-                                  style={{
-                                    margin: '6px 0 0',
-                                    whiteSpace: 'pre-wrap',
-                                    wordBreak: 'break-word',
-                                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                                    fontSize: 12,
-                                    background: '#f9fafb',
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: 6,
-                                    padding: 8,
-                                  }}
-                                >
-                                  {m.bodyText}
-                                </pre>
-                              ) : m.bodyHtml ? (
-                                <iframe
-                                  title={`gmail-html-${m.id ?? ''}`}
-                                  sandbox=""
-                                  srcDoc={m.bodyHtml}
-                                  style={{
-                                    marginTop: 6,
-                                    width: '100%',
-                                    minHeight: 120,
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: 6,
-                                    background: 'white',
-                                  }}
-                                />
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => (m.id ? void ensureMessageFullyLoaded(t.id, m.id) : undefined)}
-                                  disabled={Boolean(m.id) ? Boolean(loadingMessage[`${t.id}:${m.id}`]) : true}
-                                  style={{ marginTop: 6 }}
-                                >
-                                  Charger le message complet
-                                </button>
-                              )}
-                            </div>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )
-      ) : null}
+                              return (
+                                <li key={messageKey}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (!m.id) return;
+                                      const nextId = openMessageByThread[threadId] === m.id ? null : m.id;
+                                      setOpenMessageByThread((prev) => ({ ...prev, [threadId]: nextId }));
+                                      if (nextId) void ensureMessageFullyLoaded(threadId, m.id);
+                                    }}
+                                    disabled={!canOpen}
+                                    aria-expanded={isOpen}
+                                    style={{
+                                      width: '100%',
+                                      textAlign: 'left',
+                                      display: 'flex',
+                                      gap: 10,
+                                      alignItems: 'center',
+                                      padding: '8px 10px',
+                                      borderRadius: 10,
+                                      border: '1px solid #e5e7eb',
+                                      background: isOpen ? '#f9fafb' : 'white',
+                                      cursor: canOpen ? 'pointer' : 'not-allowed',
+                                    }}
+                                    title={canOpen ? 'Ouvrir le message' : 'Message non disponible'}
+                                  >
+                                    <span style={{ color: '#6b7280', display: 'inline-flex', alignItems: 'center' }}>
+                                      {isOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                                    </span>
+                                    <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+                                      <div
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'baseline',
+                                          justifyContent: 'space-between',
+                                          gap: 10,
+                                        }}
+                                      >
+                                        <div
+                                          style={{
+                                            fontSize: 13,
+                                            fontWeight: 800,
+                                            color: '#111827',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                          }}
+                                          title={from}
+                                        >
+                                          {from || 'Message'}
+                                        </div>
+                                        {date ? <div style={{ fontSize: 12, color: '#6b7280' }}>{date}</div> : null}
+                                      </div>
+                                      {subject ? (
+                                        <div
+                                          style={{
+                                            marginTop: 2,
+                                            fontSize: 13,
+                                            color: '#4b5563',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                          }}
+                                          title={subject}
+                                        >
+                                          {subject}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                    {canOpen && Boolean(loadingMessage[loadingKey]) ? (
+                                      <span style={{ fontSize: 12, color: '#6b7280' }}>…</span>
+                                    ) : null}
+                                  </button>
+
+                                  {isOpen ? (
+                                    <div style={{ marginTop: 8, paddingLeft: 8 }}>
+                                      {m.headers?.from ? (
+                                        <div style={{ fontSize: 12, color: '#6b7280' }}>{m.headers.from}</div>
+                                      ) : null}
+
+                                      {m.bodyText ? (
+                                        <pre
+                                          style={{
+                                            margin: '6px 0 0',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            fontFamily:
+                                              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                            fontSize: 12,
+                                            background: '#f9fafb',
+                                            border: '1px solid #e5e7eb',
+                                            borderRadius: 10,
+                                            padding: 10,
+                                          }}
+                                        >
+                                          {m.bodyText}
+                                        </pre>
+                                      ) : m.bodyHtml ? (
+                                        <iframe
+                                          title={`gmail-html-${m.id ?? ''}`}
+                                          sandbox=""
+                                          srcDoc={m.bodyHtml}
+                                          style={{
+                                            marginTop: 6,
+                                            width: '100%',
+                                            minHeight: 140,
+                                            border: '1px solid #e5e7eb',
+                                            borderRadius: 10,
+                                            background: 'white',
+                                          }}
+                                        />
+                                      ) : m.id ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => void ensureMessageFullyLoaded(threadId, m.id!)}
+                                          disabled={Boolean(loadingMessage[`${threadId}:${m.id}`])}
+                                          style={{
+                                            marginTop: 6,
+                                            border: '1px solid #e5e7eb',
+                                            background: 'white',
+                                            borderRadius: 8,
+                                            padding: '8px 10px',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                          }}
+                                        >
+                                          Charger le message complet
+                                        </button>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <div style={{ marginTop: 8, color: '#6b7280', fontSize: 13 }}>Aucun message.</div>
+                        )}
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        ) : null}
+
+        {!error && needsConnect && !isLoading ? (
+          <button
+            type="button"
+            onClick={() => void handleConnect()}
+            style={{
+              marginTop: 10,
+              border: '1px solid #e5e7eb',
+              background: 'white',
+              borderRadius: 8,
+              padding: '8px 10px',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Connecter Gmail
+          </button>
+        ) : null}
+      </div>
     </section>
   );
 }
