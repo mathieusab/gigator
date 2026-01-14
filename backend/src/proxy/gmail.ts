@@ -81,8 +81,48 @@ function decodeBase64UrlUtf8(data: string): string {
 function stripQuotedLines(text: string): string {
   const s = String(text ?? '');
   if (!s) return '';
-  const lines = s.split(/\r?\n/);
-  const kept = lines.filter((line) => !line.trimStart().startsWith('>'));
+
+  const normalized = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalized.split('\n');
+
+  const historyMarkers: RegExp[] = [
+    /^\s*-----\s*Original\s+Message\s*-----\s*$/i,
+    /^\s*-{2,}\s*Forwarded\s+message\s*-{2,}\s*$/i,
+    /^\s*Begin\s+forwarded\s+message\s*:\s*$/i,
+    /^\s*On\s.+\s+wrote\s*:\s*$/i,
+    /^\s*Le\s.+\s+a\s+\u00e9crit\s*:\s*$/i,
+    /^\s*Le\s.+\s+a\s+ecrit\s*:\s*$/i,
+  ];
+
+  const signatureSeparators: RegExp[] = [
+    /^\s*--\s*$/,
+    /^\s*_{5,}\s*$/,
+    /^\s*[-–—]{5,}\s*$/,
+  ];
+
+  let cutIndex = lines.length;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? '';
+    const next = lines[i + 1] ?? '';
+    const twoLine = `${line.trim()} ${next.trim()}`.trim();
+
+    if (historyMarkers.some((re) => re.test(line) || (twoLine && re.test(twoLine)))) {
+      cutIndex = i;
+      break;
+    }
+
+    // Signature blocks often start with a separator near the end of the email.
+    if (signatureSeparators.some((re) => re.test(line))) {
+      const remaining = lines.length - i;
+      if (remaining <= 30) {
+        cutIndex = i;
+        break;
+      }
+    }
+  }
+
+  const prefix = lines.slice(0, cutIndex);
+  const kept = prefix.filter((line) => !line.trimStart().startsWith('>'));
   return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 

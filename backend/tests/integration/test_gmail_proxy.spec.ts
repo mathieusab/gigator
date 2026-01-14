@@ -258,9 +258,10 @@ describe('GET /gmail/messages/:messageId', () => {
       refresh_token_tag: 'tag',
     });
 
-    const body = Buffer.from('Hello\n\n> quoted line\n> another quoted\n\nWorld', 'utf8').toString(
-      'base64url',
-    );
+    const body = Buffer.from(
+      'Hello\n\nBla bla\n\nCheers,\n\nJess\n___________________\n*L E   K L U B*\nwww.example.com\n\nLe mer. 8 oct. 2025 \u00e0 19:53, Barely Blue <x@y.z> a\n\u00e9crit :\n\n> quoted line\n> another quoted\n\nWorld',
+      'utf8',
+    ).toString('base64url');
 
     mockFetchSequence([
       { status: 200, json: { access_token: 'gmail-access-token' } },
@@ -286,7 +287,7 @@ describe('GET /gmail/messages/:messageId', () => {
       .expect(200);
 
     expect(res.body).toMatchObject({ id: 'm1', threadId: 't1' });
-    expect(res.body.bodyText).toBe('Hello\n\nWorld');
+    expect(res.body.bodyText).toBe('Hello\n\nBla bla\n\nCheers,\n\nJess');
     expect(res.body.headers?.subject).toBe('Only one message');
   });
 });
