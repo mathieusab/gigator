@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/useAuth';
 import {
   getGmailMessageById,
+  getGmailThreadById,
   listGmailThreadsForEmail,
   startGmailOAuth,
   type GmailThread,
@@ -53,6 +54,31 @@ function IconChevronRight({ size = 16 }: { size?: number }) {
 
 function formatOneLine(value: string) {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function parseFromHeader(value?: string) {
+  const raw = formatOneLine(String(value ?? '').trim());
+  if (!raw) return { raw: '', name: '', email: '', display: '' };
+
+  // Common formats:
+  // - Name <email@domain>
+  // - "Name" <email@domain>
+  // - email@domain
+  // - Name (no brackets)
+  const angle = raw.match(/^\s*(.*?)\s*<\s*([^>]+)\s*>\s*$/);
+  if (angle) {
+    const name = formatOneLine(angle[1] ?? '').replace(/^"|"$/g, '').trim();
+    const email = formatOneLine(angle[2] ?? '').trim();
+    const display = name || email;
+    return { raw, name, email, display };
+  }
+
+  const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
+  if (looksLikeEmail) {
+    return { raw, name: '', email: raw, display: raw };
+  }
+
+  return { raw, name: raw, email: '', display: raw };
 }
 
 function getThreadLatestMessage(t: GmailThread) {
@@ -129,6 +155,7 @@ export default function GmailThreads({
   const [isFullMode, setIsFullMode] = useState(mode === 'full');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showAllMessages, setShowAllMessages] = useState<Record<string, boolean>>({});
+  const [loadingThread, setLoadingThread] = useState<Record<string, boolean>>({});
   const [loadingMessage, setLoadingMessage] = useState<Record<string, boolean>>({});
   const [openMessageByThread, setOpenMessageByThread] = useState<Record<string, string | null>>(
     {},
@@ -235,6 +262,65 @@ export default function GmailThreads({
       setNeedsConnect(shouldPromptGmailConnect(msg));
     } finally {
       setLoadingMessage((prev) => ({ ...prev, [key]: false }));
+    }
+  }
+
+  function mergeThreadsKeepingBodies(prevThread: GmailThread, nextThread: GmailThread): GmailThread {
+    const prevMessages = prevThread.messages ?? [];
+    const nextMessages = nextThread.messages ?? [];
+
+    const byId = new Map<string, (typeof prevMessages)[number]>();
+    for (const m of prevMessages) {
+      const id = String(m.id ?? '').trim();
+      if (id) byId.set(id, m);
+    }
+
+    const mergedMessages = nextMessages.map((m) => {
+      const id = String(m.id ?? '').trim();
+      const prev = id ? byId.get(id) : undefined;
+      if (!prev) return m;
+      return {
+        ...m,
+        bodyText: prev.bodyText ?? m.bodyText,
+        bodyHtml: prev.bodyHtml ?? m.bodyHtml,
+      };
+    });
+
+    return { ...prevThread, ...nextThread, messages: mergedMessages };
+  }
+
+  async function ensureThreadHeadersLoaded(threadId: string) {
+    const appAccessToken = (session as any)?.access_token as string | undefined;
+    if (!appAccessToken) {
+      setError('Session missing. Please sign in again.');
+      return;
+    }
+
+    const key = threadId;
+    if (loadingThread[key]) return;
+
+    const existingThread = threads.find((t) => t.id === threadId || t.threadId === threadId);
+    const hasHeaders = Boolean(
+      existingThread?.messages?.some((m) => Boolean(m.headers?.from || m.headers?.subject || m.headers?.date)),
+    );
+    if (hasHeaders) return;
+
+    setLoadingThread((prev) => ({ ...prev, [key]: true }));
+    try {
+      const fullThread = await getGmailThreadById({ appAccessToken, threadId });
+      setThreads((prev) =>
+        prev.map((t) => {
+          const id = t.id ?? t.threadId;
+          if (id !== threadId) return t;
+          return mergeThreadsKeepingBodies(t, fullThread);
+        }),
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to load Gmail thread';
+      setError(msg);
+      setNeedsConnect(shouldPromptGmailConnect(msg));
+    } finally {
+      setLoadingThread((prev) => ({ ...prev, [key]: false }));
     }
   }
 
@@ -400,6 +486,7 @@ export default function GmailThreads({
                 const subtitle = getThreadSubtitle(t);
                 const messageCount = t.messages?.length ?? 0;
                 const sortedMessages = sortMessagesAntichrono(t.messages ?? []);
+                const isThreadLoading = Boolean(loadingThread[threadId]);
 
                 return (
                   <li key={threadId} style={{ borderTop: idx === 0 ? 'none' : '1px solid #e5e7eb' }}>
@@ -415,6 +502,8 @@ export default function GmailThreads({
 
                         if (!next) {
                           setOpenMessageByThread((prev) => ({ ...prev, [threadId]: null }));
+                        } else {
+                          void ensureThreadHeadersLoaded(threadId);
                         }
                       }}
                       aria-expanded={isExpanded}
@@ -463,6 +552,7 @@ export default function GmailThreads({
                         ) : null}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
+                        {isThreadLoading ? <span style={{ fontSize: 12, color: '#6b7280' }}>Chargement…</span> : null}
                         {dateLabel ? <span style={{ fontSize: 12, color: '#6b7280' }}>{dateLabel}</span> : null}
                         {messageCount > 0 ? (
                           <span
@@ -514,8 +604,12 @@ export default function GmailThreads({
                             {(showAllMessages[threadId] ? sortedMessages : sortedMessages.slice(0, 3)).map((m, mIdx) => {
                               const messageKey = m.id ?? `${threadId}:${m.internalDate ?? ''}:${mIdx}`;
                               const isOpen = openMessageByThread[threadId] === (m.id ?? null);
-                              const from = formatOneLine(String(m.headers?.from ?? '').trim());
-                              const subject = formatOneLine(String(m.headers?.subject ?? m.snippet ?? '').trim());
+                              const from = parseFromHeader(m.headers?.from);
+                              const senderLabel = from.display || 'Expéditeur inconnu';
+                              const subject = formatOneLine(String(m.headers?.subject ?? '').trim());
+                              const preview = formatOneLine(String(m.snippet ?? '').trim());
+                              const subjectLine = subject || '(sans objet)';
+                              const secondaryLine = preview ? `${subjectLine} — ${preview}` : subjectLine;
                               const date = m.internalDate ? formatDate(m.internalDate) : '';
                               const canOpen = Boolean(m.id);
                               const loadingKey = canOpen ? `${threadId}:${m.id}` : '';
@@ -567,13 +661,13 @@ export default function GmailThreads({
                                             overflow: 'hidden',
                                             textOverflow: 'ellipsis',
                                           }}
-                                          title={from}
+                                          title={from.raw || senderLabel}
                                         >
-                                          {from || 'Message'}
+                                          {senderLabel}
                                         </div>
                                         {date ? <div style={{ fontSize: 12, color: '#6b7280' }}>{date}</div> : null}
                                       </div>
-                                      {subject ? (
+                                      {secondaryLine ? (
                                         <div
                                           style={{
                                             marginTop: 2,
@@ -583,9 +677,9 @@ export default function GmailThreads({
                                             overflow: 'hidden',
                                             textOverflow: 'ellipsis',
                                           }}
-                                          title={subject}
+                                          title={secondaryLine}
                                         >
-                                          {subject}
+                                          {secondaryLine}
                                         </div>
                                       ) : null}
                                     </div>
