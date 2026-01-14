@@ -25,10 +25,10 @@ alter table concert_contact_links add constraint concert_contact_links_category_
     'Gérant',
     'Ingé son',
     'Ingé lumière',
-    'organisateur',
-    'responsable bar',
-    'connaissance',
-    'membre du co-plateau'
+    'Organisateur',
+    'Responsable bar',
+    'Connaissance',
+    'Membre du co-plateau'
   )
 );
 

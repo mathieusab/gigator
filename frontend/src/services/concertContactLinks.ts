@@ -5,10 +5,10 @@ export const CONCERT_CONTACT_CATEGORIES = [
   'Gérant',
   'Ingé son',
   'Ingé lumière',
-  'organisateur',
-  'responsable bar',
-  'connaissance',
-  'membre du co-plateau',
+  'Organisateur',
+  'Responsable bar',
+  'Connaissance',
+  'Membre du co-plateau',
 ] as const;
 
 export type ConcertContactCategory = (typeof CONCERT_CONTACT_CATEGORIES)[number];
