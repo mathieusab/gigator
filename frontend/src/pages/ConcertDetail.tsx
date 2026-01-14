@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import GmailThreads from '../components/GmailThreads';
 import { getContact, type Contact } from '../services/contacts';
 import { getConcert, type Concert } from '../services/concerts';
+import { listContactsForConcert, type ConcertContactLinkWithContact } from '../services/concertContactLinks';
 import {
   listConcertFinancialItemsForConcert,
   type ConcertFinancialItem,
@@ -126,6 +127,7 @@ export default function ConcertDetail() {
 
   const [concert, setConcert] = useState<Concert | null>(null);
   const [contact, setContact] = useState<Contact | null>(null);
+  const [contactLinks, setContactLinks] = useState<ConcertContactLinkWithContact[]>([]);
   const [financialItems, setFinancialItems] = useState<ConcertFinancialItem[]>([]);
   const [financialError, setFinancialError] = useState<string | null>(null);
   const [isFinancialLoading, setIsFinancialLoading] = useState(false);
@@ -207,6 +209,36 @@ export default function ConcertDetail() {
       isMounted = false;
     };
   }, [concert?.contact_id]);
+
+  useEffect(() => {
+    if (!concertId) {
+      setContactLinks([]);
+      return;
+    }
+
+    let isMounted = true;
+    void (async () => {
+      try {
+        const links = await listContactsForConcert(concertId);
+        if (!isMounted) return;
+        setContactLinks(Array.isArray(links) ? links : []);
+      } catch {
+        // Keep details page functional even when the optional join table isn't available.
+        if (!isMounted) return;
+        setContactLinks([]);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [concertId]);
+
+  const primaryEmail =
+    contactLinks.find((l) => Boolean(l.contact?.email))?.contact.email ??
+    contact?.email ??
+    concert?.venue_contact_email ??
+    null;
 
   const totals = useMemo(() => {
     let incomeCents = 0;
@@ -296,17 +328,51 @@ export default function ConcertDetail() {
 
             {concert.address ? <div style={{ marginTop: 8 }}>{concert.address}</div> : null}
 
-            {concert.contact_id || concert.venue_contact_email ? (
+            {contactLinks.length || concert.contact_id || concert.venue_contact_email ? (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>Contact</div>
-                {concert.contact_id ? (
-                  <div>
-                    <Link to={`/contacts/${concert.contact_id}`}>
-                      {(contact?.full_name ?? '').trim() || (contact?.email ?? '').trim() || 'Voir la fiche'}
-                    </Link>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>
+                  {contactLinks.length > 1 ? 'Contacts' : 'Contact'}
+                </div>
+
+                {contactLinks.length ? (
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {contactLinks.map((l) => {
+                      const label =
+                        (l.contact?.full_name ?? '').trim() ||
+                        (l.contact?.email ?? '').trim() ||
+                        'Voir la fiche';
+
+                      return (
+                        <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <Link to={`/contacts/${l.contact_id}`}>{label}</Link>
+                            {l.contact?.email ? (
+                              <div style={{ color: '#4b5563', fontSize: 13 }}>{l.contact.email}</div>
+                            ) : null}
+                          </div>
+                          {l.category ? (
+                            <div style={{ color: '#374151', fontSize: 13, whiteSpace: 'nowrap' }}>{l.category}</div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : null}
-                {contact?.email || concert.venue_contact_email ? <div>{contact?.email ?? concert.venue_contact_email}</div> : null}
+                ) : (
+                  <>
+                    {concert.contact_id ? (
+                      <div>
+                        <Link to={`/contacts/${concert.contact_id}`}>
+                          {(contact?.full_name ?? '').trim() ||
+                            (contact?.email ?? '').trim() ||
+                            'Voir la fiche'}
+                        </Link>
+                      </div>
+                    ) : null}
+                    {contact?.email || concert.venue_contact_email ? (
+                      <div>{contact?.email ?? concert.venue_contact_email}</div>
+                    ) : null}
+                  </>
+                )}
               </div>
             ) : null}
 
@@ -318,7 +384,7 @@ export default function ConcertDetail() {
             ) : null}
           </div>
 
-          {contact?.email || concert.venue_contact_email ? <GmailThreads email={String(contact?.email ?? concert.venue_contact_email)} /> : null}
+          {primaryEmail ? <GmailThreads email={String(primaryEmail)} /> : null}
 
           {hasAnyFinance ? (
             <section style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>

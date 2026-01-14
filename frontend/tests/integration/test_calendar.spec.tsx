@@ -104,6 +104,12 @@ vi.mock('../../src/services/concertFinancialItems', () => {
   };
 });
 
+vi.mock('../../src/services/concertContactLinks', () => {
+  return {
+    listContactsForConcert: vi.fn(async () => []),
+  };
+});
+
 import App from '../../src/App';
 
 test('US3: calendar navigation and event click opens concert detail', async () => {
