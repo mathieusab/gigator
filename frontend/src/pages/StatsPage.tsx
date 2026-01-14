@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { listConcerts, type Concert } from '../services/concerts';
+import { CONCERT_STATUSES, listConcerts, type Concert, type ConcertStatus } from '../services/concerts';
 import { listConcertFinancialItems, type ConcertFinancialItem } from '../services/concertFinancialItems';
 
 function monthKeyUTC(date: Date): string {
@@ -369,6 +369,18 @@ export default function StatsPage() {
     return { buckets, netBuckets, totalPast, totalNetCents };
   }, [concerts, financialItems]);
 
+  const statusCounts = useMemo(() => {
+    const counts = Object.fromEntries(CONCERT_STATUSES.map((s) => [s, 0])) as Record<ConcertStatus, number>;
+    for (const c of concerts) counts[c.status] += 1;
+    return counts;
+  }, [concerts]);
+
+  const statusLabels: Record<ConcertStatus, string> = {
+    scheduled: 'Planifié',
+    completed: 'Terminé',
+    cancelled: 'Annulé',
+  };
+
   return (
     <main
       style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
@@ -394,6 +406,37 @@ export default function StatsPage() {
 
       {!isLoading && !error ? (
         <section style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <h2 style={{ margin: 0, fontSize: 16 }}>Statuts</h2>
+            <div style={{ color: '#6b7280', fontSize: 13 }}>Total concerts: {concerts.length}</div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+              gap: 12,
+            }}
+          >
+            {CONCERT_STATUSES.map((s) => (
+              <div
+                key={s}
+                data-testid={`stats-status-${s}`}
+                style={{
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 12,
+                  background: 'white',
+                  padding: 12,
+                }}
+              >
+                <div style={{ color: '#6b7280', fontSize: 13 }}>{statusLabels[s]}</div>
+                <div data-testid={`stats-status-count-${s}`} style={{ fontSize: 28, fontWeight: 700 }}>
+                  {statusCounts[s]}
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
             <h2 style={{ margin: 0, fontSize: 16 }}>Concerts par mois</h2>
             <div style={{ color: '#6b7280', fontSize: 13 }}>Total concerts passés: {totalPast}</div>

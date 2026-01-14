@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabaseClient';
 
-export type ConcertStatus = 'scheduled' | 'completed' | 'cancelled';
+export const CONCERT_STATUSES = ['scheduled', 'completed', 'cancelled'] as const;
+
+export type ConcertStatus = (typeof CONCERT_STATUSES)[number];
 
 export type Concert = {
   id: string;

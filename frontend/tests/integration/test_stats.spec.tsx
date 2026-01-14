@@ -70,6 +70,7 @@ const store: { concerts: Concert[]; financialItems: ConcertFinancialItem[] } = {
 
 vi.mock('../../src/services/concerts', () => {
   return {
+    CONCERT_STATUSES: ['scheduled', 'completed', 'cancelled'],
     listConcerts: vi.fn(async () => store.concerts.slice()),
     getConcert: vi.fn(async () => {
       throw new Error('not used');
@@ -236,8 +237,14 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
   );
 
   expect(await screen.findByText('Statistiques')).toBeInTheDocument();
+  expect(await screen.findByText('Statuts')).toBeInTheDocument();
   expect(await screen.findByText('Concerts par mois')).toBeInTheDocument();
   expect(await screen.findByText('Gains nets par mois')).toBeInTheDocument();
+
+  await waitFor(() => expect(screen.getByTestId('stats-status-count-scheduled')).toBeInTheDocument());
+  expect(screen.getByTestId('stats-status-count-scheduled')).toHaveTextContent('1');
+  expect(screen.getByTestId('stats-status-count-completed')).toHaveTextContent('3');
+  expect(screen.getByTestId('stats-status-count-cancelled')).toHaveTextContent('0');
 
   await waitFor(() => expect(screen.getByTestId(`stats-bar-${lastMonthKey}`)).toBeInTheDocument());
 
