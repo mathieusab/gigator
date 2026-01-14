@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import ConcertForm from '../components/ConcertForm';
 import ConcertFinancesEditor from '../components/ConcertFinancesEditor';
 import {
@@ -18,6 +18,7 @@ import { upsertVenueContactLink } from '../services/venueContactLinks';
 
 export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useParams();
   const concertId = params.id;
 
@@ -25,6 +26,28 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
   const [contactLinks, setContactLinks] = useState<ConcertContactLinkInput[]>([]);
   const [isLoading, setIsLoading] = useState(mode === 'edit');
   const [error, setError] = useState<string | null>(null);
+
+  const prefillInitial = (() => {
+    if (mode !== 'create') return undefined;
+    const qs = new URLSearchParams(location.search);
+    const source = String(qs.get('source') ?? '').trim();
+    if (source !== 'gmail') return undefined;
+
+    const email = String(qs.get('email') ?? '').trim();
+    const subject = String(qs.get('subject') ?? '').trim();
+    const snippet = String(qs.get('snippet') ?? '').trim();
+    const threadId = String(qs.get('threadId') ?? '').trim();
+
+    const lines: string[] = [];
+    lines.push('Issue Gmail à traiter');
+    if (email) lines.push(`Contact email: ${email}`);
+    if (subject) lines.push(`Objet: ${subject}`);
+    if (snippet) lines.push(`Extrait: ${snippet}`);
+    if (threadId) lines.push(`ThreadId: ${threadId}`);
+
+    const notes = lines.join('\n');
+    return { notes };
+  })();
 
   useEffect(() => {
     if (mode !== 'edit') return;
@@ -136,7 +159,7 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
       {!isLoading && !error ? (
         <section style={{ marginTop: 16, display: 'grid', gap: 12 }}>
           <ConcertForm
-            initial={concert ?? undefined}
+            initial={concert ?? prefillInitial ?? undefined}
             onSubmit={handleSubmit}
             submitLabel={mode === 'create' ? 'Créer' : 'Enregistrer'}
             mode={mode}

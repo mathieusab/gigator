@@ -380,11 +380,18 @@ export default function ConcertList() {
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       type="button"
-                      onClick={() =>
-                        navigate(`/contacts?email=${encodeURIComponent(t.counterpartEmail)}`)
-                      }
+                      onClick={() => {
+                        const qs = new URLSearchParams({
+                          source: 'gmail',
+                          email: t.counterpartEmail,
+                          subject: t.subject,
+                          snippet: t.snippet,
+                          threadId: t.thread.id,
+                        });
+                        navigate(`/concerts/new?${qs.toString()}`);
+                      }}
                     >
-                      Créer contact
+                      Traiter
                     </button>
 
                     <button
