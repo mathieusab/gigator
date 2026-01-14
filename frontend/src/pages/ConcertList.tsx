@@ -388,6 +388,7 @@ export default function ConcertList() {
                           snippet: t.snippet,
                           threadId: t.thread.id,
                         });
+                        if (t.todoId) qs.set('todoId', t.todoId);
                         navigate(`/concerts/new?${qs.toString()}`);
                       }}
                     >

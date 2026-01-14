@@ -15,6 +15,7 @@ import {
   type ConcertContactLinkInput,
 } from '../services/concertContactLinks';
 import { upsertVenueContactLink } from '../services/venueContactLinks';
+import { updateGmailTodoThreadStatus } from '../services/gmailTodoThreads';
 
 export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
     const subject = String(qs.get('subject') ?? '').trim();
     const snippet = String(qs.get('snippet') ?? '').trim();
     const threadId = String(qs.get('threadId') ?? '').trim();
+    const todoId = String(qs.get('todoId') ?? '').trim();
 
     const lines: string[] = [];
     lines.push('Issue Gmail à traiter');
@@ -44,9 +46,18 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
     if (subject) lines.push(`Objet: ${subject}`);
     if (snippet) lines.push(`Extrait: ${snippet}`);
     if (threadId) lines.push(`ThreadId: ${threadId}`);
+    if (todoId) lines.push(`TodoId: ${todoId}`);
 
     const notes = lines.join('\n');
     return { notes };
+  })();
+
+  const gmailTodoId = (() => {
+    if (mode !== 'create') return '';
+    const qs = new URLSearchParams(location.search);
+    const source = String(qs.get('source') ?? '').trim();
+    if (source !== 'gmail') return '';
+    return String(qs.get('todoId') ?? '').trim();
   })();
 
   useEffect(() => {
@@ -100,6 +111,15 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
 
     if (mode === 'create') {
       const created = await createConcert(input);
+
+      if (gmailTodoId) {
+        // Best-effort: do not block navigation if status update fails.
+        try {
+          await updateGmailTodoThreadStatus({ id: gmailTodoId, status: 'done' });
+        } catch {
+          // ignore
+        }
+      }
 
       if (input.venue_id && contactIds.length) {
         await Promise.all(
