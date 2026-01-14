@@ -7,6 +7,19 @@ import {
 } from '../services/concertContactLinks';
 import { listContacts, type Contact } from '../services/contacts';
 import { listVenues, type Venue } from '../services/venues';
+import ContactCreateForm from './ContactCreateForm';
+import Modal from './Modal';
+import VenueCreateForm from './VenueCreateForm';
+
+function deriveConcertTitle(title: string, venueName: string, city?: string | null) {
+  const explicit = String(title ?? '').trim();
+  if (explicit) return explicit;
+
+  const venue = String(venueName ?? '').trim();
+  const c = String(city ?? '').trim();
+  if (!venue) return '';
+  return c ? `${venue} — ${c}` : venue;
+}
 
 function pad2(n: number) {
   return String(n).padStart(2, '0');
@@ -58,6 +71,17 @@ export default function ConcertForm({
     return '';
   }, [initial?.date_start]);
 
+  const initialDerivedTitle = useMemo(() => {
+    return deriveConcertTitle('', initial?.venue_name ?? '', initial?.city ?? null);
+  }, [initial?.venue_name, initial?.city]);
+
+  const [title, setTitle] = useState(() => String(initial?.title ?? '').trim());
+  const [isTitleAuto, setIsTitleAuto] = useState(() => {
+    const existing = String(initial?.title ?? '').trim();
+    if (!existing) return true;
+    return existing === initialDerivedTitle;
+  });
+
   const [dateStart, setDateStart] = useState(initialStart);
   const [isDateTbd, setIsDateTbd] = useState(() => !initial?.date_start);
   const [status, setStatus] = useState<ConcertStatus>(
@@ -67,6 +91,9 @@ export default function ConcertForm({
   const [venues, setVenues] = useState<Venue[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [directoryError, setDirectoryError] = useState<string | null>(null);
+
+  const [isVenueCreateOpen, setIsVenueCreateOpen] = useState(false);
+  const [isContactCreateOpen, setIsContactCreateOpen] = useState(false);
 
   const [selectedVenueId, setSelectedVenueId] = useState<string>(initial?.venue_id ?? '');
   const [selectedContactRows, setSelectedContactRows] = useState<ContactRow[]>(() => {
@@ -160,7 +187,7 @@ export default function ConcertForm({
     setError(null);
 
     if (mode === 'create' && !selectedVenueId.trim()) {
-      setError('La salle est requise.');
+      setError('Le lieu est requis.');
       return;
     }
 
@@ -191,11 +218,16 @@ export default function ConcertForm({
       const venueName = venueFromDirectory?.name ?? initial?.venue_name ?? '';
 
       if (!venueName.trim()) {
-        setError('La salle est requise.');
+        setError('Le lieu est requis.');
         return;
       }
 
       const input: ConcertUpsertInput = {
+        title: deriveConcertTitle(
+          title,
+          venueName.trim(),
+          venueFromDirectory?.city ?? initial?.city ?? null,
+        ),
         date_start: isDateTbd ? null : dateStart.trim() ? toIsoFromDateTimeLocal(dateStart) : null,
         status,
         venue_id: resolvedVenueId,
@@ -248,6 +280,22 @@ export default function ConcertForm({
         </p>
       ) : null}
 
+      <label style={{ display: 'grid', gap: 4 }}>
+        <span>Nom du concert</span>
+        <input
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setIsTitleAuto(false);
+          }}
+          placeholder={selectedVenue ? deriveConcertTitle('', selectedVenue.name, selectedVenue.city ?? null) : 'Ex: Release party'}
+          aria-label="Nom du concert"
+        />
+        <span style={{ fontSize: 12, color: '#6b7280' }}>
+          Optionnel. Si vide, il sera généré automatiquement (lieu — ville).
+        </span>
+      </label>
+
       <div style={{ display: 'grid', gap: 6 }}>
         <label htmlFor="concert-date-start">Date</label>
         <input
@@ -291,16 +339,29 @@ export default function ConcertForm({
           <option value="cancelled">cancelled</option>
         </select>
       </label>
-
       <label style={{ display: 'grid', gap: 4 }}>
-        <span>Salle</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+          <span>Lieu</span>
+          <button type="button" onClick={() => setIsVenueCreateOpen(true)}>
+            Nouveau lieu
+          </button>
+        </div>
         <select
           value={selectedVenueId}
-          onChange={(e) => setSelectedVenueId(e.target.value)}
-          aria-label="Salle"
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+            const nextId = e.target.value;
+            setSelectedVenueId(nextId);
+
+            if (!isTitleAuto) return;
+
+            const v = venues.find((x) => x.id === nextId) ?? null;
+            if (!v) return;
+            setTitle(deriveConcertTitle('', v.name, v.city ?? null));
+          }}
+          aria-label="Lieu"
           required={mode === 'create'}
         >
-          <option value="">— Choisir une salle —</option>
+          <option value="">— Choisir un lieu —</option>
           {venues.map((v) => (
             <option key={v.id} value={v.id}>
               {v.name}
@@ -311,12 +372,12 @@ export default function ConcertForm({
         </select>
         {!venues.length && !directoryError ? (
           <span style={{ fontSize: 12, color: '#6b7280' }}>
-            Aucune salle dans l’annuaire.
+            Aucun lieu dans l’annuaire.
           </span>
         ) : null}
         {mode === 'edit' && !selectedVenueId && initial?.venue_name ? (
           <span style={{ fontSize: 12, color: '#6b7280' }}>
-            Concert non lié à une salle (valeur existante: {String(initial.venue_name)}).
+            Concert non lié à un lieu (valeur existante: {String(initial.venue_name)}).
           </span>
         ) : null}
       </label>
@@ -325,6 +386,9 @@ export default function ConcertForm({
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <span>Contacts</span>
           <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" onClick={() => setIsContactCreateOpen(true)}>
+              Nouveau contact
+            </button>
             <button type="button" onClick={() => setSelectedContactRows([])} disabled={!hasSelectedContacts}>
               Aucun
             </button>
@@ -416,6 +480,50 @@ export default function ConcertForm({
       <button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'En cours…' : submitLabel}
       </button>
+
+      <Modal
+        open={isVenueCreateOpen}
+        title="Nouveau lieu"
+        onClose={() => setIsVenueCreateOpen(false)}
+        widthPx={820}
+      >
+        <VenueCreateForm
+          onCreated={(created) => {
+            setVenues((prev) => [created, ...prev.filter((v) => v.id !== created.id)]);
+            setSelectedVenueId(created.id);
+            setIsVenueCreateOpen(false);
+          }}
+        />
+      </Modal>
+
+      <Modal
+        open={isContactCreateOpen}
+        title="Nouveau contact"
+        onClose={() => setIsContactCreateOpen(false)}
+      >
+        <ContactCreateForm
+          onCreated={(created) => {
+            setContacts((prev) => [created, ...prev.filter((c) => c.id !== created.id)]);
+
+            setSelectedContactRows((prev) => {
+              const normalized = prev.length ? prev : [{ contactId: '', category: '' as const }];
+
+              if (normalized.some((r) => r.contactId === created.id)) return normalized;
+
+              const idx = normalized.findIndex((r) => !String(r.contactId ?? '').trim());
+              if (idx >= 0) {
+                const next = normalized.slice();
+                next[idx] = { ...next[idx], contactId: created.id };
+                return next;
+              }
+
+              return [...normalized, { contactId: created.id, category: '' as const }];
+            });
+
+            setIsContactCreateOpen(false);
+          }}
+        />
+      </Modal>
     </form>
   );
 }

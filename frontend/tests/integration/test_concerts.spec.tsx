@@ -261,7 +261,7 @@ test('US2 flow: list groups, create, edit, delete', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
   expect(await screen.findByText('Nouveau concert')).toBeInTheDocument();
 
-  fireEvent.change(screen.getByLabelText('Salle'), { target: { value: 'v-new' } });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Lieu' }), { target: { value: 'v-new' } });
   fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 
   expect(await screen.findByText('Concerts')).toBeInTheDocument();
@@ -269,7 +269,7 @@ test('US2 flow: list groups, create, edit, delete', async () => {
 
   fireEvent.click(screen.getAllByRole('button', { name: 'Modifier' })[0]);
   expect(await screen.findByText('Modifier le concert')).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Salle'), { target: { value: 'v-edited' } });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Lieu' }), { target: { value: 'v-edited' } });
   fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
   expect(await screen.findByText('Concerts')).toBeInTheDocument();
@@ -294,7 +294,7 @@ test('create concert without date (date_start=null)', async () => {
   // Date is optional: keep it as "Date à définir" and create.
   expect(screen.getByLabelText('Date à définir')).toBeChecked();
 
-  fireEvent.change(screen.getByLabelText('Salle'), { target: { value: 'v-new' } });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Lieu' }), { target: { value: 'v-new' } });
   fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 
   expect(await screen.findByText('Concerts')).toBeInTheDocument();

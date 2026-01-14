@@ -120,7 +120,7 @@ test('Contacts: affiche une erreur claire si la suppression est impossible', asy
   const contacts = await import('../../src/services/contacts');
   vi.mocked(contacts.deleteContact).mockRejectedValueOnce(
     new Error(
-      "Impossible de supprimer ce contact car il est lié à d’autres données (concerts, salles, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
+      "Impossible de supprimer ce contact car il est lié à d’autres données (concerts, lieux, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
     ),
   );
 

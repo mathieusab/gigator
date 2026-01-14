@@ -24,7 +24,7 @@ describe('venues.deleteVenue', () => {
       },
     });
 
-    await expect(deleteVenue('v-1')).rejects.toThrow(/liée à d’autres données/i);
+    await expect(deleteVenue('v-1')).rejects.toThrow(/lié à d’autres données/i);
   });
 
   test('maps permission/RLS errors to a helpful message', async () => {

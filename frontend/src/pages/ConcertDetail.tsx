@@ -317,10 +317,19 @@ export default function ConcertDetail() {
       {!isLoading && !error && concert ? (
         <section style={{ marginTop: 16, display: 'grid', gap: 10 }}>
           <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: 18 }}>
-              {concert.venue_id ? <Link to={`/venues/${concert.venue_id}`}>{concert.venue_name}</Link> : concert.venue_name}
+            <div style={{ fontWeight: 800, fontSize: 20 }}>
+              {String(concert.title ?? '').trim() || concert.venue_name}
             </div>
-            <div style={{ color: '#4b5563' }}>{formatDateTime(concert.date_start)}</div>
+
+            <div style={{ fontWeight: 600, marginTop: 4 }}>
+              {concert.venue_id ? (
+                <Link to={`/venues/${concert.venue_id}`}>{concert.venue_name}</Link>
+              ) : (
+                concert.venue_name
+              )}
+            </div>
+
+            <div style={{ color: '#4b5563', marginTop: 4 }}>{formatDateTime(concert.date_start)}</div>
             <div style={{ color: '#4b5563' }}>
               {concert.city ? concert.city : ''}
               {concert.country ? (concert.city ? `, ${concert.country}` : concert.country) : ''}

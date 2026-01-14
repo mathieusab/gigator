@@ -82,7 +82,7 @@ export default function VenueDetail() {
       <header
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
       >
-        <h1 style={{ margin: 0 }}>Salle</h1>
+        <h1 style={{ margin: 0 }}>Lieu</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Link to="/venues">Retour</Link>
           <button type="button" onClick={() => navigate('/')}>Accueil</button>

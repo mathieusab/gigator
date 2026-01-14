@@ -2,7 +2,7 @@
 
 ## 1) Résumé
 
-Barely Blue joue des concerts dans plusieurs salles. L’objectif est de construire une application interne (web) pour centraliser le suivi des dates (passées / à venir), des échanges email avec les salles et de la localisation des concerts sur carte.
+Barely Blue joue des concerts dans plusieurs lieux. L’objectif est de construire une application interne (web) pour centraliser le suivi des dates (passées / à venir), des échanges email avec les lieux et de la localisation des concerts sur carte.
 
 Ce PRD s’aligne sur la stack et les patterns observés dans le projet GitHub **Validator** (mathieusab/validator) :
 
@@ -19,7 +19,7 @@ Ce PRD s’aligne sur la stack et les patterns observés dans le projet GitHub *
 
 Aujourd’hui, le booking se fait via des échanges dispersés (emails, messages, notes) :
 
-- difficile de savoir quelles salles ont été contactées, relancées, confirmées
+- difficile de savoir quels lieux ont été contactés, relancés, confirmés
 - pas de vue claire des dates à venir vs passées
 - pas de représentation géographique (tournées, clusters, distances)
 - risque d’oublis (relances, confirmations, infos pratiques)
@@ -28,7 +28,7 @@ Aujourd’hui, le booking se fait via des échanges dispersés (emails, messages
 
 ### Objectifs produit
 
-- Centraliser les concerts (dates + infos salle) dans une source unique.
+- Centraliser les concerts (dates + infos lieu) dans une source unique.
 - Accéder aux emails du groupe (Gmail) pour suivre les conversations liées au booking.
 - Visualiser les concerts sur une carte interactive.
 
@@ -63,7 +63,7 @@ Décisions (confirmées) :
 
 - **Source des concerts: saisie manuelle**.
 - **Statuts concerts** simples (état actuel): `scheduled`, `completed`, `cancelled`.
-- **Gmail: lecture de l’historique de conversation par contact (gérant de salle)**.
+- **Gmail: lecture de l’historique de conversation par contact (gérant de lieu)**.
 
 ### État actuel (implémenté)
 
@@ -96,7 +96,7 @@ Cette section décrit le comportement actuellement présent dans le code du repo
   - “Passés” (ordre antichronologique)
 - Chaque concert affiche au minimum:
   - Date / heure
-  - Nom de la salle / ville
+  - Nom du lieu / ville
   - Statut (`scheduled` / `completed` / `cancelled`)
 
 Source des données: **saisie manuelle** (création/édition d’un concert dans l’app).
@@ -113,13 +113,13 @@ Source des données: **saisie manuelle** (création/édition d’un concert dans
 
 - Google Maps avec pins pour chaque concert.
 - Interactions minimales:
-  - clic pin → affiche un aperçu (nom salle + date)
+  - clic pin → affiche un aperçu (nom lieu + date)
 
 ### 7.5 Accès Gmail
 
-- Après connexion, l’app peut **interroger l’API Gmail** afin de récupérer l’historique de conversation avec un contact (ex: gérant de salle).
+- Après connexion, l’app peut **interroger l’API Gmail** afin de récupérer l’historique de conversation avec un contact (ex: gérant de lieu).
 - Le flux MVP attendu:
-  - depuis une fiche concert (ou depuis une salle), l’utilisateur indique/voit l’email du contact
+  - depuis une fiche concert (ou depuis un lieu), l’utilisateur indique/voit l’email du contact
   - l’app affiche la liste des messages/threads Gmail pertinents (lecture seule)
 
 Remarque: on ne vise pas une “boîte mail” générale; uniquement un accès ciblé “conversation avec X”.

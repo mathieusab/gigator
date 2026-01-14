@@ -87,13 +87,13 @@ export async function deleteVenue(id: string): Promise<void> {
       /violates foreign key constraint/i.test(message)
     ) {
       throw new Error(
-        "Impossible de supprimer cette salle car elle est liée à d’autres données (concerts, contacts, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
+        "Impossible de supprimer ce lieu car il est lié à d’autres données (concerts, contacts, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
       );
     }
 
     // RLS / permission errors (common when policy forbids delete).
     if (code === '42501' || /permission denied/i.test(message) || /row level security/i.test(message)) {
-      throw new Error("Vous n'avez pas les droits pour supprimer cette salle.");
+      throw new Error("Vous n'avez pas les droits pour supprimer ce lieu.");
     }
 
     throw new Error(res.error.message);

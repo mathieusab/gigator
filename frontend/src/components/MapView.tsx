@@ -59,6 +59,11 @@ type Props = {
   mapId?: string;
 };
 
+function displayConcertTitle(c: Concert) {
+  const t = String(c.title ?? '').trim();
+  return t || c.venue_name;
+}
+
 function formatDate(dateIso: string | null) {
   if (!dateIso) return 'Date à définir';
   try {
@@ -194,16 +199,17 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
       }
 
       for (const pin of pins) {
+        const markerTitle = displayConcertTitle(pin.concert);
         const marker = AdvancedMarkerElement
           ? new AdvancedMarkerElement({
               map: mapRef.current,
               position: pin.position,
-              title: pin.concert.venue_name,
+              title: markerTitle,
             })
           : new googleMaps.maps.Marker({
               map: mapRef.current,
               position: pin.position,
-              title: pin.concert.venue_name,
+              title: markerTitle,
             });
 
         const clickHandler = () => {
@@ -287,6 +293,9 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
             gap: 4,
           }}
         >
+          <div style={{ fontWeight: 800 }} data-testid="map-selected-title">
+            {displayConcertTitle(selectedConcert)}
+          </div>
           <strong data-testid="map-selected-venue">{selectedConcert.venue_name}</strong>
           <span data-testid="map-selected-date">{formatDate(selectedConcert.date_start)}</span>
         </div>

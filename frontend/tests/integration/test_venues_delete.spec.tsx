@@ -144,14 +144,14 @@ vi.mock('../../src/services/concerts', () => {
 
 import App from '../../src/App';
 
-test('Salles: supprimer une salle depuis la liste', async () => {
+test('Lieux: supprimer un lieu depuis la liste', async () => {
   render(
     <MemoryRouter initialEntries={['/venues']}>
       <App />
     </MemoryRouter>,
   );
 
-  expect(await screen.findByText('Salles')).toBeInTheDocument();
+  expect(await screen.findByText('Lieux')).toBeInTheDocument();
   expect(await screen.findByText('Le Bikini')).toBeInTheDocument();
   expect(screen.getByText('Rock School Barbey')).toBeInTheDocument();
 
@@ -164,11 +164,11 @@ test('Salles: supprimer une salle depuis la liste', async () => {
   expect(screen.getByText('Rock School Barbey')).toBeInTheDocument();
 });
 
-test('Salles: affiche une erreur claire si la suppression est impossible', async () => {
+test('Lieux: affiche une erreur claire si la suppression est impossible', async () => {
   const venues = await import('../../src/services/venues');
   vi.mocked(venues.deleteVenue).mockRejectedValueOnce(
     new Error(
-      "Impossible de supprimer cette salle car elle est liée à d’autres données (concerts, contacts, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
+      "Impossible de supprimer ce lieu car il est lié à d’autres données (concerts, contacts, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
     ),
   );
 
@@ -178,7 +178,7 @@ test('Salles: affiche une erreur claire si la suppression est impossible', async
     </MemoryRouter>,
   );
 
-  expect(await screen.findByText('Salles')).toBeInTheDocument();
+  expect(await screen.findByText('Lieux')).toBeInTheDocument();
   expect(await screen.findByText('Le Bikini')).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Supprimer Le Bikini' }));
@@ -188,10 +188,10 @@ test('Salles: affiche une erreur claire si la suppression est impossible', async
 
   const alert = await screen.findByRole('alert');
   expect(alert).toHaveTextContent('Suppression de "Le Bikini" impossible');
-  expect(alert).toHaveTextContent(/liée à d’autres données/i);
+  expect(alert).toHaveTextContent(/lié à d’autres données/i);
 });
 
-test('Salles: tri par date (jamais joué puis joué, plus récent en premier)', async () => {
+test('Lieux: tri par date (jamais joué puis joué, plus récent en premier)', async () => {
   // Override venues + concerts for this test.
   store.venues = [
     {
@@ -266,7 +266,7 @@ test('Salles: tri par date (jamais joué puis joué, plus récent en premier)', 
     </MemoryRouter>,
   );
 
-  expect(await screen.findByText('Salles')).toBeInTheDocument();
+  expect(await screen.findByText('Lieux')).toBeInTheDocument();
 
   const items = await screen.findAllByRole('listitem');
   const names = items.map((li) => {

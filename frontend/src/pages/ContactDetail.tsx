@@ -128,8 +128,8 @@ export default function ContactDetail() {
           </div>
 
           <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
-            <h2 style={{ margin: 0, marginBottom: 8, fontSize: 16 }}>Salles</h2>
-            {links.length === 0 ? <p>Aucune salle liée.</p> : null}
+            <h2 style={{ margin: 0, marginBottom: 8, fontSize: 16 }}>Lieux</h2>
+            {links.length === 0 ? <p>Aucun lieu lié.</p> : null}
             {links.length ? (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
                 {links.map((l) => (

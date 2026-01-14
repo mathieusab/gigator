@@ -67,7 +67,7 @@ export async function deleteContact(id: string): Promise<void> {
       /violates foreign key constraint/i.test(message)
     ) {
       throw new Error(
-        "Impossible de supprimer ce contact car il est lié à d’autres données (concerts, salles, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
+        "Impossible de supprimer ce contact car il est lié à d’autres données (concerts, lieux, etc.). Supprimez ou dissociez ces éléments puis réessayez.",
       );
     }
 

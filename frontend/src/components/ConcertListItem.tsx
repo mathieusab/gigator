@@ -27,6 +27,8 @@ export default function ConcertListItem({
   onDelete: (id: string) => void;
   isDeleting?: boolean;
 }) {
+  const displayTitle = String(concert.title ?? '').trim() || concert.venue_name;
+
   return (
     <li
       style={{
@@ -40,17 +42,18 @@ export default function ConcertListItem({
       }}
     >
       <div>
-        <div style={{ fontWeight: 600 }}>
-          {concert.venue_id ? (
-            <Link to={`/venues/${concert.venue_id}`}>{concert.venue_name}</Link>
-          ) : (
-            concert.venue_name
-          )}
-        </div>
+        <div style={{ fontWeight: 600 }}>{displayTitle}</div>
         <div style={{ color: '#4b5563' }}>
-          {formatDateTime(concert.date_start)}
-          {concert.city ? ` • ${concert.city}` : ''}
+          <span>
+            {concert.venue_id ? (
+              <Link to={`/venues/${concert.venue_id}`}>{concert.venue_name}</Link>
+            ) : (
+              concert.venue_name
+            )}
+          </span>
+          {concert.city ? <span>{` — ${concert.city}`}</span> : null}
         </div>
+        <div style={{ color: '#4b5563' }}>{formatDateTime(concert.date_start)}</div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="button" onClick={() => onOpen(concert.id)}>

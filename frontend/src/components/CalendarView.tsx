@@ -244,7 +244,10 @@ export default function CalendarView({
                       }}
                     >
                       <div>
-                        <div style={{ fontWeight: 700 }}>{c.venue_name}</div>
+                        <div style={{ fontWeight: 800 }}>
+                          {String(c.title ?? '').trim() || c.venue_name}
+                        </div>
+                        <div style={{ color: '#374151', fontSize: 13 }}>{c.venue_name}</div>
                         <div style={{ color: '#6b7280', fontSize: 12 }}>
                           {formatTimeUTC(c.date_start)}
                         </div>
