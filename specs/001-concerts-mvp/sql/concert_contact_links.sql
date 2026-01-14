@@ -9,9 +9,27 @@ create table if not exists concert_contact_links (
   id uuid primary key default gen_random_uuid(),
   concert_id uuid not null references concerts(id) on delete cascade,
   contact_id uuid not null references contacts(id) on delete cascade,
+  category text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (concert_id, contact_id)
+);
+
+-- If the table already existed from a previous iteration, ensure new columns & constraints exist.
+alter table concert_contact_links add column if not exists category text;
+
+alter table concert_contact_links drop constraint if exists concert_contact_links_category_check;
+alter table concert_contact_links add constraint concert_contact_links_category_check check (
+  category is null
+  or category in (
+    'Gérant',
+    'Ingé son',
+    'Ingé lumière',
+    'organisateur',
+    'responsable bar',
+    'connaissance',
+    'membre du co-plateau'
+  )
 );
 
 create index if not exists concert_contact_links_concert_id_idx on concert_contact_links(concert_id);

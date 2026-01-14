@@ -9,7 +9,11 @@ import {
   type Concert,
   type ConcertUpsertInput,
 } from '../services/concerts';
-import { replaceContactsForConcert } from '../services/concertContactLinks';
+import {
+  listContactsForConcert,
+  replaceContactsForConcert,
+  type ConcertContactLinkInput,
+} from '../services/concertContactLinks';
 import { upsertVenueContactLink } from '../services/venueContactLinks';
 
 export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
@@ -18,6 +22,7 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
   const concertId = params.id;
 
   const [concert, setConcert] = useState<Concert | null>(null);
+  const [contactLinks, setContactLinks] = useState<ConcertContactLinkInput[]>([]);
   const [isLoading, setIsLoading] = useState(mode === 'edit');
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +40,21 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
         const c = await getConcert(concertId);
         if (!isMounted) return;
         setConcert(c);
+
+        try {
+          const links = await listContactsForConcert(concertId);
+          if (!isMounted) return;
+          setContactLinks(
+            (links ?? []).map((l) => ({
+              contact_id: l.contact_id,
+              category: l.category ?? null,
+            })),
+          );
+        } catch {
+          // Keep the form usable even if the optional join table is unavailable.
+          if (!isMounted) return;
+          setContactLinks([]);
+        }
       } catch (e) {
         if (!isMounted) return;
         setError(e instanceof Error ? e.message : 'Failed to load concert');
@@ -47,7 +67,14 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
     };
   }, [mode, concertId]);
 
-  async function handleSubmit(input: ConcertUpsertInput, contactIds: string[]) {
+  async function handleSubmit(input: ConcertUpsertInput, links: ConcertContactLinkInput[]) {
+    const contactIds = links.map((l) => l.contact_id);
+
+    const shouldWriteJoinTable =
+      contactIds.length > 1 ||
+      links.some((l) => Boolean(l.category)) ||
+      (mode === 'edit' && contactLinks.length > 0);
+
     if (mode === 'create') {
       const created = await createConcert(input);
 
@@ -61,8 +88,8 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
 
       // Multi-contact support is stored in a join table. We only require it when the user selects >1 contact
       // so existing deployments (with only `concerts.contact_id`) keep working for the common case.
-      if (contactIds.length > 1) {
-        await replaceContactsForConcert(created.id, contactIds);
+      if (shouldWriteJoinTable) {
+        await replaceContactsForConcert(created.id, links);
       }
       navigate('/', { replace: true });
       return;
@@ -79,8 +106,8 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
       );
     }
 
-    if (contactIds.length > 1) {
-      await replaceContactsForConcert(concertId, contactIds);
+    if (shouldWriteJoinTable) {
+      await replaceContactsForConcert(concertId, links);
     }
     navigate('/', { replace: true });
   }
@@ -113,6 +140,7 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
             onSubmit={handleSubmit}
             submitLabel={mode === 'create' ? 'Créer' : 'Enregistrer'}
             mode={mode}
+            initialContactLinks={mode === 'edit' ? contactLinks : undefined}
           />
 
           {mode === 'edit' && concertId ? (

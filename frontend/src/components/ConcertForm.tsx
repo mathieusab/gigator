@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Concert, ConcertStatus, ConcertUpsertInput } from '../services/concerts';
+import {
+  CONCERT_CONTACT_CATEGORIES,
+  type ConcertContactCategory,
+  type ConcertContactLinkInput,
+} from '../services/concertContactLinks';
 import { listContacts, type Contact } from '../services/contacts';
 import { listVenues, type Venue } from '../services/venues';
 
@@ -35,12 +40,19 @@ export default function ConcertForm({
   onSubmit,
   submitLabel,
   mode,
+  initialContactLinks,
 }: {
   initial?: Partial<Concert>;
-  onSubmit: (input: ConcertUpsertInput, contactIds: string[]) => Promise<void>;
+  onSubmit: (input: ConcertUpsertInput, contactLinks: ConcertContactLinkInput[]) => Promise<void>;
   submitLabel: string;
   mode: 'create' | 'edit';
+  initialContactLinks?: ConcertContactLinkInput[];
 }) {
+  type ContactRow = {
+    contactId: string;
+    category: ConcertContactCategory | '';
+  };
+
   const initialStart = useMemo(() => {
     if (initial?.date_start) return toDateTimeLocalValue(initial.date_start);
     return '';
@@ -57,9 +69,18 @@ export default function ConcertForm({
   const [directoryError, setDirectoryError] = useState<string | null>(null);
 
   const [selectedVenueId, setSelectedVenueId] = useState<string>(initial?.venue_id ?? '');
-  const [selectedContactIds, setSelectedContactIds] = useState<string[]>(() =>
-    initial?.contact_id ? [initial.contact_id] : [],
-  );
+  const [selectedContactRows, setSelectedContactRows] = useState<ContactRow[]>(() => {
+    const fromLinks = (initialContactLinks ?? [])
+      .map((l) => ({
+        contactId: String(l.contact_id ?? '').trim(),
+        category: (l.category ?? '') as ConcertContactCategory | '',
+      }))
+      .filter((l) => Boolean(l.contactId));
+
+    if (fromLinks.length) return fromLinks;
+    if (initial?.contact_id) return [{ contactId: initial.contact_id, category: '' }];
+    return [];
+  });
   const [notes, setNotes] = useState(initial?.notes ?? '');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,38 +111,46 @@ export default function ConcertForm({
   );
 
   const selectedContacts = useMemo(() => {
-    const ids = new Set(selectedContactIds);
+    const ids = new Set(selectedContactRows.map((r) => r.contactId));
     return contacts.filter((c) => ids.has(c.id));
-  }, [contacts, selectedContactIds]);
+  }, [contacts, selectedContactRows]);
 
   const primaryContact = selectedContacts[0] ?? null;
 
   const hasSelectedContacts = useMemo(
-    () => selectedContactIds.some((x) => String(x).trim().length > 0),
-    [selectedContactIds],
+    () => selectedContactRows.some((x) => String(x.contactId).trim().length > 0),
+    [selectedContactRows],
   );
 
-  const contactRows = useMemo(
-    () => (selectedContactIds.length ? selectedContactIds : ['']),
-    [selectedContactIds],
-  );
+  const contactRows = useMemo(() => {
+    if (selectedContactRows.length) return selectedContactRows;
+    return [{ contactId: '', category: '' }];
+  }, [selectedContactRows]);
 
   function addContactRow() {
-    setSelectedContactIds((prev) => (prev.length ? [...prev, ''] : ['', '']));
+    setSelectedContactRows((prev) => (prev.length ? [...prev, { contactId: '', category: '' }] : [{ contactId: '', category: '' }, { contactId: '', category: '' }]));
   }
 
   function removeContactRow(index: number) {
-    setSelectedContactIds((prev) => {
-      if (prev.length <= 1) return [''];
+    setSelectedContactRows((prev) => {
+      if (prev.length <= 1) return [];
       const next = prev.filter((_, i) => i !== index);
-      return next.length ? next : [''];
+      return next;
     });
   }
 
-  function setContactRowValue(index: number, contactId: string) {
-    setSelectedContactIds((prev) => {
+  function setContactRowContactId(index: number, contactId: string) {
+    setSelectedContactRows((prev) => {
       const next = prev.slice();
-      next[index] = contactId;
+      next[index] = { ...next[index], contactId };
+      return next;
+    });
+  }
+
+  function setContactRowCategory(index: number, category: string) {
+    setSelectedContactRows((prev) => {
+      const next = prev.slice();
+      next[index] = { ...next[index], category: (category as ConcertContactCategory) || '' };
       return next;
     });
   }
@@ -138,10 +167,25 @@ export default function ConcertForm({
     setIsSubmitting(true);
     try {
       const resolvedVenueId: string | null = selectedVenueId.trim() || null;
-      const resolvedContactIds: string[] = Array.from(
-        new Set(selectedContactIds.map((x) => String(x).trim()).filter(Boolean)),
-      );
-      const resolvedPrimaryContactId: string | null = resolvedContactIds[0] ?? null;
+      const normalizedRows = contactRows
+        .map((r) => ({
+          contactId: String(r.contactId ?? '').trim(),
+          category: (r.category ?? '') as ConcertContactCategory | '',
+        }))
+        .filter((r) => Boolean(r.contactId));
+
+      const seen = new Set<string>();
+      const uniqueRows = normalizedRows.filter((r) => {
+        if (seen.has(r.contactId)) return false;
+        seen.add(r.contactId);
+        return true;
+      });
+
+      const resolvedPrimaryContactId: string | null = uniqueRows[0]?.contactId ?? null;
+      const resolvedContactLinks: ConcertContactLinkInput[] = uniqueRows.map((r) => ({
+        contact_id: r.contactId,
+        category: r.category ? (r.category as ConcertContactCategory) : null,
+      }));
 
       const venueFromDirectory = resolvedVenueId ? selectedVenue : null;
       const venueName = venueFromDirectory?.name ?? initial?.venue_name ?? '';
@@ -182,7 +226,7 @@ export default function ConcertForm({
         input.venue_contact_email = null;
       }
 
-      await onSubmit(input, resolvedContactIds);
+      await onSubmit(input, resolvedContactLinks);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Enregistrement impossible');
     } finally {
@@ -281,7 +325,7 @@ export default function ConcertForm({
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <span>Contacts</span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" onClick={() => setSelectedContactIds([''])} disabled={!hasSelectedContacts}>
+            <button type="button" onClick={() => setSelectedContactRows([])} disabled={!hasSelectedContacts}>
               Aucun
             </button>
             <button type="button" onClick={addContactRow} disabled={!contacts.length}>
@@ -295,21 +339,21 @@ export default function ConcertForm({
         ) : null}
 
         <div role="group" aria-label="Contacts" style={{ display: 'grid', gap: 8 }}>
-          {contactRows.map((value, idx) => {
+          {contactRows.map((row, idx) => {
             const alreadySelected = new Set(
               contactRows
                 .filter((_, i) => i !== idx)
-                .map((x) => String(x).trim())
+                .map((x) => String(x.contactId).trim())
                 .filter(Boolean),
             );
 
             return (
               <div key={`contact-row-${idx}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <select
-                  value={value}
-                  onChange={(e) => setContactRowValue(idx, e.target.value)}
+                  value={row.contactId}
+                  onChange={(e) => setContactRowContactId(idx, e.target.value)}
                   aria-label={idx === 0 ? 'Contact principal' : `Contact ${idx + 1}`}
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, minWidth: 220 }}
                 >
                   <option value="">— Choisir un contact —</option>
                   {contacts.map((c) => {
@@ -323,6 +367,20 @@ export default function ConcertForm({
                   })}
                 </select>
 
+                <select
+                  value={row.category}
+                  onChange={(e) => setContactRowCategory(idx, e.target.value)}
+                  aria-label={idx === 0 ? 'Catégorie du contact principal' : `Catégorie du contact ${idx + 1}`}
+                  style={{ width: 200 }}
+                >
+                  <option value="">— Catégorie —</option>
+                  {CONCERT_CONTACT_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+
                 <button type="button" onClick={() => removeContactRow(idx)} disabled={contactRows.length <= 1}>
                   Retirer
                 </button>
@@ -331,7 +389,7 @@ export default function ConcertForm({
           })}
         </div>
 
-        {mode === 'edit' && !selectedContactIds.map((x) => x.trim()).filter(Boolean).length && (initial?.venue_contact_name || initial?.venue_contact_email) ? (
+        {mode === 'edit' && !selectedContactRows.map((x) => x.contactId.trim()).filter(Boolean).length && (initial?.venue_contact_name || initial?.venue_contact_email) ? (
           <span style={{ fontSize: 12, color: '#6b7280' }}>
             Concert non lié à un contact (infos existantes conservées).
           </span>

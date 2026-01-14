@@ -213,6 +213,15 @@ vi.mock('../../src/services/contacts', () => {
 
 vi.mock('../../src/services/concertContactLinks', () => {
   return {
+    CONCERT_CONTACT_CATEGORIES: [
+      'Gérant',
+      'Ingé son',
+      'Ingé lumière',
+      'organisateur',
+      'responsable bar',
+      'connaissance',
+      'membre du co-plateau',
+    ],
     replaceContactsForConcert: vi.fn(async () => undefined),
     listContactsForConcert: vi.fn(async () => []),
   };

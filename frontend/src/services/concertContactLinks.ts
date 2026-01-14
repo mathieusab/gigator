@@ -1,10 +1,28 @@
 import { supabase } from '../lib/supabaseClient';
 import type { Contact } from './contacts';
 
+export const CONCERT_CONTACT_CATEGORIES = [
+  'Gérant',
+  'Ingé son',
+  'Ingé lumière',
+  'organisateur',
+  'responsable bar',
+  'connaissance',
+  'membre du co-plateau',
+] as const;
+
+export type ConcertContactCategory = (typeof CONCERT_CONTACT_CATEGORIES)[number];
+
+export type ConcertContactLinkInput = {
+  contact_id: string;
+  category?: ConcertContactCategory | null;
+};
+
 export type ConcertContactLink = {
   id: string;
   concert_id: string;
   contact_id: string;
+  category: ConcertContactCategory | null;
   created_at: string;
   updated_at: string;
 };
@@ -29,17 +47,33 @@ export async function listContactsForConcert(concertId: string): Promise<Concert
   return unwrap<ConcertContactLinkWithContact[]>(res);
 }
 
-export async function replaceContactsForConcert(concertId: string, contactIds: string[]): Promise<void> {
-  const uniqueIds = Array.from(new Set(contactIds.map((x) => String(x).trim()).filter(Boolean)));
+export async function replaceContactsForConcert(
+  concertId: string,
+  links: ConcertContactLinkInput[],
+): Promise<void> {
+  const normalized = links
+    .map((l) => ({
+      contact_id: String(l.contact_id).trim(),
+      category: (l.category ?? null) as ConcertContactCategory | null,
+    }))
+    .filter((l) => Boolean(l.contact_id));
+
+  const seen = new Set<string>();
+  const unique = normalized.filter((l) => {
+    if (seen.has(l.contact_id)) return false;
+    seen.add(l.contact_id);
+    return true;
+  });
 
   const del = await supabase.from('concert_contact_links').delete().eq('concert_id', concertId);
   if (del.error) throw new Error(del.error.message);
 
-  if (!uniqueIds.length) return;
+  if (!unique.length) return;
 
-  const payload = uniqueIds.map((contactId) => ({
+  const payload = unique.map((l) => ({
     concert_id: concertId,
-    contact_id: contactId,
+    contact_id: l.contact_id,
+    category: l.category,
     updated_at: new Date().toISOString(),
   }));
 
