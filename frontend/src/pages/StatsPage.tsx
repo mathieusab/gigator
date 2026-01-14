@@ -392,11 +392,6 @@ export default function StatsPage() {
         <Link to="/">Retour</Link>
       </header>
 
-      <p style={{ marginTop: 8, color: '#4b5563' }}>
-        Graphe construit à partir des concerts passés (date de début &lt; maintenant), limité aux 24
-        derniers mois.
-      </p>
-
       {isLoading ? <p>Chargement…</p> : null}
       {error ? (
         <p role="alert" style={{ color: 'crimson' }}>
