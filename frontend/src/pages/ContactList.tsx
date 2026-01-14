@@ -68,6 +68,21 @@ export default function ContactList() {
     };
   }, []);
 
+  useEffect(() => {
+    // Optional UX: allow pre-filling the inline create form from query params.
+    // Example: /contacts?email=foo@bar.com
+    const params = new URLSearchParams(window.location.search);
+    const email = String(params.get('email') ?? '').trim();
+    const fullName = String(params.get('full_name') ?? '').trim();
+    const phone = String(params.get('phone') ?? '').trim();
+
+    if (email && !newEmail) setNewEmail(email);
+    if (fullName && !newFullName) setNewFullName(fullName);
+    if (phone && !newPhone) setNewPhone(phone);
+    // Intentionally run only once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return contacts;

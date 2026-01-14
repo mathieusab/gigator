@@ -95,6 +95,30 @@ async function exchangeRefreshTokenForAccessToken(params: {
   return accessToken;
 }
 
+gmailRouter.get('/connection', async (req: Request, res: Response) => {
+  try {
+    const userId = await requireActiveAppUserId(req);
+    const supabase = getSupabaseAdmin();
+    const { data: conn, error } = await supabase
+      .from('gmail_connections')
+      .select('gmail_email')
+      .eq('app_user_id', userId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!conn?.gmail_email) {
+      return res.status(401).json({ error: 'Gmail not connected' });
+    }
+
+    return res.json({ gmailEmail: String(conn.gmail_email) });
+  } catch (e) {
+    if (e instanceof GmailProxyError) return res.status(e.status).json({ error: e.message });
+    return res
+      .status(500)
+      .json({ error: e instanceof Error ? e.message : 'Failed to get Gmail connection' });
+  }
+});
+
 async function getGmailAccessTokenForRequest(req: Request): Promise<string> {
   const clientId = process.env.GMAIL_PROXY_CLIENT_ID ?? '';
   const clientSecret = process.env.GMAIL_PROXY_CLIENT_SECRET ?? '';

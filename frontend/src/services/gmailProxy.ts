@@ -19,6 +19,31 @@ export type GmailThread = {
   }>;
 };
 
+export async function getGmailConnection(params: {
+  appAccessToken: string;
+}): Promise<{ gmailEmail: string }> {
+  const res = await fetch('/gmail/connection', {
+    headers: {
+      Authorization: `Bearer ${params.appAccessToken}`,
+    },
+  });
+
+  if (res.status === 401) {
+    const body = (await res.json().catch(() => null)) as any;
+    throw new Error(body?.error ?? 'Unauthorized');
+  }
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as any;
+    throw new Error(body?.error ?? `Gmail proxy error (${res.status})`);
+  }
+
+  const json = (await res.json()) as { gmailEmail?: string };
+  const gmailEmail = String(json.gmailEmail ?? '').trim();
+  if (!gmailEmail) throw new Error('Missing gmailEmail');
+  return { gmailEmail };
+}
+
 export async function listGmailThreadsForEmail(params: {
   appAccessToken: string;
   email: string;

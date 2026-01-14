@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import ConcertListItem from '../components/ConcertListItem';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { deleteConcert, listConcerts, type Concert } from '../services/concerts';
+import { listContacts } from '../services/contacts';
+import { useAuth } from '../lib/useAuth';
+import { getGmailConnection, listGmailThreadsForEmail, type GmailThread } from '../services/gmailProxy';
 
 function isUpcoming(dateStart: string | null) {
   if (!dateStart) return false;
@@ -11,9 +14,21 @@ function isUpcoming(dateStart: string | null) {
 
 export default function ConcertList() {
   const navigate = useNavigate();
+  const { session } = useAuth();
+  const appAccessToken = (session as any)?.access_token as string | undefined;
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [todoThreads, setTodoThreads] = useState<
+    Array<{
+      thread: GmailThread;
+      counterpartEmail: string;
+      subject: string;
+      snippet: string;
+      date: string | null;
+    }>
+  >([]);
 
   const [pendingDeleteConcert, setPendingDeleteConcert] = useState<Concert | null>(null);
   const [deletingConcertId, setDeletingConcertId] = useState<string | null>(null);
@@ -39,6 +54,116 @@ export default function ConcertList() {
     };
   }, []);
 
+  function normalizeOneLine(value: string) {
+    return value.replace(/\s+/g, ' ').trim();
+  }
+
+  function extractFirstEmail(value?: string): string {
+    const raw = normalizeOneLine(String(value ?? '').trim());
+    if (!raw) return '';
+
+    // Try angle bracket format: Name <email@domain>
+    const angle = raw.match(/<\s*([^>]+)\s*>/);
+    if (angle) return normalizeOneLine(angle[1] ?? '').toLowerCase();
+
+    // Fallback: any email-like token.
+    const m = raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    return m ? String(m[0]).toLowerCase() : '';
+  }
+
+  function getThreadLatestMessage(t: GmailThread) {
+    const messages = t.messages ?? [];
+    if (messages.length === 0) return null;
+    const withMs = messages
+      .map((m) => ({ m, ms: m.internalDate ? new Date(m.internalDate).getTime() : Number.NaN }))
+      .filter((x) => Number.isFinite(x.ms));
+    if (withMs.length === 0) return messages[0] ?? null;
+    withMs.sort((a, b) => b.ms - a.ms);
+    return withMs[0]?.m ?? null;
+  }
+
+  function getThreadSubject(t: GmailThread): string {
+    const latest = getThreadLatestMessage(t);
+    return normalizeOneLine(String(latest?.headers?.subject ?? '').trim()) || 'Conversation';
+  }
+
+  function getThreadSnippet(t: GmailThread): string {
+    return normalizeOneLine(String(t.snippet ?? '').trim());
+  }
+
+  function getThreadCounterpartEmail(t: GmailThread, groupEmail: string): string {
+    const latest = getThreadLatestMessage(t);
+    const fromEmail = extractFirstEmail(latest?.headers?.from);
+    const toEmail = extractFirstEmail(latest?.headers?.to);
+    const group = String(groupEmail ?? '').trim().toLowerCase();
+    if (!group) return fromEmail || toEmail;
+    if (fromEmail && fromEmail !== group) return fromEmail;
+    if (toEmail && toEmail !== group) return toEmail;
+    return fromEmail || toEmail;
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!appAccessToken) {
+      setTodoThreads((prev) => (prev.length ? [] : prev));
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    void (async () => {
+      try {
+        const [{ gmailEmail }, contacts] = await Promise.all([
+          getGmailConnection({ appAccessToken }),
+          listContacts(),
+        ]);
+
+        const email = String(gmailEmail ?? '').trim();
+        if (!email) {
+          if (isMounted) setTodoThreads([]);
+          return;
+        }
+
+        const threads = await listGmailThreadsForEmail({ appAccessToken, email, maxThreads: 50 });
+        const knownEmails = new Set(
+          contacts
+            .map((c) => String(c.email ?? '').trim().toLowerCase())
+            .filter(Boolean),
+        );
+
+        const group = email.toLowerCase();
+        const next = (Array.isArray(threads) ? threads : [])
+          .map((thread) => {
+            const counterpartEmail = getThreadCounterpartEmail(thread, group);
+            const latest = getThreadLatestMessage(thread);
+            const date = latest?.internalDate ? String(latest.internalDate) : null;
+            return {
+              thread,
+              counterpartEmail,
+              subject: getThreadSubject(thread),
+              snippet: getThreadSnippet(thread),
+              date,
+            };
+          })
+          .filter((x) => x.counterpartEmail && !knownEmails.has(x.counterpartEmail.toLowerCase()))
+          .sort((a, b) => {
+            const ams = a.date ? new Date(a.date).getTime() : 0;
+            const bms = b.date ? new Date(b.date).getTime() : 0;
+            return bms - ams;
+          });
+
+        if (isMounted) setTodoThreads(next);
+      } catch {
+        // Deliberately silent: concerts page should not show Gmail errors.
+        if (isMounted) setTodoThreads([]);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [appAccessToken]);
+
   const { unscheduled, upcoming, past } = useMemo(() => {
     const unscheduled = concerts.filter((c) => !c.date_start);
 
@@ -52,6 +177,8 @@ export default function ConcertList() {
 
     return { unscheduled, upcoming, past };
   }, [concerts]);
+
+  const todoTop3 = todoThreads.slice(0, 3);
 
   function requestDelete(id: string) {
     const found = concerts.find((c) => c.id === id);
@@ -136,6 +263,51 @@ export default function ConcertList() {
 
       {!isLoading && !error ? (
         <section style={{ marginTop: 16 }}>
+          <h2>À traiter</h2>
+          {todoTop3.length === 0 ? <p>Rien à traiter.</p> : null}
+          {todoTop3.length ? (
+            <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
+              {todoTop3.map((t) => (
+                <li
+                  key={t.thread.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    padding: 12,
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 8,
+                    background: '#fff7ed',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{t.subject}</div>
+                    <div style={{ color: '#4b5563' }}>
+                      {t.counterpartEmail}
+                      {t.snippet ? ` — ${t.snippet}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(`/contacts?email=${encodeURIComponent(t.counterpartEmail)}`)
+                      }
+                    >
+                      Créer contact
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {todoThreads.length > 3 ? (
+            <p style={{ color: '#4b5563', marginTop: 8 }}>
+              +{todoThreads.length - 3} autres à traiter
+            </p>
+          ) : null}
+
           <h2>À planifier</h2>
           {unscheduled.length === 0 ? <p>Aucun concert sans date.</p> : null}
           {unscheduled.length ? (

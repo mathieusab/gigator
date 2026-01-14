@@ -8,6 +8,12 @@ export type GmailThread = {
     threadId?: string;
     snippet?: string;
     internalDate?: string;
+    headers?: {
+      from?: string;
+      to?: string;
+      subject?: string;
+      date?: string;
+    };
   }>;
 };
 
@@ -245,7 +251,15 @@ export async function listThreadsForEmail(
     const threadId = ref.id ?? ref.threadId;
     if (!threadId) continue;
 
-    const getUrl = `https://gmail.googleapis.com/gmail/v1/users/me/threads/${encodeURIComponent(threadId)}?format=metadata`;
+    const metadataParams = new URLSearchParams({
+      format: 'metadata',
+      metadataHeaders: 'From',
+    });
+    metadataParams.append('metadataHeaders', 'To');
+    metadataParams.append('metadataHeaders', 'Subject');
+    metadataParams.append('metadataHeaders', 'Date');
+
+    const getUrl = `https://gmail.googleapis.com/gmail/v1/users/me/threads/${encodeURIComponent(threadId)}?${metadataParams.toString()}`;
     const threadJson = (await fetchJson(getUrl, config.accessToken)) as {
       id?: string;
       snippet?: string;
@@ -255,17 +269,31 @@ export async function listThreadsForEmail(
         threadId?: string;
         snippet?: string;
         internalDate?: string;
+        payload?: GmailApiMessagePart;
       }>;
     };
 
     const messages = (threadJson.messages ?? []).map((m) => {
       const ms = m.internalDate ? Number(m.internalDate) : NaN;
       const internalDate = Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
+
+      const headersRaw = m.payload?.headers;
+      const from = normalizeHeaderValue(headersRaw, 'From');
+      const to = normalizeHeaderValue(headersRaw, 'To');
+      const subject = normalizeHeaderValue(headersRaw, 'Subject');
+      const date = normalizeHeaderValue(headersRaw, 'Date');
+
       return {
         id: m.id,
         threadId: m.threadId,
         snippet: m.snippet,
         internalDate,
+        headers: {
+          from: from || undefined,
+          to: to || undefined,
+          subject: subject || undefined,
+          date: date || undefined,
+        },
       };
     });
 
