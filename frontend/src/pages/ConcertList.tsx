@@ -6,7 +6,12 @@ import { deleteConcert, listConcerts, type Concert } from '../services/concerts'
 import { listContacts } from '../services/contacts';
 import { useAuth } from '../lib/useAuth';
 import { getGmailConnection, listGmailThreadsForEmail, type GmailThread } from '../services/gmailProxy';
-import { listOpenGmailTodoThreads, upsertGmailTodoThreads } from '../services/gmailTodoThreads';
+import {
+  listOpenGmailTodoThreads,
+  updateGmailTodoThreadStatus,
+  upsertGmailTodoThreads,
+  type GmailTodoThreadStatus,
+} from '../services/gmailTodoThreads';
 
 function isUpcoming(dateStart: string | null) {
   if (!dateStart) return false;
@@ -24,6 +29,7 @@ export default function ConcertList() {
 
   const [todoThreads, setTodoThreads] = useState<
     Array<{
+      todoId?: string;
       thread: GmailThread;
       counterpartEmail: string;
       subject: string;
@@ -31,6 +37,8 @@ export default function ConcertList() {
       date: string | null;
     }>
   >([]);
+
+  const [updatingTodoId, setUpdatingTodoId] = useState<string | null>(null);
 
   const [pendingDeleteConcert, setPendingDeleteConcert] = useState<Concert | null>(null);
   const [deletingConcertId, setDeletingConcertId] = useState<string | null>(null);
@@ -50,6 +58,7 @@ export default function ConcertList() {
         const next = rows.map((r) => {
           const thread: GmailThread = { id: r.thread_id };
           return {
+            todoId: r.id,
             thread,
             counterpartEmail: r.counterpart_email,
             subject: String(r.subject ?? '').trim() || 'Conversation',
@@ -68,6 +77,23 @@ export default function ConcertList() {
       isMounted = false;
     };
   }, [appUserId]);
+
+  async function markTodoStatus(todoId: string, status: GmailTodoThreadStatus) {
+    const id = String(todoId ?? '').trim();
+    if (!id) return;
+    if (updatingTodoId) return;
+
+    setUpdatingTodoId(id);
+    // Optimistic: remove from list immediately.
+    setTodoThreads((prev) => prev.filter((t) => t.todoId !== id));
+    try {
+      await updateGmailTodoThreadStatus({ id, status });
+    } catch {
+      // Best-effort UX: if update fails, re-load persisted list next time.
+    } finally {
+      setUpdatingTodoId((current) => (current === id ? null : current));
+    }
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -202,7 +228,19 @@ export default function ConcertList() {
               snippet: t.snippet,
               lastMessageAt: t.date,
             })),
-          }).catch(() => undefined);
+          })
+            .then((persisted) => {
+              if (!isMounted) return;
+
+              const idByThreadId = new Map(persisted.map((p) => [p.thread_id, p.id] as const));
+              setTodoThreads((prev) =>
+                prev.map((t) => ({
+                  ...t,
+                  todoId: t.todoId ?? idByThreadId.get(t.thread.id),
+                })),
+              );
+            })
+            .catch(() => undefined);
         }
       } catch {
         // Deliberately silent: concerts page should not show Gmail errors.
@@ -347,6 +385,24 @@ export default function ConcertList() {
                       }
                     >
                       Créer contact
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void markTodoStatus(t.todoId ?? '', 'done')}
+                      disabled={!t.todoId || updatingTodoId === t.todoId}
+                      aria-label="Marquer comme fait"
+                    >
+                      Fait
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void markTodoStatus(t.todoId ?? '', 'ignored')}
+                      disabled={!t.todoId || updatingTodoId === t.todoId}
+                      aria-label="Ignorer"
+                    >
+                      Ignorer
                     </button>
                   </div>
                 </li>

@@ -49,7 +49,7 @@ export async function upsertGmailTodoThreads(params: {
     snippet?: string;
     lastMessageAt?: string | null;
   }>;
-}): Promise<void> {
+}): Promise<GmailTodoThread[]> {
   const appUserId = params.appUserId.trim();
   const gmailEmail = params.gmailEmail.trim();
   if (!appUserId) throw new Error('Missing appUserId');
@@ -71,13 +71,15 @@ export async function upsertGmailTodoThreads(params: {
     }))
     .filter((r) => r.thread_id && r.counterpart_email);
 
-  if (rows.length === 0) return;
+  if (rows.length === 0) return [];
 
   const res = await supabase
     .from('gmail_todo_threads')
-    .upsert(rows, { onConflict: 'app_user_id,gmail_email,thread_id' });
+    .upsert(rows, { onConflict: 'app_user_id,gmail_email,thread_id' })
+    .select('*');
 
   if (res.error) throw new Error(res.error.message);
+  return unwrap<GmailTodoThread[]>(res);
 }
 
 export async function updateGmailTodoThreadStatus(params: {
