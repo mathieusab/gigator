@@ -684,11 +684,11 @@ export default function ConcertList() {
           </CollapsibleSection>
 
           <CollapsibleSection
-            title={`Refusés (cancelled) (${cancelled.length})`}
+            title={`Annulés (${cancelled.length})`}
             defaultCollapsed
             style={{ marginTop: 12 }}
           >
-            {cancelled.length === 0 ? <p>Aucun concert refusé.</p> : null}
+            {cancelled.length === 0 ? <p>Aucun concert annulé.</p> : null}
             {cancelled.length ? (
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
                 {cancelled.map((c) => (
