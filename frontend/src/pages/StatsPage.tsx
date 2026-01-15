@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { CONCERT_STATUSES, listConcerts, type Concert, type ConcertStatus } from '../services/concerts';
 import { listConcertFinancialItems, type ConcertFinancialItem } from '../services/concertFinancialItems';
+import { formatConcertStatusFr } from '../lib/concertStatus';
 
 function monthKeyUTC(date: Date): string {
   const y = date.getUTCFullYear();
@@ -375,12 +376,6 @@ export default function StatsPage() {
     return counts;
   }, [concerts]);
 
-  const statusLabels: Record<ConcertStatus, string> = {
-    scheduled: 'Planifié',
-    completed: 'Terminé',
-    cancelled: 'Annulé',
-  };
-
   return (
     <main
       style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
@@ -424,7 +419,7 @@ export default function StatsPage() {
                   padding: 12,
                 }}
               >
-                <div style={{ color: '#6b7280', fontSize: 13 }}>{statusLabels[s]}</div>
+                <div style={{ color: '#6b7280', fontSize: 13 }}>{formatConcertStatusFr(s)}</div>
                 <div data-testid={`stats-status-count-${s}`} style={{ fontSize: 28, fontWeight: 700 }}>
                   {statusCounts[s]}
                 </div>

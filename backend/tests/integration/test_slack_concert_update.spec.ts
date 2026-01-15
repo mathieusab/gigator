@@ -14,7 +14,7 @@ vi.mock('../../src/lib/supabaseJwt', () => {
 });
 
 vi.mock('../../src/lib/supabaseAdmin', () => {
-  const appUserRow = { id: 'user-1', is_active: true };
+  const appUserRow = { id: 'user-1', is_active: true, name: 'Test User', email: 'test@example.com' };
   return {
     getSupabaseAdmin: () => ({
       from: (table: string) => {

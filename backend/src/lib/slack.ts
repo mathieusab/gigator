@@ -88,7 +88,7 @@ export async function postSlackConcertUpdate(params: {
     date_start?: string | null;
     status?: string | null;
   };
-  actorUserId?: string;
+  actorName?: string;
 }): Promise<{ sent: boolean; skipped: boolean }> {
   const webhookUrl = env('SLACK_WEBHOOK_URL');
   if (!webhookUrl) return { sent: false, skipped: true };
@@ -108,10 +108,6 @@ export async function postSlackConcertUpdate(params: {
   const statusFr = formatStatusFr(String(params.concert.status ?? '').trim());
   const dateFr = formatDateFr(String(params.concert.date_start ?? '').trim());
 
-  // Keep actor as a short suffix (UUIDs are noisy). Can be expanded later using app_users.name.
-  const actorId = String(params.actorUserId ?? '').trim();
-  const actorShort = actorId ? actorId.slice(0, 8) : '';
-
   const concertId = String(params.concert.id ?? '').trim();
   const url = buildConcertUrl(concertId);
   const slackLink = url ? `<${url}|Ouvrir dans Gigator>` : null;
@@ -121,7 +117,8 @@ export async function postSlackConcertUpdate(params: {
   if (city) details.push(`*Ville:* ${city}`);
   if (dateFr) details.push(`*Date:* ${dateFr}`);
   if (statusFr) details.push(`*Statut:* ${statusFr}`);
-  if (actorShort) details.push(`*Par:* ${actorShort}`);
+  const actorName = String(params.actorName ?? '').trim();
+  if (actorName) details.push(`*Par:* ${actorName}`);
 
   const payload: Record<string, unknown> = {
     // Keep text for notifications + compatibility, even when using blocks.

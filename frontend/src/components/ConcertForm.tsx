@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Concert, ConcertStatus, ConcertUpsertInput } from '../services/concerts';
+import { formatConcertStatusFr } from '../lib/concertStatus';
 import {
   CONCERT_CONTACT_CATEGORIES,
   type ConcertContactCategory,
@@ -334,9 +335,9 @@ export default function ConcertForm({
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Statut</span>
         <select value={status} onChange={(e) => setStatus(e.target.value as ConcertStatus)}>
-          <option value="scheduled">scheduled</option>
-          <option value="completed">completed</option>
-          <option value="cancelled">cancelled</option>
+          <option value="scheduled">{formatConcertStatusFr('scheduled')}</option>
+          <option value="completed">{formatConcertStatusFr('completed')}</option>
+          <option value="cancelled">{formatConcertStatusFr('cancelled')}</option>
         </select>
       </label>
       <label style={{ display: 'grid', gap: 4 }}>

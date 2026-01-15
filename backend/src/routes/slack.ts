@@ -24,11 +24,17 @@ async function requireActiveAppUserId(req: Request): Promise<string> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from('app_users')
-    .select('id,is_active')
+    .select('id,is_active,name,email')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data?.is_active) throw new SlackProxyError(403, 'Access denied');
+
+  const name = String((data as any)?.name ?? '').trim();
+  const email = String((data as any)?.email ?? '').trim();
+
+  // Prefer a friendly display name; avoid leaking raw UUIDs.
+  (req as any)._slackActorName = name || email || null;
 
   return userId;
 }
@@ -49,7 +55,8 @@ type ConcertUpdateBody = {
 
 slackRouter.post('/concert-update', async (req: Request, res: Response) => {
   try {
-    const userId = await requireActiveAppUserId(req);
+    await requireActiveAppUserId(req);
+    const actorName = String((req as any)._slackActorName ?? '').trim() || undefined;
 
     const body = (req.body ?? {}) as ConcertUpdateBody;
     const action = String(body.action ?? '').trim() as SlackConcertAction;
@@ -60,7 +67,7 @@ slackRouter.post('/concert-update', async (req: Request, res: Response) => {
     const concert = (body.concert ?? {}) as ConcertPayload;
 
     // Best-effort: never block user flows on Slack.
-    await postSlackConcertUpdate({ action, concert, actorUserId: userId }).catch((e) => {
+    await postSlackConcertUpdate({ action, concert, actorName }).catch((e) => {
       console.warn('Failed to send Slack concert update:', e);
     });
 
