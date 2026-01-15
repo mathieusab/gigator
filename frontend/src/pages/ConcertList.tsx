@@ -481,7 +481,7 @@ export default function ConcertList() {
 
       {!isLoading && !error ? (
         <section style={{ marginTop: 16 }}>
-          <CollapsibleSection title="À traiter" defaultCollapsed>
+          <CollapsibleSection title={`À traiter (${todoThreads.length})`} defaultCollapsed>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <input
                 type="checkbox"
@@ -616,7 +616,11 @@ export default function ConcertList() {
             ) : null}
           </CollapsibleSection>
 
-          <CollapsibleSection title="À planifier" defaultCollapsed style={{ marginTop: 12 }}>
+          <CollapsibleSection
+            title={`À planifier (${unscheduled.length})`}
+            defaultCollapsed
+            style={{ marginTop: 12 }}
+          >
             {unscheduled.length === 0 ? <p>Aucun concert sans date.</p> : null}
             {unscheduled.length ? (
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
@@ -634,7 +638,7 @@ export default function ConcertList() {
             ) : null}
           </CollapsibleSection>
 
-          <CollapsibleSection title="À venir" defaultCollapsed style={{ marginTop: 12 }}>
+          <CollapsibleSection title={`À venir (${upcoming.length})`} defaultCollapsed style={{ marginTop: 12 }}>
             {upcoming.length === 0 ? <p>Aucun concert à venir.</p> : null}
             {upcoming.length ? (
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
@@ -652,7 +656,7 @@ export default function ConcertList() {
             ) : null}
           </CollapsibleSection>
 
-          <CollapsibleSection title="Passés" defaultCollapsed style={{ marginTop: 12 }}>
+          <CollapsibleSection title={`Passés (${past.length})`} defaultCollapsed style={{ marginTop: 12 }}>
             {past.length === 0 ? <p>Aucun concert passé.</p> : null}
             {past.length ? (
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
