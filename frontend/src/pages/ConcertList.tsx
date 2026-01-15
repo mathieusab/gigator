@@ -562,7 +562,7 @@ export default function ConcertList() {
 
             {showIgnored ? (
               <section style={{ marginTop: 14 }}>
-                <h3 style={{ margin: '10px 0 6px' }}>Ignorés</h3>
+                <h3 style={{ margin: '10px 0 6px' }}>{`Ignorés (${ignoredThreads.length})`}</h3>
                 {ignoredThreads.length === 0 ? (
                   <p style={{ color: '#4b5563' }}>Aucun mail ignoré.</p>
                 ) : null}
