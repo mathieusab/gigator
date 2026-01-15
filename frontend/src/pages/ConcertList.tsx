@@ -8,6 +8,7 @@ import { useAuth } from '../lib/useAuth';
 import { getGmailConnection, listGmailThreadsForEmail, type GmailThread } from '../services/gmailProxy';
 import {
   listHiddenGmailTodoThreadIds,
+  listIgnoredGmailTodoThreads,
   listOpenGmailTodoThreads,
   updateGmailTodoThreadStatus,
   upsertGmailTodoThreads,
@@ -32,6 +33,18 @@ export default function ConcertList() {
     Array<{
       todoId?: string;
       thread: GmailThread;
+      counterpartEmail: string;
+      subject: string;
+      snippet: string;
+      date: string | null;
+    }>
+  >([]);
+
+  const [showIgnored, setShowIgnored] = useState(false);
+  const [ignoredThreads, setIgnoredThreads] = useState<
+    Array<{
+      todoId: string;
+      threadId: string;
       counterpartEmail: string;
       subject: string;
       snippet: string;
@@ -78,6 +91,36 @@ export default function ConcertList() {
       isMounted = false;
     };
   }, [appUserId]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!showIgnored) return () => {
+      isMounted = false;
+    };
+
+    void (async () => {
+      try {
+        const rows = await listIgnoredGmailTodoThreads({ limit: 50 });
+        if (!isMounted) return;
+        setIgnoredThreads(
+          rows.map((r) => ({
+            todoId: r.id,
+            threadId: r.thread_id,
+            counterpartEmail: r.counterpart_email,
+            subject: String(r.subject ?? '').trim() || 'Conversation',
+            snippet: String(r.snippet ?? '').trim(),
+            date: r.last_message_at,
+          })),
+        );
+      } catch {
+        if (isMounted) setIgnoredThreads([]);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showIgnored]);
 
   async function markTodoStatus(todoId: string, status: GmailTodoThreadStatus) {
     const id = String(todoId ?? '').trim();
@@ -362,6 +405,14 @@ export default function ConcertList() {
       {!isLoading && !error ? (
         <section style={{ marginTop: 16 }}>
           <h2>À traiter</h2>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <input
+              type="checkbox"
+              checked={showIgnored}
+              onChange={(e) => setShowIgnored(e.currentTarget.checked)}
+            />
+            Afficher les ignorés
+          </label>
           {todoTop3.length === 0 ? <p>Rien à traiter.</p> : null}
           {todoTop3.length ? (
             <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
@@ -430,6 +481,59 @@ export default function ConcertList() {
             <p style={{ color: '#4b5563', marginTop: 8 }}>
               +{todoThreads.length - 3} autres à traiter
             </p>
+          ) : null}
+
+          {showIgnored ? (
+            <section style={{ marginTop: 14 }}>
+              <h3 style={{ margin: '10px 0 6px' }}>Ignorés</h3>
+              {ignoredThreads.length === 0 ? <p style={{ color: '#4b5563' }}>Aucun mail ignoré.</p> : null}
+              {ignoredThreads.length ? (
+                <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
+                  {ignoredThreads.map((t) => (
+                    <li
+                      key={t.todoId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        padding: 12,
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 8,
+                        background: '#f3f4f6',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{t.subject}</div>
+                        <div style={{ color: '#4b5563' }}>
+                          {t.counterpartEmail}
+                          {t.snippet ? ` — ${t.snippet}` : ''}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (updatingTodoId) return;
+                            setUpdatingTodoId(t.todoId);
+                            try {
+                              await updateGmailTodoThreadStatus({ id: t.todoId, status: 'open' });
+                              setIgnoredThreads((prev) => prev.filter((x) => x.todoId !== t.todoId));
+                            } finally {
+                              setUpdatingTodoId((current) => (current === t.todoId ? null : current));
+                            }
+                          }}
+                          disabled={updatingTodoId === t.todoId}
+                          aria-label="Réafficher"
+                        >
+                          Réafficher
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
           ) : null}
 
           <h2>À planifier</h2>

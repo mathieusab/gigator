@@ -39,6 +39,21 @@ export async function listOpenGmailTodoThreads(params: {
   return unwrap<GmailTodoThread[]>(res);
 }
 
+export async function listIgnoredGmailTodoThreads(params: {
+  limit?: number;
+} = {}): Promise<GmailTodoThread[]> {
+  const limit = typeof params.limit === 'number' && Number.isFinite(params.limit) ? params.limit : 50;
+
+  const res = await supabase
+    .from('gmail_todo_threads')
+    .select('*')
+    .eq('status', 'ignored')
+    .order('updated_at', { ascending: false, nullsFirst: false })
+    .limit(Math.max(1, Math.min(200, Math.floor(limit))));
+
+  return unwrap<GmailTodoThread[]>(res);
+}
+
 export async function upsertGmailTodoThreads(params: {
   appUserId: string;
   gmailEmail: string;
