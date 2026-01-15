@@ -40,6 +40,12 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
     const threadId = String(qs.get('threadId') ?? '').trim();
     const todoId = String(qs.get('todoId') ?? '').trim();
 
+    const prefillTitle = String(qs.get('prefillTitle') ?? '').trim();
+    const prefillVenueName = String(qs.get('prefillVenueName') ?? '').trim();
+    const prefillCity = String(qs.get('prefillCity') ?? '').trim();
+    const prefillDateStart = String(qs.get('prefillDateStart') ?? '').trim();
+    const prefillNotes = String(qs.get('prefillNotes') ?? '').trim();
+
     const lines: string[] = [];
     lines.push('Issue Gmail à traiter');
     if (email) lines.push(`Contact email: ${email}`);
@@ -48,8 +54,31 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
     if (threadId) lines.push(`ThreadId: ${threadId}`);
     if (todoId) lines.push(`TodoId: ${todoId}`);
 
+    if (prefillTitle) lines.push(`Titre suggéré: ${prefillTitle}`);
+    if (prefillVenueName) lines.push(`Lieu suggéré: ${prefillVenueName}`);
+    if (prefillCity) lines.push(`Ville suggérée: ${prefillCity}`);
+    if (prefillDateStart) lines.push(`Date suggérée: ${prefillDateStart}`);
+    if (prefillNotes) {
+      lines.push('---');
+      lines.push(prefillNotes);
+    }
+
     const notes = lines.join('\n');
-    return { notes };
+
+    const date_start = (() => {
+      if (!prefillDateStart) return undefined;
+      const d = new Date(prefillDateStart);
+      if (Number.isNaN(d.getTime())) return undefined;
+      return d.toISOString();
+    })();
+
+    return {
+      notes,
+      title: prefillTitle || undefined,
+      venue_name: prefillVenueName || undefined,
+      city: prefillCity || undefined,
+      date_start,
+    };
   })();
 
   const gmailTodoId = (() => {

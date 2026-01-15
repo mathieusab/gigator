@@ -2,6 +2,9 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ConcertListItem from '../components/ConcertListItem';
 import ConfirmDialog from '../components/ConfirmDialog';
+import GmailTodoProcessModal, {
+  type GmailTodoProcessModalTodo,
+} from '../components/GmailTodoProcessModal';
 import { deleteConcert, listConcerts, type Concert } from '../services/concerts';
 import { listContacts } from '../services/contacts';
 import { useAuth } from '../lib/useAuth';
@@ -130,6 +133,8 @@ export default function ConcertList() {
   >([]);
 
   const [updatingTodoId, setUpdatingTodoId] = useState<string | null>(null);
+
+  const [processingTodo, setProcessingTodo] = useState<GmailTodoProcessModalTodo | null>(null);
 
   const [pendingDeleteConcert, setPendingDeleteConcert] = useState<Concert | null>(null);
   const [deletingConcertId, setDeletingConcertId] = useState<string | null>(null);
@@ -306,6 +311,14 @@ export default function ConcertList() {
           if (isMounted) setTodoThreads([]);
           return;
         }
+              <GmailTodoProcessModal
+                open={Boolean(processingTodo)}
+                onClose={() => setProcessingTodo(null)}
+                todo={processingTodo}
+                appAccessToken={appAccessToken}
+                onMarkStatus={markTodoStatus}
+              />
+
 
         let hiddenThreadIds = new Set<string>();
         try {
@@ -527,15 +540,13 @@ export default function ConcertList() {
                       <button
                         type="button"
                         onClick={() => {
-                          const qs = new URLSearchParams({
-                            source: 'gmail',
-                            email: t.counterpartEmail,
+                          setProcessingTodo({
+                            todoId: t.todoId,
+                            threadId: t.thread.id,
+                            counterpartEmail: t.counterpartEmail,
                             subject: t.subject,
                             snippet: t.snippet,
-                            threadId: t.thread.id,
                           });
-                          if (t.todoId) qs.set('todoId', t.todoId);
-                          navigate(`/concerts/new?${qs.toString()}`);
                         }}
                       >
                         Traiter
