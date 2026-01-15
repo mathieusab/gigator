@@ -97,3 +97,23 @@ export async function updateGmailTodoThreadStatus(params: {
 
   if (res.error) throw new Error(res.error.message);
 }
+
+export async function listHiddenGmailTodoThreadIds(params: {
+  gmailEmail?: string;
+  limit?: number;
+} = {}): Promise<Set<string>> {
+  const gmailEmail = String(params.gmailEmail ?? '').trim();
+  const limit = typeof params.limit === 'number' && Number.isFinite(params.limit) ? params.limit : 500;
+
+  let q = supabase
+    .from('gmail_todo_threads')
+    .select('thread_id,status')
+    .in('status', ['done', 'ignored'])
+    .limit(Math.max(1, Math.min(2000, Math.floor(limit))));
+
+  if (gmailEmail) q = q.eq('gmail_email', gmailEmail);
+
+  const res = await q;
+  const rows = unwrap<Array<{ thread_id: string; status: GmailTodoThreadStatus }>>(res);
+  return new Set(rows.map((r) => String(r.thread_id ?? '').trim()).filter(Boolean));
+}

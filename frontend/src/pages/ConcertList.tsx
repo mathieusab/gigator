@@ -7,6 +7,7 @@ import { listContacts } from '../services/contacts';
 import { useAuth } from '../lib/useAuth';
 import { getGmailConnection, listGmailThreadsForEmail, type GmailThread } from '../services/gmailProxy';
 import {
+  listHiddenGmailTodoThreadIds,
   listOpenGmailTodoThreads,
   updateGmailTodoThreadStatus,
   upsertGmailTodoThreads,
@@ -186,6 +187,13 @@ export default function ConcertList() {
           return;
         }
 
+        let hiddenThreadIds = new Set<string>();
+        try {
+          hiddenThreadIds = await listHiddenGmailTodoThreadIds({ gmailEmail: email, limit: 1000 });
+        } catch {
+          // Best-effort: if persistence is unavailable, show unfiltered Gmail list.
+        }
+
         const threads = await listGmailThreadsForEmail({ appAccessToken, email, maxThreads: 50 });
         const knownEmails = new Set(
           contacts
@@ -207,6 +215,7 @@ export default function ConcertList() {
               date,
             };
           })
+          .filter((x) => !hiddenThreadIds.has(x.thread.id))
           .filter((x) => x.counterpartEmail && !knownEmails.has(x.counterpartEmail.toLowerCase()))
           .sort((a, b) => {
             const ams = a.date ? new Date(a.date).getTime() : 0;
