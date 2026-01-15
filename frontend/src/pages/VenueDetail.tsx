@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import ConfirmDialog from '../components/ConfirmDialog';
+import { listContacts, type Contact } from '../services/contacts';
 import { getVenue, type Venue } from '../services/venues';
-import { listContactsForVenue, type VenueContactLinkWithContact } from '../services/venueContactLinks';
+import {
+  deleteVenueContactLink,
+  listContactsForVenue,
+  upsertVenueContactLink,
+  VENUE_CONTACT_RELATION_TYPES,
+  type VenueContactLinkWithContact,
+} from '../services/venueContactLinks';
 
 function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined) return '';
@@ -25,6 +33,13 @@ function mapsLink(v: Venue): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts)}`;
 }
 
+function relationTypeOptions(current?: string) {
+  const base = Array.from(VENUE_CONTACT_RELATION_TYPES);
+  const cur = String(current ?? '').trim();
+  if (cur && !base.includes(cur as any)) return [cur, ...base];
+  return base;
+}
+
 function Section({ title, value }: { title: string; value: string | null | undefined }) {
   const text = String(value ?? '').trim();
   if (!text) return null;
@@ -43,6 +58,21 @@ export default function VenueDetail() {
 
   const [venue, setVenue] = useState<Venue | null>(null);
   const [links, setLinks] = useState<VenueContactLinkWithContact[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactFilter, setContactFilter] = useState('');
+  const [newContactId, setNewContactId] = useState('');
+  const [newRelationType, setNewRelationType] = useState('');
+  const [newNotes, setNewNotes] = useState('');
+  const [isMutating, setIsMutating] = useState(false);
+  const [mutateError, setMutateError] = useState<string | null>(null);
+
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [editRelationType, setEditRelationType] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+
+  const [confirmUnlink, setConfirmUnlink] = useState<null | { id: string; contactName: string }>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,10 +88,15 @@ export default function VenueDetail() {
       setError(null);
       setIsLoading(true);
       try {
-        const [v, l] = await Promise.all([getVenue(venueId), listContactsForVenue(venueId)]);
+        const [v, l, c] = await Promise.all([
+          getVenue(venueId),
+          listContactsForVenue(venueId),
+          listContacts(),
+        ]);
         if (!isMounted) return;
         setVenue(v);
         setLinks(Array.isArray(l) ? l : []);
+        setContacts(Array.isArray(c) ? c : []);
       } catch (e) {
         if (!isMounted) return;
         setError(e instanceof Error ? e.message : 'Failed to load venue');
@@ -74,6 +109,22 @@ export default function VenueDetail() {
       isMounted = false;
     };
   }, [venueId]);
+
+  async function refreshLinks() {
+    if (!venueId) return;
+    const l = await listContactsForVenue(venueId);
+    setLinks(Array.isArray(l) ? l : []);
+  }
+
+  const filteredContacts = contacts.filter((c) => {
+    const q = contactFilter.trim().toLowerCase();
+    if (!q) return true;
+    const hay = [c.full_name, c.email, c.phone, c.organization, c.role]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return hay.includes(q);
+  });
 
   return (
     <main
@@ -137,6 +188,108 @@ export default function VenueDetail() {
 
           <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
             <h2 style={{ margin: 0, marginBottom: 8, fontSize: 16 }}>Contacts</h2>
+
+            {mutateError ? (
+              <p role="alert" style={{ color: 'crimson', marginTop: 0 }}>
+                {mutateError}
+              </p>
+            ) : null}
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!venueId) return;
+                const contactId = newContactId.trim();
+                if (!contactId) {
+                  setMutateError('Sélectionnez un contact.');
+                  return;
+                }
+                void (async () => {
+                  setMutateError(null);
+                  setIsMutating(true);
+                  try {
+                    await upsertVenueContactLink({
+                      venue_id: venueId,
+                      contact_id: contactId,
+                      relation_type: newRelationType.trim() || null,
+                      notes: newNotes.trim() || null,
+                    });
+                    await refreshLinks();
+                    setNewContactId('');
+                    setNewRelationType('');
+                    setNewNotes('');
+                    setContactFilter('');
+                  } catch (e2) {
+                    setMutateError(e2 instanceof Error ? e2.message : 'Impossible de lier ce contact');
+                  } finally {
+                    setIsMutating(false);
+                  }
+                })();
+              }}
+              style={{
+                display: 'grid',
+                gap: 10,
+                padding: 10,
+                border: '1px solid #e5e7eb',
+                borderRadius: 8,
+                marginBottom: 10,
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>Ajouter un contact</div>
+              <label style={{ display: 'grid', gap: 4 }}>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>Rechercher</span>
+                <input
+                  value={contactFilter}
+                  onChange={(e) => setContactFilter(e.currentTarget.value)}
+                  placeholder="Nom, email…"
+                />
+              </label>
+              <label style={{ display: 'grid', gap: 4 }}>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>Contact</span>
+                <select
+                  aria-label="Ajouter un contact"
+                  value={newContactId}
+                  onChange={(e) => setNewContactId(e.currentTarget.value)}
+                >
+                  <option value="">— Sélectionner —</option>
+                  {filteredContacts.map((c) => {
+                    const title = (c.full_name ?? '').trim() || (c.email ?? '').trim() || 'Contact';
+                    const subtitle = [c.organization, c.role].filter(Boolean).join(' — ');
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {[title, subtitle].filter(Boolean).join(' · ')}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label style={{ display: 'grid', gap: 4 }}>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>Type de relation</span>
+                <select value={newRelationType} onChange={(e) => setNewRelationType(e.currentTarget.value)}>
+                  <option value="">—</option>
+                  {relationTypeOptions(newRelationType).map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: 'grid', gap: 4 }}>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>Notes</span>
+                <textarea
+                  value={newNotes}
+                  onChange={(e) => setNewNotes(e.currentTarget.value)}
+                  rows={3}
+                  placeholder="Infos utiles (heures, préférences, etc.)"
+                />
+              </label>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button type="submit" disabled={isMutating}>
+                  {isMutating ? 'Enregistrement…' : 'Lier'}
+                </button>
+              </div>
+            </form>
+
             {links.length === 0 ? <p>Aucun contact lié.</p> : null}
             {links.length ? (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
@@ -157,9 +310,104 @@ export default function VenueDetail() {
                           {l.relation_type ? <div>{l.relation_type}</div> : null}
                         </div>
                       </div>
-                      {l.notes ? (
-                        <div style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{l.notes}</div>
-                      ) : null}
+
+                      {editingLinkId === l.id ? (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            if (!venueId) return;
+                            void (async () => {
+                              setMutateError(null);
+                              setIsMutating(true);
+                              try {
+                                await upsertVenueContactLink({
+                                  venue_id: l.venue_id,
+                                  contact_id: l.contact_id,
+                                  relation_type: editRelationType.trim() || null,
+                                  notes: editNotes.trim() || null,
+                                });
+                                await refreshLinks();
+                                setEditingLinkId(null);
+                              } catch (e2) {
+                                setMutateError(
+                                  e2 instanceof Error ? e2.message : 'Impossible de modifier ce lien',
+                                );
+                              } finally {
+                                setIsMutating(false);
+                              }
+                            })();
+                          }}
+                          style={{ marginTop: 10, display: 'grid', gap: 8 }}
+                        >
+                          <label style={{ display: 'grid', gap: 4 }}>
+                            <span style={{ fontSize: 12, color: '#6b7280' }}>Type de relation</span>
+                            <select
+                              value={editRelationType}
+                              onChange={(e) => setEditRelationType(e.currentTarget.value)}
+                            >
+                              <option value="">—</option>
+                              {relationTypeOptions(editRelationType).map((t) => (
+                                <option key={t} value={t}>
+                                  {t}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label style={{ display: 'grid', gap: 4 }}>
+                            <span style={{ fontSize: 12, color: '#6b7280' }}>Notes</span>
+                            <textarea
+                              value={editNotes}
+                              onChange={(e) => setEditNotes(e.currentTarget.value)}
+                              rows={3}
+                            />
+                          </label>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingLinkId(null);
+                                setEditRelationType('');
+                                setEditNotes('');
+                              }}
+                              disabled={isMutating}
+                              style={{ background: 'white', border: '1px solid #e5e7eb' }}
+                            >
+                              Annuler
+                            </button>
+                            <button type="submit" disabled={isMutating}>
+                              {isMutating ? 'Enregistrement…' : 'Enregistrer'}
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <>
+                          {l.notes ? (
+                            <div style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{l.notes}</div>
+                          ) : null}
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingLinkId(l.id);
+                                setEditRelationType(l.relation_type ?? '');
+                                setEditNotes(l.notes ?? '');
+                              }}
+                              disabled={isMutating}
+                              style={{ background: 'white', border: '1px solid #e5e7eb' }}
+                            >
+                              Modifier
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmUnlink({ id: l.id, contactName: title })}
+                              disabled={isMutating}
+                              style={{ background: '#fee2e2', border: '1px solid #fecaca', color: '#991b1b' }}
+                            >
+                              Dissocier
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </li>
                   );
                 })}
@@ -168,6 +416,33 @@ export default function VenueDetail() {
           </div>
         </section>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(confirmUnlink)}
+        title={confirmUnlink ? `Dissocier “${confirmUnlink.contactName}” ?` : 'Dissocier ?'}
+        description="Le lien entre ce lieu et ce contact sera supprimé."
+        confirmText="Oui, dissocier"
+        cancelText="Annuler"
+        isConfirming={isMutating}
+        onCancel={() => setConfirmUnlink(null)}
+        onConfirm={() => {
+          if (!confirmUnlink) return;
+          const linkId = confirmUnlink.id;
+          void (async () => {
+            setMutateError(null);
+            setIsMutating(true);
+            try {
+              await deleteVenueContactLink(linkId);
+              await refreshLinks();
+              setConfirmUnlink(null);
+            } catch (e2) {
+              setMutateError(e2 instanceof Error ? e2.message : 'Impossible de dissocier');
+            } finally {
+              setIsMutating(false);
+            }
+          })();
+        }}
+      />
     </main>
   );
 }

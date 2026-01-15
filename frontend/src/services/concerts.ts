@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 
-export const CONCERT_STATUSES = ['scheduled', 'completed', 'cancelled'] as const;
+export const CONCERT_STATUSES = ['contacted', 'scheduled', 'completed', 'cancelled'] as const;
 
 export type ConcertStatus = (typeof CONCERT_STATUSES)[number];
 
@@ -8,6 +8,7 @@ export type Concert = {
   id: string;
   date_start: string | null;
   date_end: string | null;
+  first_email_sent_at?: string | null;
   status: ConcertStatus;
   title: string;
   venue_id: string | null;
@@ -29,6 +30,7 @@ export type Concert = {
 export type ConcertUpsertInput = {
   date_start?: string | null;
   date_end?: string | null;
+  first_email_sent_at?: string | null;
   status?: ConcertStatus;
   title?: string;
   venue_id?: string | null;
@@ -141,6 +143,25 @@ export async function updateConcert(id: string, input: ConcertUpsertInput): Prom
   if ('date_end' in input) {
     payload.date_end = input.date_end ?? null;
   }
+
+  const res = await supabase.from('concerts').update(payload).eq('id', id).select('*').single();
+  const updated = unwrap<Concert>(res);
+  await notifySlackConcertUpdate('updated', updated);
+  return updated;
+}
+
+export async function patchConcert(params: {
+  id: string;
+  patch: Partial<Pick<Concert, 'first_email_sent_at'>>;
+}): Promise<Concert> {
+  const id = params.id.trim();
+  if (!id) throw new Error('Missing id');
+
+  const patch = params.patch ?? {};
+  const payload: Record<string, unknown> = {
+    ...patch,
+    updated_at: new Date().toISOString(),
+  };
 
   const res = await supabase.from('concerts').update(payload).eq('id', id).select('*').single();
   const updated = unwrap<Concert>(res);

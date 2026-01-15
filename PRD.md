@@ -62,7 +62,7 @@ Fonctionnalités demandées (MVP) :
 Décisions (confirmées) :
 
 - **Source des concerts: saisie manuelle**.
-- **Statuts concerts** simples (état actuel): `scheduled`, `completed`, `cancelled`.
+- **Statuts concerts** simples (état actuel): `contacted`, `scheduled`, `completed`, `cancelled`.
 - **Gmail: lecture de l’historique de conversation par contact (gérant de lieu)**.
 
 ### État actuel (implémenté)
@@ -70,7 +70,7 @@ Décisions (confirmées) :
 Cette section décrit le comportement actuellement présent dans le code du repo (et prévaut sur les intentions initiales si elles divergent).
 
 - **Concerts**: CRUD côté client via Supabase (pas d’API backend dédiée aux concerts). Les vues Liste / Calendrier / Carte existent.
-- **Statuts concerts**: `scheduled`, `completed`, `cancelled`.
+- **Statuts concerts**: `contacted`, `scheduled`, `completed`, `cancelled`.
 - **Accès Gmail**: via un **proxy backend** (`/gmail/*`) + un flow OAuth dédié “Connecter Gmail” (stockage d’un refresh token chiffré dans Supabase). L’app n’appelle pas directement l’API Gmail depuis le navigateur.
 - **PWA**: service worker minimal injecté via `vite-plugin-pwa` pour l’installabilité et un cache très simple.
 
@@ -97,7 +97,7 @@ Cette section décrit le comportement actuellement présent dans le code du repo
 - Chaque concert affiche au minimum:
   - Date / heure
   - Nom du lieu / ville
-  - Statut (`scheduled` / `completed` / `cancelled`)
+  - Statut (`contacted` / `scheduled` / `completed` / `cancelled`)
 
 Source des données: **saisie manuelle** (création/édition d’un concert dans l’app).
 
@@ -276,4 +276,4 @@ Décisions validées:
 
 - **Gmail**: accès ciblé pour récupérer l’historique de conversation avec un contact (gérant de salle).
 - **Concerts**: saisie manuelle.
-- **Statuts (actuels)**: `scheduled`, `completed`, `cancelled`.
+- **Statuts (actuels)**: `contacted`, `scheduled`, `completed`, `cancelled`.

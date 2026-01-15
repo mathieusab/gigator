@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '../lib/useAuth';
 import { autocompletePlaces, geocodePlace, type PlaceSuggestion } from '../services/mapsProxy';
-import { createVenue, type Venue } from '../services/venues';
+import { createVenueWithInfo, type Venue, type CreateVenueResult } from '../services/venues';
 
 export default function VenueCreateForm({
   onCreated,
+  onResult,
 }: {
   onCreated?: (created: Venue) => void;
+  onResult?: (result: CreateVenueResult) => void;
 }) {
   const { session } = useAuth();
 
@@ -21,6 +23,7 @@ export default function VenueCreateForm({
   const [resolvedLng, setResolvedLng] = useState<number | null>(null);
 
   const [createError, setCreateError] = useState<string | null>(null);
+  const [createInfo, setCreateInfo] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
   const [isResolving, setIsResolving] = useState(false);
@@ -125,6 +128,7 @@ export default function VenueCreateForm({
     e.preventDefault();
     setCreateError(null);
     setResolveError(null);
+    setCreateInfo(null);
     const name = newName.trim();
     if (!name) {
       setCreateError('Le nom du lieu est requis.');
@@ -188,7 +192,7 @@ export default function VenueCreateForm({
 
     setIsCreating(true);
     try {
-      const created = await createVenue({
+      const result = await createVenueWithInfo({
         name,
         city,
         region,
@@ -198,6 +202,8 @@ export default function VenueCreateForm({
         lat,
         lng,
       });
+
+      const created = result.venue;
 
       setNewName('');
       setSelectedPlaceId(null);
@@ -211,6 +217,8 @@ export default function VenueCreateForm({
       setResolvedLat(null);
       setResolvedLng(null);
 
+      onResult?.(result);
+      if (!onResult && result.existed) setCreateInfo('Ce lieu existait déjà — lieu existant réutilisé.');
       onCreated?.(created);
     } catch (e2) {
       setCreateError(e2 instanceof Error ? e2.message : 'Création impossible');
@@ -229,6 +237,12 @@ export default function VenueCreateForm({
       {resolveError ? (
         <p role="alert" style={{ color: 'crimson', margin: 0 }}>
           {resolveError}
+        </p>
+      ) : null}
+
+      {createInfo ? (
+        <p role="status" style={{ color: '#065f46', margin: 0 }}>
+          {createInfo}
         </p>
       ) : null}
 

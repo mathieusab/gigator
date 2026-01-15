@@ -18,7 +18,7 @@ type Concert = {
   id: string;
   date_start: string | null;
   date_end: string | null;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: 'contacted' | 'scheduled' | 'completed' | 'cancelled';
   title: string;
   venue_id: string | null;
   contact_id: string | null;
@@ -108,6 +108,23 @@ vi.mock('../../src/services/concerts', () => {
         lng: input.lng ?? null,
         venue_contact_name: input.venue_contact_name ?? null,
         venue_contact_email: input.venue_contact_email ?? null,
+    createContactWithInfo: vi.fn(async (input: any) => {
+      const created: Contact = {
+        id: `ct-${store.contacts.length + 1}`,
+        full_name: input.full_name ?? null,
+        email: input.email ?? null,
+        phone: input.phone ?? null,
+        last_contact_at: null,
+        role: null,
+        organization: null,
+        preferred_language: null,
+        notes: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      store.contacts.push(created);
+      return { contact: created, existed: false };
+    }),
         notes: input.notes ?? null,
         created_by: 'user-1',
         created_at: new Date().toISOString(),
@@ -182,6 +199,34 @@ vi.mock('../../src/services/venues', () => {
           merch_notes: null,
           notes: null,
           created_at: new Date().toISOString(),
+            createVenueWithInfo: vi.fn(async (input: any) => {
+              const created: Venue = {
+                id: `v-${store.venues.length + 1}`,
+                name: input.name,
+                city: input.city ?? null,
+                country: input.country ?? null,
+                address: input.address ?? null,
+                postal_code: input.postal_code ?? null,
+                region: input.region ?? null,
+                lat: input.lat ?? null,
+                lng: input.lng ?? null,
+                website: null,
+                instagram: null,
+                facebook: null,
+                capacity: null,
+                has_played: false,
+                load_in_notes: null,
+                parking_notes: null,
+                hospitality_notes: null,
+                tech_notes: null,
+                merch_notes: null,
+                notes: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              };
+              store.venues.push(created);
+              return { venue: created, existed: false };
+            }),
           updated_at: new Date().toISOString(),
         },
       ];

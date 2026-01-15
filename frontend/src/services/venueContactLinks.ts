@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabaseClient';
+import { CONTACT_RELATION_TYPES, type ContactRelationType } from '../lib/contactRelationTypes';
 import type { Contact } from './contacts';
 import type { Venue } from './venues';
+
+export const VENUE_CONTACT_RELATION_TYPES = CONTACT_RELATION_TYPES;
+
+export type VenueContactRelationType = ContactRelationType;
 
 export type VenueContactLink = {
   id: string;
@@ -67,4 +72,12 @@ export async function upsertVenueContactLink(input: {
     .single();
 
   return unwrap<VenueContactLink>(res);
+}
+
+export async function deleteVenueContactLink(id: string): Promise<void> {
+  const linkId = String(id ?? '').trim();
+  if (!linkId) throw new Error('Missing venue_contact_link id');
+
+  const res = await supabase.from('venue_contact_links').delete().eq('id', linkId);
+  if (res.error) throw new Error(res.error.message);
 }

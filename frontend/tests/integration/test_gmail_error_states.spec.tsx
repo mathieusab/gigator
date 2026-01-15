@@ -3,6 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 
 const gmailProxyMocks = vi.hoisted(() => {
   return {
+    getGmailConnection: vi.fn(),
     listGmailThreadsForEmail: vi.fn(),
     startGmailOAuth: vi.fn(),
     getGmailThreadById: vi.fn(),
@@ -35,8 +36,11 @@ describe('GmailThreads error states', () => {
   });
 
   beforeEach(() => {
+    gmailProxyMocks.getGmailConnection.mockReset();
     gmailProxyMocks.listGmailThreadsForEmail.mockReset();
     gmailProxyMocks.startGmailOAuth.mockReset();
+
+    gmailProxyMocks.getGmailConnection.mockResolvedValue({ gmailEmail: 'me@example.com' });
   });
 
   afterEach(() => {

@@ -34,7 +34,8 @@ type Concert = {
   id: string;
   date_start: string | null;
   date_end: string | null;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  first_email_sent_at?: string | null;
+  status: 'contacted' | 'scheduled' | 'completed' | 'cancelled';
   title: string;
   venue_id: string | null;
   contact_id: string | null;
@@ -70,7 +71,7 @@ const store: { concerts: Concert[]; financialItems: ConcertFinancialItem[] } = {
 
 vi.mock('../../src/services/concerts', () => {
   return {
-    CONCERT_STATUSES: ['scheduled', 'completed', 'cancelled'],
+    CONCERT_STATUSES: ['contacted', 'scheduled', 'completed', 'cancelled'],
     listConcerts: vi.fn(async () => store.concerts.slice()),
     getConcert: vi.fn(async () => {
       throw new Error('not used');
@@ -122,6 +123,9 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
       id: 'c-1',
       date_start: new Date(Date.UTC(month1.getUTCFullYear(), month1.getUTCMonth(), 10, 12, 0, 0)).toISOString(),
       date_end: null,
+      first_email_sent_at: new Date(
+        Date.UTC(month1.getUTCFullYear(), month1.getUTCMonth(), 2, 12, 0, 0),
+      ).toISOString(),
       status: 'completed',
       title: 'Past 1',
       venue_id: null,
@@ -143,6 +147,7 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
       id: 'c-2',
       date_start: new Date(Date.UTC(month1.getUTCFullYear(), month1.getUTCMonth(), 11, 12, 0, 0)).toISOString(),
       date_end: null,
+      first_email_sent_at: null,
       status: 'completed',
       title: 'Past 2',
       venue_id: null,
@@ -165,6 +170,9 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
       id: 'c-3',
       date_start: new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString(),
       date_end: null,
+      first_email_sent_at: new Date(
+        Date.UTC(month0.getUTCFullYear(), month0.getUTCMonth(), 1, 12, 0, 0),
+      ).toISOString(),
       status: 'scheduled',
       title: 'Future',
       venue_id: null,
@@ -187,6 +195,9 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
       id: 'c-4',
       date_start: new Date(Date.UTC(month25.getUTCFullYear(), month25.getUTCMonth(), 10, 12, 0, 0)).toISOString(),
       date_end: null,
+      first_email_sent_at: new Date(
+        Date.UTC(month25.getUTCFullYear(), month25.getUTCMonth(), 1, 12, 0, 0),
+      ).toISOString(),
       status: 'completed',
       title: 'Too old',
       venue_id: null,
@@ -242,6 +253,7 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
   expect(await screen.findByText('Gains nets par mois')).toBeInTheDocument();
 
   await waitFor(() => expect(screen.getByTestId('stats-status-count-scheduled')).toBeInTheDocument());
+  expect(screen.getByTestId('stats-status-count-contacted')).toHaveTextContent('0');
   expect(screen.getByTestId('stats-status-count-scheduled')).toHaveTextContent('1');
   expect(screen.getByTestId('stats-status-count-completed')).toHaveTextContent('3');
   expect(screen.getByTestId('stats-status-count-cancelled')).toHaveTextContent('0');
@@ -250,6 +262,9 @@ test('Stats: renders and counts past concerts per month (24 months)', async () =
 
   expect(screen.getByTestId(`stats-bar-${lastMonthKey}`)).toHaveAttribute('data-count', '2');
   expect(screen.getByTestId(`stats-bar-${currentMonthKey}`)).toHaveAttribute('data-count', '0');
+
+  expect(screen.getByTestId(`stats-contacted-bar-${lastMonthKey}`)).toHaveAttribute('data-count', '1');
+  expect(screen.getByTestId(`stats-contacted-bar-${currentMonthKey}`)).toHaveAttribute('data-count', '1');
 
   // Net for last month should be 20000 - 500 = 19500 cents.
   expect(screen.getByTestId(`stats-net-bar-${lastMonthKey}`)).toHaveAttribute('data-net-cents', '19500');

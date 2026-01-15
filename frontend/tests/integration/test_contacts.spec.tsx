@@ -79,6 +79,7 @@ vi.mock('../../src/services/contacts', () => {
     listContacts: hoisted.listContactsMock,
     getContact: hoisted.getContactMock,
     createContact: hoisted.createContactMock,
+    createContactWithInfo: vi.fn(async (input: any) => ({ contact: await hoisted.createContactMock(input), existed: false })),
   };
 });
 
@@ -87,6 +88,17 @@ vi.mock('../../src/services/venueContactLinks', () => {
     listVenuesForContact: vi.fn(async () => []),
     listContactsForVenue: vi.fn(async () => []),
     upsertVenueContactLink: vi.fn(async () => undefined),
+    deleteVenueContactLink: vi.fn(async () => undefined),
+    VENUE_CONTACT_RELATION_TYPES: [
+      'Booker',
+      'Programmateur',
+      'Régisseur',
+      'Technique',
+      'Communication',
+      'Presse',
+      'Administration',
+      'Autre',
+    ],
   };
 });
 

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Concert, ConcertStatus, ConcertUpsertInput } from '../services/concerts';
 import { formatConcertStatusFr } from '../lib/concertStatus';
+import { bucketColors, deriveConcertBucket, formatBucketFr } from '../lib/concertBuckets';
 import {
   CONCERT_CONTACT_CATEGORIES,
   type ConcertContactCategory,
@@ -89,6 +90,21 @@ export default function ConcertForm({
     (initial?.status as ConcertStatus) ?? 'scheduled',
   );
 
+  const derivedBucket = useMemo(() => {
+    const date_start = (() => {
+      if (isDateTbd) return null;
+      const raw = dateStart.trim();
+      if (!raw) return null;
+      try {
+        return toIsoFromDateTimeLocal(raw);
+      } catch {
+        return null;
+      }
+    })();
+
+    return deriveConcertBucket({ status, date_start });
+  }, [status, dateStart, isDateTbd]);
+
   const [venues, setVenues] = useState<Venue[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [directoryError, setDirectoryError] = useState<string | null>(null);
@@ -113,6 +129,23 @@ export default function ConcertForm({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [actionFlash, setActionFlash] = useState<string | null>(null);
+  const [actionFlashKind, setActionFlashKind] = useState<'success' | 'info'>('success');
+  const actionFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (actionFlashTimeoutRef.current) clearTimeout(actionFlashTimeoutRef.current);
+    };
+  }, []);
+
+  function showActionFlash(kind: 'success' | 'info', text: string) {
+    if (actionFlashTimeoutRef.current) clearTimeout(actionFlashTimeoutRef.current);
+    setActionFlashKind(kind);
+    setActionFlash(text);
+    actionFlashTimeoutRef.current = setTimeout(() => setActionFlash(null), 3000);
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -275,6 +308,22 @@ export default function ConcertForm({
         </p>
       ) : null}
 
+      {actionFlash ? (
+        <p
+          role="status"
+          style={{
+            margin: 0,
+            padding: 10,
+            borderRadius: 8,
+            border: '1px solid #d1fae5',
+            background: actionFlashKind === 'success' ? '#ecfdf5' : '#eff6ff',
+            color: actionFlashKind === 'success' ? '#065f46' : '#1d4ed8',
+          }}
+        >
+          {actionFlash}
+        </p>
+      ) : null}
+
       {directoryError ? (
         <p role="alert" style={{ color: 'crimson', margin: 0 }}>
           {directoryError}
@@ -335,10 +384,35 @@ export default function ConcertForm({
       <label style={{ display: 'grid', gap: 4 }}>
         <span>Statut</span>
         <select value={status} onChange={(e) => setStatus(e.target.value as ConcertStatus)}>
+          <option value="contacted">{formatConcertStatusFr('contacted')}</option>
           <option value="scheduled">{formatConcertStatusFr('scheduled')}</option>
           <option value="completed">{formatConcertStatusFr('completed')}</option>
           <option value="cancelled">{formatConcertStatusFr('cancelled')}</option>
         </select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#6b7280' }}>
+          <span>Couleur (dans l’app):</span>
+          {(() => {
+            const c = bucketColors(derivedBucket);
+            return (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                  border: `1px solid ${c.border}`,
+                  background: c.bg,
+                  color: c.text,
+                  fontWeight: 700,
+                }}
+              >
+                <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 999, background: c.accent }} />
+                {formatBucketFr(derivedBucket)}
+              </span>
+            );
+          })()}
+        </div>
       </label>
       <label style={{ display: 'grid', gap: 4 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
@@ -489,6 +563,17 @@ export default function ConcertForm({
         widthPx={820}
       >
         <VenueCreateForm
+          onResult={(result) => {
+            const created = result.venue as any;
+            const name = String(created?.name ?? '').trim();
+            const city = String(created?.city ?? '').trim();
+            const suffix = [name, city].filter(Boolean).join(city ? ' — ' : '');
+            if (result.existed) {
+              showActionFlash('info', `Lieu existant réutilisé${suffix ? ` : ${suffix}` : ''}`);
+            } else {
+              showActionFlash('success', `Lieu ajouté${suffix ? ` : ${suffix}` : ''}`);
+            }
+          }}
           onCreated={(created) => {
             setVenues((prev) => [created, ...prev.filter((v) => v.id !== created.id)]);
             setSelectedVenueId(created.id);
@@ -503,6 +588,19 @@ export default function ConcertForm({
         onClose={() => setIsContactCreateOpen(false)}
       >
         <ContactCreateForm
+          onResult={(result) => {
+            const c = result.contact as any;
+            const fullName = String(c?.full_name ?? '').trim();
+            const email = String(c?.email ?? '').trim();
+            const phone = String(c?.phone ?? '').trim();
+            const label = fullName || email || phone;
+
+            if (result.existed) {
+              showActionFlash('info', `Contact existant réutilisé${label ? ` : ${label}` : ''}`);
+            } else {
+              showActionFlash('success', `Contact ajouté${label ? ` : ${label}` : ''}`);
+            }
+          }}
           onCreated={(created) => {
             setContacts((prev) => [created, ...prev.filter((c) => c.id !== created.id)]);
 

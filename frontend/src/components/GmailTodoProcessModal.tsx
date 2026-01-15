@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
+import ContactCreateForm from './ContactCreateForm';
+import VenueCreateForm from './VenueCreateForm';
 import { getGmailThreadById, type GmailThread } from '../services/gmailProxy';
-import { analyzeGmailThread, type GmailThreadSuggestion } from '../services/gmailThreadAnalysis';
 
 function safeString(v: unknown) {
   return String(v ?? '').trim();
@@ -29,6 +30,30 @@ function extractEmailAddress(headerValue: string | undefined) {
   if (m?.[1]) return m[1].trim();
   if (raw.includes('@')) return raw.split(/[\s,;]/)[0].trim();
   return '';
+}
+
+function normalizeEmail(email: string) {
+  return safeString(email).toLowerCase();
+}
+
+function chooseCounterpartEmail(params: {
+  fromHeader?: string;
+  toHeader?: string;
+  fallback?: string;
+  selfEmail?: string;
+}) {
+  const from = extractEmailAddress(params.fromHeader);
+  const to = extractEmailAddress(params.toHeader);
+  const fallback = safeString(params.fallback);
+  const self = normalizeEmail(params.selfEmail ?? '');
+
+  const fromNorm = normalizeEmail(from);
+  const toNorm = normalizeEmail(to);
+
+  if (self && fromNorm === self && to) return to;
+  if (self && toNorm === self && from) return from;
+
+  return from || to || fallback;
 }
 
 function messageBodyToDisplay(m: NonNullable<GmailThread['messages']>[number]) {
@@ -73,9 +98,10 @@ export default function GmailTodoProcessModal({
   const [threadError, setThreadError] = useState<string | null>(null);
   const [isLoadingThread, setIsLoadingThread] = useState(false);
 
-  const [suggestion, setSuggestion] = useState<GmailThreadSuggestion | null>(null);
-  const [suggestionError, setSuggestionError] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isVenueCreateOpen, setIsVenueCreateOpen] = useState(false);
+  const [isContactCreateOpen, setIsContactCreateOpen] = useState(false);
+
+  const [actionFlash, setActionFlash] = useState<{ kind: 'success' | 'info'; text: string } | null>(null);
 
   const sortedMessages = useMemo(() => {
     const messages = thread?.messages ?? [];
@@ -86,27 +112,16 @@ export default function GmailTodoProcessModal({
     });
   }, [thread?.messages]);
 
-  const [prefillTitle, setPrefillTitle] = useState('');
-  const [prefillVenueName, setPrefillVenueName] = useState('');
-  const [prefillCity, setPrefillCity] = useState('');
-  const [prefillDateStartIso, setPrefillDateStartIso] = useState('');
-  const [prefillNotes, setPrefillNotes] = useState('');
-
   useEffect(() => {
     if (!open) return;
     setThread(null);
     setThreadError(null);
     setIsLoadingThread(false);
 
-    setSuggestion(null);
-    setSuggestionError(null);
-    setIsAnalyzing(false);
+    setIsVenueCreateOpen(false);
+    setIsContactCreateOpen(false);
 
-    setPrefillTitle('');
-    setPrefillVenueName('');
-    setPrefillCity('');
-    setPrefillDateStartIso('');
-    setPrefillNotes('');
+    setActionFlash(null);
   }, [open]);
 
   useEffect(() => {
@@ -138,73 +153,38 @@ export default function GmailTodoProcessModal({
     };
   }, [open, todo?.threadId, appAccessToken]);
 
-  useEffect(() => {
-    if (!open) return;
-    if (!todo?.threadId) return;
-    if (!appAccessToken) return;
-
-    let isMounted = true;
-    void (async () => {
-      setIsAnalyzing(true);
-      setSuggestionError(null);
-      try {
-        const s = await analyzeGmailThread({ appAccessToken, threadId: todo.threadId });
-        if (!isMounted) return;
-        setSuggestion(s);
-
-        if (s.kind === 'create_concert') {
-          setPrefillTitle(s.extracted.title ?? todo.subject);
-          setPrefillVenueName(s.extracted.venue_name ?? '');
-          setPrefillCity(s.extracted.city ?? '');
-          setPrefillDateStartIso(s.extracted.date_start ?? '');
-          setPrefillNotes(s.extracted.notes ?? '');
-        } else {
-          setPrefillNotes(s.rationale ?? '');
-        }
-      } catch (e) {
-        if (!isMounted) return;
-        setSuggestionError(e instanceof Error ? e.message : "Impossible d'analyser le thread");
-      } finally {
-        if (isMounted) setIsAnalyzing(false);
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [open, todo?.threadId, appAccessToken, todo?.subject]);
-
   const headerLine = useMemo(() => {
     if (!todo) return '';
     const parts = [safeString(todo.counterpartEmail), safeString(todo.subject)].filter(Boolean);
     return parts.join(' — ');
   }, [todo]);
 
-  const lastFromEmail = useMemo(() => {
+  const counterpartEmail = useMemo(() => {
     const last = sortedMessages[sortedMessages.length - 1];
-    return extractEmailAddress(last?.headers?.from) || safeString(todo?.counterpartEmail);
+    return chooseCounterpartEmail({
+      fromHeader: last?.headers?.from,
+      toHeader: last?.headers?.to,
+      fallback: todo?.counterpartEmail,
+      selfEmail: 'barelyblue.theband@gmail.com',
+    });
   }, [sortedMessages, todo?.counterpartEmail]);
 
   function openConcertCreate() {
     if (!todo) return;
     const qs = new URLSearchParams({
       source: 'gmail',
-      email: lastFromEmail || safeString(todo.counterpartEmail),
+      email: counterpartEmail || safeString(todo.counterpartEmail),
       subject: safeString(todo.subject),
       snippet: safeString(todo.snippet),
       threadId: safeString(todo.threadId),
     });
 
     if (todo.todoId) qs.set('todoId', todo.todoId);
-    if (safeString(prefillTitle)) qs.set('prefillTitle', safeString(prefillTitle));
-    if (safeString(prefillVenueName)) qs.set('prefillVenueName', safeString(prefillVenueName));
-    if (safeString(prefillCity)) qs.set('prefillCity', safeString(prefillCity));
-    if (safeString(prefillDateStartIso)) qs.set('prefillDateStart', safeString(prefillDateStartIso));
-    if (safeString(prefillNotes)) qs.set('prefillNotes', safeString(prefillNotes));
 
     onClose();
     navigate(`/concerts/new?${qs.toString()}`);
   }
+
 
   async function markRejected() {
     const todoId = safeString(todo?.todoId);
@@ -281,119 +261,106 @@ export default function GmailTodoProcessModal({
 
           <section style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-              <div style={{ fontWeight: 800 }}>Suggestion IA</div>
-              <div style={{ color: '#6b7280', fontSize: 12 }}>{isAnalyzing ? 'Analyse…' : ''}</div>
+              <div style={{ fontWeight: 800 }}>Actions</div>
             </div>
 
-            {suggestionError ? (
-              <p role="alert" style={{ color: 'crimson', marginTop: 10 }}>
-                {suggestionError}
-              </p>
-            ) : null}
-
-            {suggestion ? (
-              <div style={{ marginTop: 10, display: 'grid', gap: 10 }}>
-                <div style={{
+            {actionFlash ? (
+              <div
+                role="status"
+                style={{
+                  marginTop: 10,
                   padding: 10,
                   borderRadius: 10,
-                  border: '1px solid #e5e7eb',
-                  background: suggestion.kind === 'reject' ? '#fef2f2' : '#ecfeff',
-                }}>
-                  <div style={{ fontWeight: 800 }}>
-                    {suggestion.kind === 'reject' ? 'Proposition: classer en refusé' : 'Proposition: créer une opportunité de concert'}
-                  </div>
-                  {suggestion.rationale ? (
-                    <div style={{ marginTop: 6, color: '#374151', whiteSpace: 'pre-wrap' }}>{suggestion.rationale}</div>
-                  ) : null}
-                  <div style={{ marginTop: 6, color: '#6b7280', fontSize: 12 }}>
-                    Confiance: {Math.round((suggestion.confidence ?? 0) * 100)}%
-                  </div>
-                </div>
-
-                {suggestion.kind === 'create_concert' ? (
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    <label style={{ display: 'grid', gap: 4 }}>
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>Titre (optionnel)</span>
-                      <input value={prefillTitle} onChange={(e) => setPrefillTitle(e.currentTarget.value)} />
-                    </label>
-                    <label style={{ display: 'grid', gap: 4 }}>
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>Lieu (nom)</span>
-                      <input
-                        value={prefillVenueName}
-                        onChange={(e) => setPrefillVenueName(e.currentTarget.value)}
-                        placeholder="Ex: Le Molotov"
-                      />
-                    </label>
-                    <label style={{ display: 'grid', gap: 4 }}>
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>Ville</span>
-                      <input
-                        value={prefillCity}
-                        onChange={(e) => setPrefillCity(e.currentTarget.value)}
-                        placeholder="Ex: Marseille"
-                      />
-                    </label>
-                    <label style={{ display: 'grid', gap: 4 }}>
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>Date (ISO) (optionnel)</span>
-                      <input
-                        value={prefillDateStartIso}
-                        onChange={(e) => setPrefillDateStartIso(e.currentTarget.value)}
-                        placeholder="2026-02-10T20:00:00.000Z"
-                      />
-                    </label>
-                    <label style={{ display: 'grid', gap: 4 }}>
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>Notes</span>
-                      <textarea
-                        value={prefillNotes}
-                        onChange={(e) => setPrefillNotes(e.currentTarget.value)}
-                        rows={6}
-                        style={{ resize: 'vertical' }}
-                      />
-                    </label>
-
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <button type="button" onClick={openConcertCreate}>
-                        Ouvrir la création de concert
-                      </button>
-                      <button type="button" onClick={() => void markRejected()} disabled={!todo.todoId}>
-                        Classer en refusé
-                      </button>
-                    </div>
-
-                    <p style={{ margin: 0, color: '#6b7280', fontSize: 12 }}>
-                      La création est préremplie, mais rien n’est validé sans votre confirmation.
-                    </p>
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    <label style={{ display: 'grid', gap: 4 }}>
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>Raison (optionnel)</span>
-                      <textarea
-                        value={prefillNotes}
-                        onChange={(e) => setPrefillNotes(e.currentTarget.value)}
-                        rows={5}
-                        style={{ resize: 'vertical' }}
-                      />
-                    </label>
-
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <button type="button" onClick={() => void markRejected()} disabled={!todo.todoId}>
-                        Confirmer: classer en refusé
-                      </button>
-                      <button type="button" onClick={openConcertCreate}>
-                        Finalement: créer une opportunité
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  border: actionFlash.kind === 'success' ? '1px solid #bbf7d0' : '1px solid #bfdbfe',
+                  background: actionFlash.kind === 'success' ? '#f0fdf4' : '#eff6ff',
+                  color: actionFlash.kind === 'success' ? '#065f46' : '#1d4ed8',
+                  fontSize: 13,
+                }}
+              >
+                {actionFlash.text}
               </div>
-            ) : (
-              <p style={{ color: '#6b7280', marginTop: 10 }}>
-                {isAnalyzing ? 'Analyse en cours…' : 'Aucune suggestion disponible.'}
-              </p>
-            )}
+            ) : null}
+
+            <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+              <button type="button" onClick={() => setIsVenueCreateOpen(true)}>
+                Ajouter un lieu
+              </button>
+              <button type="button" onClick={() => setIsContactCreateOpen(true)}>
+                Ajouter un contact
+              </button>
+              <button type="button" onClick={openConcertCreate}>
+                Ajouter un concert
+              </button>
+              <button type="button" onClick={() => void markRejected()} disabled={!todo.todoId}>
+                Classer en refusé
+              </button>
+            </div>
           </section>
         </div>
       ) : null}
+
+      <Modal
+        open={isVenueCreateOpen}
+        title="Nouveau lieu"
+        onClose={() => setIsVenueCreateOpen(false)}
+        widthPx={820}
+      >
+        <VenueCreateForm
+          onResult={(result) => {
+            const name = safeString((result.venue as any)?.name);
+            const city = safeString((result.venue as any)?.city);
+            const suffix = [name, city].filter(Boolean).join(city ? ' — ' : '');
+
+            if (result.existed) {
+              setActionFlash({
+                kind: 'info',
+                text: `Lieu existant réutilisé${suffix ? ` : ${suffix}` : ''}`,
+              });
+            } else {
+              setActionFlash({
+                kind: 'success',
+                text: `Lieu ajouté${suffix ? ` : ${suffix}` : ''}`,
+              });
+            }
+          }}
+          onCreated={(created) => {
+            setIsVenueCreateOpen(false);
+          }}
+        />
+      </Modal>
+
+      <Modal
+        open={isContactCreateOpen}
+        title="Nouveau contact"
+        onClose={() => setIsContactCreateOpen(false)}
+      >
+        <ContactCreateForm
+          prefill={{
+            email: counterpartEmail || safeString(todo?.counterpartEmail),
+          }}
+          onResult={(result) => {
+            const fullName = safeString((result.contact as any)?.full_name);
+            const email = safeString((result.contact as any)?.email);
+            const phone = safeString((result.contact as any)?.phone);
+            const label = fullName || email || phone;
+
+            if (result.existed) {
+              setActionFlash({
+                kind: 'info',
+                text: `Contact existant réutilisé${label ? ` : ${label}` : ''}`,
+              });
+            } else {
+              setActionFlash({
+                kind: 'success',
+                text: `Contact ajouté${label ? ` : ${label}` : ''}`,
+              });
+            }
+          }}
+          onCreated={(created) => {
+            setIsContactCreateOpen(false);
+          }}
+        />
+      </Modal>
     </Modal>
   );
 }

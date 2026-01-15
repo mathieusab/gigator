@@ -1,19 +1,36 @@
 import { useEffect, useState } from 'react';
 
-import { createContact, type Contact } from '../services/contacts';
+import { createContactWithInfo, type Contact, type CreateContactResult } from '../services/contacts';
 
 export default function ContactCreateForm({
+  prefill,
   onCreated,
+  onResult,
 }: {
+  prefill?: {
+    full_name?: string | null | undefined;
+    email?: string | null | undefined;
+    phone?: string | null | undefined;
+  };
   onCreated?: (created: Contact) => void;
+  onResult?: (result: CreateContactResult) => void;
 }) {
   const [newFullName, setNewFullName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [createError, setCreateError] = useState<string | null>(null);
+  const [createInfo, setCreateInfo] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
+    const prefillEmail = String(prefill?.email ?? '').trim();
+    const prefillFullName = String(prefill?.full_name ?? '').trim();
+    const prefillPhone = String(prefill?.phone ?? '').trim();
+
+    if (prefillEmail && !newEmail) setNewEmail(prefillEmail);
+    if (prefillFullName && !newFullName) setNewFullName(prefillFullName);
+    if (prefillPhone && !newPhone) setNewPhone(prefillPhone);
+
     // Optional UX: allow pre-filling the inline create form from query params.
     // Example: /contacts?email=foo@bar.com
     const params = new URLSearchParams(window.location.search);
@@ -31,6 +48,7 @@ export default function ContactCreateForm({
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setCreateError(null);
+    setCreateInfo(null);
 
     const full_name = newFullName.trim() || null;
     const email = newEmail.trim() || null;
@@ -42,10 +60,14 @@ export default function ContactCreateForm({
 
     setIsCreating(true);
     try {
-      const created = await createContact({ full_name, email, phone });
+      const result = await createContactWithInfo({ full_name, email, phone });
+      const created = result.contact;
       setNewFullName('');
       setNewEmail('');
       setNewPhone('');
+
+      onResult?.(result);
+      if (!onResult && result.existed) setCreateInfo('Ce contact existait déjà — contact existant réutilisé.');
       onCreated?.(created);
     } catch (e2) {
       setCreateError(e2 instanceof Error ? e2.message : 'Création impossible');
@@ -64,6 +86,12 @@ export default function ContactCreateForm({
       {createError ? (
         <p role="alert" style={{ color: 'crimson', margin: 0 }}>
           {createError}
+        </p>
+      ) : null}
+
+      {createInfo ? (
+        <p role="status" style={{ color: '#065f46', margin: 0 }}>
+          {createInfo}
         </p>
       ) : null}
 

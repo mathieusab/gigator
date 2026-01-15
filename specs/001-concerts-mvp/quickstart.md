@@ -43,7 +43,7 @@ create table if not exists concerts (
   id uuid primary key default gen_random_uuid(),
   date_start timestamptz not null,
   date_end timestamptz,
-  status text not null default 'scheduled' check (status in ('scheduled', 'completed', 'cancelled')),
+  status text not null default 'scheduled' check (status in ('contacted', 'scheduled', 'completed', 'cancelled')),
   -- The frontend expects a stored title (it derives one when missing)
   title text not null,
   venue_name text not null,
@@ -92,6 +92,11 @@ alter table public.concerts add column if not exists title text;
 -- refresh PostgREST schema cache
 notify pgrst, 'reload schema';
 ````
+
+Then apply:
+
+- `specs/001-concerts-mvp/sql/unique_contacts_venues.sql`
+
 
 ## Notes about current UI behavior
 

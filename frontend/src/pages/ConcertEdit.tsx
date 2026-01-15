@@ -9,6 +9,7 @@ import {
   type Concert,
   type ConcertUpsertInput,
 } from '../services/concerts';
+import { createConcertFinancialItem } from '../services/concertFinancialItems';
 import {
   listContactsForConcert,
   replaceContactsForConcert,
@@ -28,6 +29,8 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
   const [isLoading, setIsLoading] = useState(mode === 'edit');
   const [error, setError] = useState<string | null>(null);
 
+  const [prefillCachetCents, setPrefillCachetCents] = useState<number | null>(null);
+
   const prefillInitial = (() => {
     if (mode !== 'create') return undefined;
     const qs = new URLSearchParams(location.search);
@@ -45,6 +48,12 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
     const prefillCity = String(qs.get('prefillCity') ?? '').trim();
     const prefillDateStart = String(qs.get('prefillDateStart') ?? '').trim();
     const prefillNotes = String(qs.get('prefillNotes') ?? '').trim();
+    const prefillCachetCentsRaw = String(qs.get('prefillCachetCents') ?? '').trim();
+
+    const prefillCachetCentsParsed = prefillCachetCentsRaw ? Number(prefillCachetCentsRaw) : NaN;
+    const prefillCachetCents = Number.isFinite(prefillCachetCentsParsed)
+      ? Math.max(0, Math.floor(prefillCachetCentsParsed))
+      : 0;
 
     const lines: string[] = [];
     lines.push('Issue Gmail à traiter');
@@ -58,6 +67,7 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
     if (prefillVenueName) lines.push(`Lieu suggéré: ${prefillVenueName}`);
     if (prefillCity) lines.push(`Ville suggérée: ${prefillCity}`);
     if (prefillDateStart) lines.push(`Date suggérée: ${prefillDateStart}`);
+    if (prefillCachetCents > 0) lines.push(`Cachet suggéré: ${(prefillCachetCents / 100).toFixed(2)} €`);
     if (prefillNotes) {
       lines.push('---');
       lines.push(prefillNotes);
@@ -80,6 +90,20 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
       date_start,
     };
   })();
+
+  useEffect(() => {
+    if (mode !== 'create') return;
+    const qs = new URLSearchParams(location.search);
+    const source = String(qs.get('source') ?? '').trim();
+    if (source !== 'gmail') return;
+
+    const raw = String(qs.get('prefillCachetCents') ?? '').trim();
+    const parsed = raw ? Number(raw) : NaN;
+    if (!Number.isFinite(parsed)) return;
+    const cents = Math.max(0, Math.floor(parsed));
+    if (cents <= 0) return;
+    setPrefillCachetCents(cents);
+  }, [mode, location.search]);
 
   const gmailTodoId = (() => {
     if (mode !== 'create') return '';
@@ -140,6 +164,19 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
 
     if (mode === 'create') {
       const created = await createConcert(input);
+
+      if (prefillCachetCents && prefillCachetCents > 0) {
+        // Best-effort: do not block creation if finances insert fails.
+        try {
+          await createConcertFinancialItem(created.id, {
+            kind: 'income',
+            label: 'Cachet',
+            amount_cents: prefillCachetCents,
+          });
+        } catch {
+          // ignore
+        }
+      }
 
       if (gmailTodoId) {
         // Best-effort: do not block navigation if status update fails.
@@ -207,6 +244,35 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
 
       {!isLoading && !error ? (
         <section style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+          {mode === 'create' && prefillCachetCents ? (
+            <section style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
+              <div style={{ fontWeight: 700 }}>Préremplissage finances</div>
+              <div style={{ marginTop: 8, display: 'grid', gap: 6, maxWidth: 320 }}>
+                <label style={{ display: 'grid', gap: 4 }}>
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>Cachet (€)</span>
+                  <input
+                    value={(prefillCachetCents / 100).toFixed(2).replace(/\.00$/, '')}
+                    onChange={(e) => {
+                      const raw = String(e.currentTarget.value ?? '').trim();
+                      if (!raw) {
+                        setPrefillCachetCents(null);
+                        return;
+                      }
+                      const n = Number(raw.replace(',', '.'));
+                      if (!Number.isFinite(n) || n <= 0) return;
+                      setPrefillCachetCents(Math.round(n * 100));
+                    }}
+                    inputMode="decimal"
+                    placeholder="Ex: 450"
+                  />
+                </label>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>
+                  Cet item “Cachet” sera créé automatiquement lors de la création du concert.
+                </div>
+              </div>
+            </section>
+          ) : null}
+
           <ConcertForm
             initial={concert ?? prefillInitial ?? undefined}
             onSubmit={handleSubmit}

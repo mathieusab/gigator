@@ -41,17 +41,68 @@ export type ContactCreateInput = {
   notes?: string | null;
 };
 
-export async function createContact(input: ContactCreateInput): Promise<Contact> {
+export type CreateContactResult = {
+  contact: Contact;
+  existed: boolean;
+};
+
+export async function createContactWithInfo(input: ContactCreateInput): Promise<CreateContactResult> {
+  const full_name = input.full_name?.trim() || null;
+  const email = input.email?.trim() || null;
+  const phone = input.phone?.trim() || null;
+
+  // Best-effort uniqueness enforcement on the client side.
+  // DB should also enforce this with UNIQUE indexes, but this avoids accidental duplicates
+  // when the DB isn't constrained yet.
+  if (email) {
+    const existing = await supabase.from('contacts').select('*').ilike('email', email).limit(1);
+    if (existing.error) throw new Error(existing.error.message);
+    if (existing.data?.[0]) return { contact: existing.data[0] as Contact, existed: true };
+  }
+
+  if (phone) {
+    const existing = await supabase.from('contacts').select('*').eq('phone', phone).limit(1);
+    if (existing.error) throw new Error(existing.error.message);
+    if (existing.data?.[0]) return { contact: existing.data[0] as Contact, existed: true };
+  }
+
   const payload: Record<string, unknown> = {
     ...input,
-    full_name: input.full_name?.trim() || null,
-    email: input.email?.trim() || null,
-    phone: input.phone?.trim() || null,
+    full_name,
+    email,
+    phone,
     updated_at: new Date().toISOString(),
   };
 
   const res = await supabase.from('contacts').insert(payload).select('*').single();
-  return unwrap<Contact>(res);
+  if (res.error) {
+    const code = String((res.error as any).code ?? '');
+    const message = String(res.error.message ?? '');
+
+    // Unique violation: another client created it concurrently.
+    if (code === '23505' || /duplicate key value violates unique constraint/i.test(message)) {
+      if (email) {
+        const existing = await supabase.from('contacts').select('*').ilike('email', email).limit(1);
+        if (existing.error) throw new Error(existing.error.message);
+        if (existing.data?.[0]) return { contact: existing.data[0] as Contact, existed: true };
+      }
+      if (phone) {
+        const existing = await supabase.from('contacts').select('*').eq('phone', phone).limit(1);
+        if (existing.error) throw new Error(existing.error.message);
+        if (existing.data?.[0]) return { contact: existing.data[0] as Contact, existed: true };
+      }
+      throw new Error('Ce contact existe déjà.');
+    }
+
+    throw new Error(res.error.message);
+  }
+  if (res.data === null) throw new Error('Unexpected empty response');
+  return { contact: res.data as Contact, existed: false };
+}
+
+export async function createContact(input: ContactCreateInput): Promise<Contact> {
+  const result = await createContactWithInfo(input);
+  return result.contact;
 }
 
 export async function deleteContact(id: string): Promise<void> {

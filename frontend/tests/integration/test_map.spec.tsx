@@ -20,7 +20,7 @@ type Concert = {
   id: string;
   date_start: string | null;
   date_end: string | null;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: 'contacted' | 'scheduled' | 'completed' | 'cancelled';
   title: string;
   venue_name: string;
   city: string | null;

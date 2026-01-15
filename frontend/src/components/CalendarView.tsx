@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import type { Concert } from '../services/concerts';
+import { bucketColors, deriveConcertBucket, formatBucketFr, type ConcertBucket } from '../lib/concertBuckets';
 
 function pad2(n: number) {
   return String(n).padStart(2, '0');
@@ -88,8 +89,18 @@ export default function CalendarView({
     const first = makeUTCMonthDate(year, monthIdx);
     const leadingBlanks = mondayIndexFromUTCDay(first.getUTCDay());
 
+    const priority: ConcertBucket[] = ['cancelled', 'contacted', 'upcoming', 'past', 'to_schedule'];
+
     const cells: Array<
-      { kind: 'blank' } | { kind: 'day'; dateKey: string; dayNumber: number; count: number }
+      | { kind: 'blank' }
+      | {
+          kind: 'day';
+          dateKey: string;
+          dayNumber: number;
+          count: number;
+          primaryBucket: ConcertBucket | null;
+          buckets: ConcertBucket[];
+        }
     > = [];
 
     for (let i = 0; i < leadingBlanks; i++) cells.push({ kind: 'blank' });
@@ -98,7 +109,15 @@ export default function CalendarView({
       const d = new Date(Date.UTC(year, monthIdx, day));
       const dateKey = toISODateUTC(d);
       const items = concertsByDay.get(dateKey) ?? [];
-      cells.push({ kind: 'day', dateKey, dayNumber: day, count: items.length });
+
+      const now = new Date();
+      const buckets = Array.from(
+        new Set(items.map((c) => deriveConcertBucket(c, now))),
+      );
+      buckets.sort((a, b) => priority.indexOf(a) - priority.indexOf(b));
+      const primaryBucket = buckets[0] ?? null;
+
+      cells.push({ kind: 'day', dateKey, dayNumber: day, count: items.length, primaryBucket, buckets });
     }
 
     return cells;
@@ -149,6 +168,8 @@ export default function CalendarView({
             return <div key={`b-${idx}`} />;
           }
 
+          const primary = cell.primaryBucket ? bucketColors(cell.primaryBucket) : null;
+
           return (
             <button
               key={cell.dateKey}
@@ -159,8 +180,9 @@ export default function CalendarView({
                 padding: 10,
                 minHeight: 56,
                 borderRadius: 10,
-                border: '1px solid #e5e7eb',
-                background: cell.count ? '#eef2ff' : 'white',
+                border: primary ? `1px solid ${primary.border}` : '1px solid #e5e7eb',
+                borderLeft: primary ? `4px solid ${primary.accent}` : '1px solid #e5e7eb',
+                background: cell.count ? (primary ? primary.bg : '#f9fafb') : 'white',
                 textAlign: 'left',
                 cursor: 'pointer',
               }}
@@ -171,7 +193,7 @@ export default function CalendarView({
                 <span style={{ fontWeight: 700 }}>{cell.dayNumber}</span>
                 {cell.count ? (
                   <span
-                    style={{ fontSize: 12, color: '#4f46e5' }}
+                    style={{ fontSize: 12, color: primary ? primary.text : '#374151' }}
                     aria-label={`${cell.count} concert(s)`}
                   >
                     {cell.count}
@@ -179,9 +201,25 @@ export default function CalendarView({
                 ) : null}
               </div>
               {cell.count ? (
-                <div
-                  style={{ marginTop: 8, height: 6, borderRadius: 999, background: '#4f46e5' }}
-                />
+                <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {cell.buckets.slice(0, 4).map((b) => {
+                    const c = bucketColors(b);
+                    return (
+                      <span
+                        key={b}
+                        title={formatBucketFr(b)}
+                        aria-label={formatBucketFr(b)}
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 999,
+                          background: c.accent,
+                          boxShadow: `0 0 0 2px ${c.bg}`,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
               ) : null}
             </button>
           );

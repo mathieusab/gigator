@@ -1,17 +1,10 @@
 import { supabase } from '../lib/supabaseClient';
+import { CONTACT_RELATION_TYPES, type ContactRelationType } from '../lib/contactRelationTypes';
 import type { Contact } from './contacts';
 
-export const CONCERT_CONTACT_CATEGORIES = [
-  'Gérant',
-  'Ingé son',
-  'Ingé lumière',
-  'Organisateur',
-  'Responsable bar',
-  'Connaissance',
-  'Membre du co-plateau',
-] as const;
+export const CONCERT_CONTACT_CATEGORIES = CONTACT_RELATION_TYPES;
 
-export type ConcertContactCategory = (typeof CONCERT_CONTACT_CATEGORIES)[number];
+export type ConcertContactCategory = ContactRelationType;
 
 export type ConcertContactLinkInput = {
   contact_id: string;

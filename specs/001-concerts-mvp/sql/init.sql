@@ -16,7 +16,10 @@ create table if not exists concerts (
   id uuid primary key default gen_random_uuid(),
   date_start timestamptz,
   date_end timestamptz,
-  status text not null default 'scheduled' check (status in ('scheduled', 'completed', 'cancelled')),
+  -- Date of the first outbound email sent to the venue/contact (derived from Gmail thread history).
+  -- Used for Stats ("concerts contactés par mois").
+  first_email_sent_at timestamptz,
+  status text not null default 'scheduled' check (status in ('contacted', 'scheduled', 'completed', 'cancelled')),
   venue_name text not null,
   city text,
   country text,
@@ -36,6 +39,7 @@ create table if not exists concerts (
 );
 
 create index if not exists concerts_date_start_idx on concerts(date_start);
+create index if not exists concerts_first_email_sent_at_idx on concerts(first_email_sent_at);
 
 -- Financial items (incomes & expenses) linked to concerts.
 -- Amounts are stored in cents to avoid floating point issues.
@@ -55,6 +59,7 @@ create index if not exists concert_financial_items_concert_id_idx on concert_fin
 -- If the table already existed from a previous iteration, ensure key columns exist.
 -- (CREATE TABLE IF NOT EXISTS does not add new columns.)
 alter table concerts add column if not exists date_end timestamptz;
+alter table concerts add column if not exists first_email_sent_at timestamptz;
 
 -- Allow creating concerts with unknown dates.
 alter table concerts alter column date_start drop not null;

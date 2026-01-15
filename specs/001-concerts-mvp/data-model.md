@@ -10,7 +10,7 @@
   - `id` (uuid, PK, default: gen_random_uuid())
   - `date_start` (timestamptz, not null)
   - `date_end` (timestamptz, nullable)
-  - `status` (enum/text, not null) — values: `scheduled`, `completed`, `cancelled`
+  - `status` (enum/text, not null) — values: `contacted`, `scheduled`, `completed`, `cancelled`
   - `title` (text, not null) — stored title; the frontend derives it as `venue_name — city` when not provided
   - `venue_name` (text, not null)
   - `city` (text, nullable)

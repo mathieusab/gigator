@@ -12,7 +12,8 @@ function env(name: string): string {
 
 function formatStatusFr(statusRaw: string): string {
   const status = String(statusRaw ?? '').trim().toLowerCase();
-  if (status === 'scheduled') return 'Prévu';
+  if (status === 'contacted') return 'Contacté';
+  if (status === 'scheduled') return 'Planifié';
   if (status === 'completed') return 'Terminé';
   if (status === 'cancelled') return 'Annulé';
   return statusRaw;

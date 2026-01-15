@@ -130,6 +130,9 @@ vi.mock('../../src/services/concerts', () => {
     getConcert: vi.fn(async () => {
       throw new Error('not used');
     }),
+    createVenueWithInfo: vi.fn(async () => {
+      throw new Error('not used');
+    }),
     createConcert: vi.fn(async () => {
       throw new Error('not used');
     }),

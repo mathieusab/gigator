@@ -63,15 +63,89 @@ export type VenueCreateInput = {
   notes?: string | null;
 };
 
-export async function createVenue(input: VenueCreateInput): Promise<Venue> {
+export type CreateVenueResult = {
+  venue: Venue;
+  existed: boolean;
+};
+
+export async function createVenueWithInfo(input: VenueCreateInput): Promise<CreateVenueResult> {
+  const name = input.name.trim();
+  const address = input.address?.trim() || null;
+  const city = input.city?.trim() || null;
+  const country = input.country?.trim() || null;
+
+  // Best-effort uniqueness enforcement on the client side.
+  // DB should also enforce this with UNIQUE indexes.
+  if (address) {
+    const existing = await supabase
+      .from('venues')
+      .select('*')
+      .eq('name', name)
+      .eq('address', address)
+      .limit(1);
+    if (existing.error) throw new Error(existing.error.message);
+    if (existing.data?.[0]) return { venue: existing.data[0] as Venue, existed: true };
+  } else if (city && country) {
+    const existing = await supabase
+      .from('venues')
+      .select('*')
+      .eq('name', name)
+      .eq('city', city)
+      .eq('country', country)
+      .limit(1);
+    if (existing.error) throw new Error(existing.error.message);
+    if (existing.data?.[0]) return { venue: existing.data[0] as Venue, existed: true };
+  }
+
   const payload: Record<string, unknown> = {
     ...input,
-    name: input.name.trim(),
+    name,
+    address,
+    city,
+    country,
     updated_at: new Date().toISOString(),
   };
 
   const res = await supabase.from('venues').insert(payload).select('*').single();
-  return unwrap<Venue>(res);
+  if (res.error) {
+    const code = String((res.error as any).code ?? '');
+    const message = String(res.error.message ?? '');
+
+    // Unique violation: another client created it concurrently.
+    if (code === '23505' || /duplicate key value violates unique constraint/i.test(message)) {
+      if (address) {
+        const existing = await supabase
+          .from('venues')
+          .select('*')
+          .eq('name', name)
+          .eq('address', address)
+          .limit(1);
+        if (existing.error) throw new Error(existing.error.message);
+        if (existing.data?.[0]) return { venue: existing.data[0] as Venue, existed: true };
+      }
+      if (city && country) {
+        const existing = await supabase
+          .from('venues')
+          .select('*')
+          .eq('name', name)
+          .eq('city', city)
+          .eq('country', country)
+          .limit(1);
+        if (existing.error) throw new Error(existing.error.message);
+        if (existing.data?.[0]) return { venue: existing.data[0] as Venue, existed: true };
+      }
+      throw new Error('Ce lieu existe déjà.');
+    }
+
+    throw new Error(res.error.message);
+  }
+  if (res.data === null) throw new Error('Unexpected empty response');
+  return { venue: res.data as Venue, existed: false };
+}
+
+export async function createVenue(input: VenueCreateInput): Promise<Venue> {
+  const result = await createVenueWithInfo(input);
+  return result.venue;
 }
 
 export async function deleteVenue(id: string): Promise<void> {

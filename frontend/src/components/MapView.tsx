@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Concert } from '../services/concerts';
+import { bucketColors, deriveConcertBucket, formatBucketFr } from '../lib/concertBuckets';
 
 let googleMapsLoadPromise: Promise<void> | null = null;
 
@@ -50,6 +51,7 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
 type MapPin = {
   concert: Concert;
   position: { lat: number; lng: number };
+  bucket: ReturnType<typeof deriveConcertBucket>;
 };
 
 type Props = {
@@ -110,16 +112,27 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
   }, []);
 
   const pins: MapPin[] = useMemo(() => {
+    const now = new Date();
     return concerts
       .map((concert) => {
         if (concert.lat == null || concert.lng == null) return null;
         const lat = typeof concert.lat === 'number' ? concert.lat : Number(concert.lat);
         const lng = typeof concert.lng === 'number' ? concert.lng : Number(concert.lng);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-        return { concert, position: { lat, lng } };
+        return { concert, position: { lat, lng }, bucket: deriveConcertBucket(concert, now) };
       })
       .filter((p): p is MapPin => p !== null);
   }, [concerts]);
+
+  function svgPin(fill: string) {
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
+        <circle cx="14" cy="14" r="10" fill="${fill}"/>
+        <circle cx="14" cy="14" r="10" fill="none" stroke="white" stroke-width="2"/>
+      </svg>
+    `.trim();
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  }
 
   useEffect(() => {
     if (!resolvedApiKey) return;
@@ -200,16 +213,34 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
 
       for (const pin of pins) {
         const markerTitle = displayConcertTitle(pin.concert);
+        const colors = bucketColors(pin.bucket);
+        const markerIconUrl = svgPin(colors.accent);
+
         const marker = AdvancedMarkerElement
           ? new AdvancedMarkerElement({
               map: mapRef.current,
               position: pin.position,
               title: markerTitle,
+              content: (() => {
+                const el = document.createElement('div');
+                el.style.width = '18px';
+                el.style.height = '18px';
+                el.style.borderRadius = '999px';
+                el.style.background = colors.accent;
+                el.style.border = '2px solid white';
+                el.style.boxShadow = `0 2px 8px rgba(0,0,0,0.18)`;
+                return el;
+              })(),
             })
           : new googleMaps.maps.Marker({
               map: mapRef.current,
               position: pin.position,
               title: markerTitle,
+              icon: {
+                url: markerIconUrl,
+                scaledSize: new googleMaps.maps.Size(28, 28),
+                anchor: new googleMaps.maps.Point(14, 14),
+              },
             });
 
         const clickHandler = () => {
@@ -287,14 +318,18 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
           style={{
             padding: 12,
             borderRadius: 8,
-            border: '1px solid #ddd',
-            background: '#fafafa',
+            border: `1px solid ${bucketColors(deriveConcertBucket(selectedConcert)).border}`,
+            borderLeft: `6px solid ${bucketColors(deriveConcertBucket(selectedConcert)).accent}`,
+            background: bucketColors(deriveConcertBucket(selectedConcert)).bg,
             display: 'grid',
             gap: 4,
           }}
         >
           <div style={{ fontWeight: 800 }} data-testid="map-selected-title">
             {displayConcertTitle(selectedConcert)}
+          </div>
+          <div style={{ fontSize: 12, color: bucketColors(deriveConcertBucket(selectedConcert)).text }}>
+            {formatBucketFr(deriveConcertBucket(selectedConcert))}
           </div>
           <strong data-testid="map-selected-venue">{selectedConcert.venue_name}</strong>
           <span data-testid="map-selected-date">{formatDate(selectedConcert.date_start)}</span>

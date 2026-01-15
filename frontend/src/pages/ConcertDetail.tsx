@@ -3,8 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import GmailThreads from '../components/GmailThreads';
 import { getContact, type Contact } from '../services/contacts';
-import { getConcert, type Concert } from '../services/concerts';
+import { getConcert, patchConcert, type Concert } from '../services/concerts';
 import { listContactsForConcert, type ConcertContactLinkWithContact } from '../services/concertContactLinks';
+import { bucketColors, deriveConcertBucket, formatBucketFr } from '../lib/concertBuckets';
 import {
   listConcertFinancialItemsForConcert,
   type ConcertFinancialItem,
@@ -134,6 +135,7 @@ export default function ConcertDetail() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPatchingFirstEmailSentAt, setIsPatchingFirstEmailSentAt] = useState(false);
 
   useEffect(() => {
     if (!concertId) {
@@ -240,6 +242,34 @@ export default function ConcertDetail() {
     concert?.venue_contact_email ??
     null;
 
+  async function maybePersistFirstEmailSentAt(iso: string | null) {
+    if (!concert) return;
+    if (!iso) return;
+    if (isPatchingFirstEmailSentAt) return;
+
+    const existing = concert.first_email_sent_at ?? null;
+    if (existing) {
+      const existingMs = new Date(existing).getTime();
+      const nextMs = new Date(iso).getTime();
+      if (Number.isFinite(existingMs) && Number.isFinite(nextMs) && existingMs <= nextMs) return;
+    }
+
+    setIsPatchingFirstEmailSentAt(true);
+    try {
+      const updated = await patchConcert({
+        id: concert.id,
+        patch: { first_email_sent_at: iso },
+      });
+      setConcert(updated);
+    } catch {
+      // Best-effort only: Gmail-derived enrichment should not break the page.
+      // But keep a breadcrumb for debugging when the field never gets populated.
+      console.warn('Failed to persist first_email_sent_at');
+    } finally {
+      setIsPatchingFirstEmailSentAt(false);
+    }
+  }
+
   const totals = useMemo(() => {
     let incomeCents = 0;
     let expenseCents = 0;
@@ -321,6 +351,35 @@ export default function ConcertDetail() {
               {String(concert.title ?? '').trim() || concert.venue_name}
             </div>
 
+            {(() => {
+              const bucket = deriveConcertBucket(concert);
+              const c = bucketColors(bucket);
+              return (
+                <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '4px 8px',
+                      borderRadius: 999,
+                      border: `1px solid ${c.border}`,
+                      background: c.bg,
+                      color: c.text,
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{ width: 8, height: 8, borderRadius: 999, background: c.accent }}
+                    />
+                    {formatBucketFr(bucket)}
+                  </span>
+                </div>
+              );
+            })()}
+
             <div style={{ fontWeight: 600, marginTop: 4 }}>
               {concert.venue_id ? (
                 <Link to={`/venues/${concert.venue_id}`}>{concert.venue_name}</Link>
@@ -393,7 +452,13 @@ export default function ConcertDetail() {
             ) : null}
           </div>
 
-          {primaryEmail ? <GmailThreads email={String(primaryEmail)} /> : null}
+          {primaryEmail ? (
+              <GmailThreads
+                email={String(primaryEmail)}
+                minInternalDateIso={concert.created_at}
+                onFirstSentEmailAtChange={maybePersistFirstEmailSentAt}
+              />
+          ) : null}
 
           {hasAnyFinance ? (
             <section style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>

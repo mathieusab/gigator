@@ -26,6 +26,7 @@ pnpm install
 Apply these SQL files in your Supabase SQL editor (in order):
 
 - `specs/001-concerts-mvp/sql/init.sql`
+- `specs/001-concerts-mvp/sql/unique_contacts_venues.sql`
 - `specs/001-concerts-mvp/sql/rls.sql`
 - `specs/001-concerts-mvp/sql/seed_app_users.sql`
 - (optional, for Gmail connect) `specs/001-concerts-mvp/sql/gmail_connections.sql`

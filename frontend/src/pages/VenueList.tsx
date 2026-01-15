@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -75,6 +75,16 @@ export default function VenueList() {
 
   const [locationFilter, setLocationFilter] = useState('');
   const [playedFilter, setPlayedFilter] = useState<PlayedFilter>('all');
+
+  const [createFlash, setCreateFlash] = useState<string | null>(null);
+  const [createFlashKind, setCreateFlashKind] = useState<'success' | 'info'>('success');
+  const createFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (createFlashTimeoutRef.current) clearTimeout(createFlashTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -175,9 +185,42 @@ export default function VenueList() {
       </header>
 
       <section style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+        {createFlash ? (
+          <p
+            role="status"
+            style={{
+              margin: 0,
+              padding: 10,
+              borderRadius: 8,
+              border: '1px solid #d1fae5',
+              background: createFlashKind === 'success' ? '#ecfdf5' : '#eff6ff',
+              color: createFlashKind === 'success' ? '#065f46' : '#1d4ed8',
+            }}
+          >
+            {createFlash}
+          </p>
+        ) : null}
+
         <VenueCreateForm
           onCreated={(created) => {
             setVenues((prev) => [created, ...prev.filter((v) => v.id !== created.id)]);
+          }}
+          onResult={(result) => {
+            if (createFlashTimeoutRef.current) clearTimeout(createFlashTimeoutRef.current);
+
+            const v = result.venue;
+            const loc = venueLocation(v);
+            const suffix = [v.name, loc].filter(Boolean).join(loc ? ' — ' : '');
+
+            if (result.existed) {
+              setCreateFlashKind('info');
+              setCreateFlash(`Lieu existant réutilisé${suffix ? ` : ${suffix}` : ''}`);
+            } else {
+              setCreateFlashKind('success');
+              setCreateFlash(`Lieu ajouté${suffix ? ` : ${suffix}` : ''}`);
+            }
+
+            createFlashTimeoutRef.current = setTimeout(() => setCreateFlash(null), 3000);
           }}
         />
 

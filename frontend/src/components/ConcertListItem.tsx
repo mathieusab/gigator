@@ -1,5 +1,6 @@
 import type { Concert } from '../services/concerts';
 import { Link } from 'react-router-dom';
+import { bucketColors, deriveConcertBucket } from '../lib/concertBuckets';
 
 function formatDateTime(value: string | null) {
   if (!value) return 'Date à définir';
@@ -28,6 +29,7 @@ export default function ConcertListItem({
   isDeleting?: boolean;
 }) {
   const displayTitle = String(concert.title ?? '').trim() || concert.venue_name;
+  const colors = bucketColors(deriveConcertBucket(concert));
 
   return (
     <li
@@ -37,8 +39,10 @@ export default function ConcertListItem({
         justifyContent: 'space-between',
         gap: 12,
         padding: 12,
-        border: '1px solid #e5e7eb',
+        border: `1px solid ${colors.border}`,
+        borderLeft: `6px solid ${colors.accent}`,
         borderRadius: 8,
+        background: colors.bg,
       }}
     >
       <div>

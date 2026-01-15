@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../lib/useAuth';
 import {
   getGmailMessageById,
+  getGmailConnection,
   getGmailThreadById,
   listGmailThreadsForEmail,
   startGmailOAuth,
@@ -81,6 +82,25 @@ function parseFromHeader(value?: string) {
   return { raw, name: raw, email: '', display: raw };
 }
 
+function extractEmailsFromHeader(value?: string): string[] {
+  const raw = formatOneLine(String(value ?? '').trim());
+  if (!raw) return [];
+
+  // Lightweight email extraction for common RFC 5322-ish headers.
+  const matches = raw.match(/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+/g);
+  if (!matches) return [];
+  return matches.map((x) => x.trim().toLowerCase()).filter(Boolean);
+}
+
+function headerContainsEmail(value: string | undefined, email: string): boolean {
+  const target = String(email ?? '').trim().toLowerCase();
+  if (!target) return false;
+  const raw = formatOneLine(String(value ?? '').trim()).toLowerCase();
+  if (!raw) return false;
+  const emails = extractEmailsFromHeader(raw);
+  return emails.includes(target) || raw.includes(`<${target}>`) || raw.includes(target);
+}
+
 function getThreadLatestMessage(t: GmailThread) {
   const messages = t.messages ?? [];
   if (messages.length === 0) return null;
@@ -143,15 +163,20 @@ function formatDate(value?: string) {
 export default function GmailThreads({
   email,
   mode = 'compact',
+  onFirstSentEmailAtChange,
+  minInternalDateIso,
 }: {
   email: string;
   mode?: 'compact' | 'full';
+  onFirstSentEmailAtChange?: (firstSentEmailAtIso: string | null) => void;
+  minInternalDateIso?: string;
 }) {
   const { session } = useAuth();
   const [threads, setThreads] = useState<GmailThread[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsConnect, setNeedsConnect] = useState(false);
+  const [gmailEmail, setGmailEmail] = useState<string | null>(null);
   const [isFullMode, setIsFullMode] = useState(mode === 'full');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showAllMessages, setShowAllMessages] = useState<Record<string, boolean>>({});
@@ -176,6 +201,33 @@ export default function GmailThreads({
   }
 
   const safeThreads = Array.isArray(threads) ? threads : [];
+
+  useEffect(() => {
+    let isMounted = true;
+    const appAccessToken = (session as any)?.access_token as string | undefined;
+
+    if (!appAccessToken) {
+      setGmailEmail(null);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    void (async () => {
+      try {
+        const conn = await getGmailConnection({ appAccessToken });
+        if (!isMounted) return;
+        setGmailEmail(conn.gmailEmail);
+      } catch {
+        if (!isMounted) return;
+        setGmailEmail(null);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session]);
 
   useEffect(() => {
     let isMounted = true;
@@ -226,6 +278,63 @@ export default function GmailThreads({
       isMounted = false;
     };
   }, [email, session, isFullMode]);
+
+  const firstSentEmailAtIso = useMemo(() => {
+    const contact = String(email ?? '').trim().toLowerCase();
+    if (!contact) return null;
+
+    const me = String(gmailEmail ?? '').trim().toLowerCase();
+
+    const minMs = (() => {
+      if (!minInternalDateIso) return Number.NEGATIVE_INFINITY;
+      const ms = new Date(minInternalDateIso).getTime();
+      return Number.isFinite(ms) ? ms : Number.NEGATIVE_INFINITY;
+    })();
+
+    let bestMs = Number.POSITIVE_INFINITY;
+
+    for (const t of safeThreads) {
+      const messages = Array.isArray(t.messages) ? t.messages : [];
+      for (const m of messages) {
+        const ms = getMessageMs(m.internalDate);
+        if (!Number.isFinite(ms)) continue;
+        if (ms < minMs) continue;
+
+        const rawFrom = formatOneLine(String(m.headers?.from ?? '').trim());
+        const rawTo = formatOneLine(String(m.headers?.to ?? '').trim());
+
+        // Prefer a contact-relative definition of outbound:
+        // - inbound: From contains the contact email
+        // - outbound: To contains the contact email
+        // This remains correct even when the user sends from an alias (Send-As).
+        const parsedFrom = parseFromHeader(rawFrom);
+        const fromEmail = String(parsedFrom.email || '').trim().toLowerCase();
+        const fromIsContact = fromEmail ? fromEmail === contact : rawFrom.toLowerCase().includes(contact);
+        if (fromIsContact) continue;
+
+        let looksOutbound = headerContainsEmail(rawTo, contact);
+        if (!looksOutbound && me) {
+          // Fallback (older logic): detect by matching sender against the connected Gmail address.
+          const looksFromMe = fromEmail ? fromEmail === me : rawFrom.toLowerCase().includes(me);
+          looksOutbound = looksFromMe;
+        }
+        if (!looksOutbound) continue;
+
+        if (ms < bestMs) bestMs = ms;
+      }
+    }
+
+    if (!Number.isFinite(bestMs) || bestMs === Number.POSITIVE_INFINITY) return null;
+    return new Date(bestMs).toISOString();
+  }, [email, gmailEmail, minInternalDateIso, safeThreads]);
+
+  const lastEmittedFirstSentRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!onFirstSentEmailAtChange) return;
+    if (lastEmittedFirstSentRef.current === firstSentEmailAtIso) return;
+    lastEmittedFirstSentRef.current = firstSentEmailAtIso;
+    onFirstSentEmailAtChange(firstSentEmailAtIso);
+  }, [firstSentEmailAtIso, onFirstSentEmailAtChange]);
 
   const trimmedEmail = email.trim();
   const maxThreads = isFullMode ? 200 : 20;

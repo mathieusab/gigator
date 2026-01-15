@@ -17,6 +17,7 @@ import {
   upsertGmailTodoThreads,
   type GmailTodoThreadStatus,
 } from '../services/gmailTodoThreads';
+import { bucketColors } from '../lib/concertBuckets';
 
 function isUpcoming(dateStart: string | null) {
   if (!dateStart) return false;
@@ -53,11 +54,13 @@ function CollapsibleSection({
   title,
   defaultCollapsed = true,
   style,
+  accent,
   children,
 }: {
   title: string;
   defaultCollapsed?: boolean;
   style?: React.CSSProperties;
+  accent?: string;
   children: React.ReactNode;
 }) {
   const contentId = useId();
@@ -87,6 +90,18 @@ function CollapsibleSection({
           <span style={{ color: '#6b7280', display: 'inline-flex', alignItems: 'center' }}>
             <IconChevron isExpanded={isExpanded} />
           </span>
+          {accent ? (
+            <span
+              aria-hidden="true"
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 999,
+                background: accent,
+                boxShadow: '0 0 0 2px rgba(255,255,255,0.9)',
+              }}
+            />
+          ) : null}
           <span>{title}</span>
         </button>
       </h2>
@@ -387,7 +402,7 @@ export default function ConcertList() {
     };
   }, [appAccessToken]);
 
-  const { unscheduled, upcoming, past, cancelled } = useMemo(() => {
+  const { contacted, unscheduled, upcoming, past, cancelled } = useMemo(() => {
     const cancelled = concerts
       .filter((c) => c.status === 'cancelled')
       .sort((a, b) => {
@@ -397,17 +412,26 @@ export default function ConcertList() {
       });
 
     const activeConcerts = concerts.filter((c) => c.status !== 'cancelled');
-    const unscheduled = activeConcerts.filter((c) => !c.date_start);
+    const contacted = activeConcerts
+      .filter((c) => c.status === 'contacted')
+      .sort((a, b) => {
+        const ams = a.date_start ? new Date(a.date_start).getTime() : -Infinity;
+        const bms = b.date_start ? new Date(b.date_start).getTime() : -Infinity;
+        return bms - ams;
+      });
 
-    const upcoming = activeConcerts
+    const nonContacted = activeConcerts.filter((c) => c.status !== 'contacted');
+    const unscheduled = nonContacted.filter((c) => !c.date_start);
+
+    const upcoming = nonContacted
       .filter((c) => c.date_start && isUpcoming(c.date_start))
       .sort((a, b) => new Date(a.date_start as string).getTime() - new Date(b.date_start as string).getTime());
 
-    const past = activeConcerts
+    const past = nonContacted
       .filter((c) => c.date_start && !isUpcoming(c.date_start))
       .sort((a, b) => new Date(b.date_start as string).getTime() - new Date(a.date_start as string).getTime());
 
-    return { unscheduled, upcoming, past, cancelled };
+    return { contacted, unscheduled, upcoming, past, cancelled };
   }, [concerts]);
 
   const todoTop3 = todoThreads.slice(0, 3);
@@ -503,7 +527,11 @@ export default function ConcertList() {
 
       {!isLoading && !error ? (
         <section style={{ marginTop: 16 }}>
-          <CollapsibleSection title={`À traiter (${todoThreads.length})`} defaultCollapsed>
+          <CollapsibleSection
+            title={`À traiter (${todoThreads.length})`}
+            defaultCollapsed
+            accent={bucketColors('to_process').accent}
+          >
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <input
                 type="checkbox"
@@ -524,9 +552,10 @@ export default function ConcertList() {
                       justifyContent: 'space-between',
                       gap: 12,
                       padding: 12,
-                      border: '1px solid #e5e7eb',
+                      border: `1px solid ${bucketColors('to_process').border}`,
+                      borderLeft: `6px solid ${bucketColors('to_process').accent}`,
                       borderRadius: 8,
-                      background: '#fff7ed',
+                      background: bucketColors('to_process').bg,
                     }}
                   >
                     <div>
@@ -637,9 +666,33 @@ export default function ConcertList() {
           </CollapsibleSection>
 
           <CollapsibleSection
+            title={`Contactés (${contacted.length})`}
+            defaultCollapsed
+            style={{ marginTop: 12 }}
+            accent={bucketColors('contacted').accent}
+          >
+            {contacted.length === 0 ? <p>Aucun concert contacté.</p> : null}
+            {contacted.length ? (
+              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
+                {contacted.map((c) => (
+                  <ConcertListItem
+                    key={c.id}
+                    concert={c}
+                    onOpen={(id) => navigate(`/concerts/${id}`)}
+                    onEdit={(id) => navigate(`/concerts/${id}/edit`)}
+                    onDelete={requestDelete}
+                    isDeleting={deletingConcertId === c.id}
+                  />
+                ))}
+              </ul>
+            ) : null}
+          </CollapsibleSection>
+
+          <CollapsibleSection
             title={`À planifier (${unscheduled.length})`}
             defaultCollapsed
             style={{ marginTop: 12 }}
+            accent={bucketColors('to_schedule').accent}
           >
             {unscheduled.length === 0 ? <p>Aucun concert sans date.</p> : null}
             {unscheduled.length ? (
@@ -658,7 +711,12 @@ export default function ConcertList() {
             ) : null}
           </CollapsibleSection>
 
-          <CollapsibleSection title={`À venir (${upcoming.length})`} defaultCollapsed style={{ marginTop: 12 }}>
+          <CollapsibleSection
+            title={`À venir (${upcoming.length})`}
+            defaultCollapsed
+            style={{ marginTop: 12 }}
+            accent={bucketColors('upcoming').accent}
+          >
             {upcoming.length === 0 ? <p>Aucun concert à venir.</p> : null}
             {upcoming.length ? (
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
@@ -676,7 +734,12 @@ export default function ConcertList() {
             ) : null}
           </CollapsibleSection>
 
-          <CollapsibleSection title={`Passés (${past.length})`} defaultCollapsed style={{ marginTop: 12 }}>
+          <CollapsibleSection
+            title={`Passés (${past.length})`}
+            defaultCollapsed
+            style={{ marginTop: 12 }}
+            accent={bucketColors('past').accent}
+          >
             {past.length === 0 ? <p>Aucun concert passé.</p> : null}
             {past.length ? (
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
@@ -698,6 +761,7 @@ export default function ConcertList() {
             title={`Annulés (${cancelled.length})`}
             defaultCollapsed
             style={{ marginTop: 12 }}
+            accent={bucketColors('cancelled').accent}
           >
             {cancelled.length === 0 ? <p>Aucun concert annulé.</p> : null}
             {cancelled.length ? (

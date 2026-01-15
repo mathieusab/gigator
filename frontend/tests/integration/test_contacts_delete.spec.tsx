@@ -75,6 +75,9 @@ vi.mock('../../src/services/contacts', () => {
     createContact: vi.fn(async () => {
       throw new Error('not used');
     }),
+    createContactWithInfo: vi.fn(async () => {
+      throw new Error('not used');
+    }),
     getContact: vi.fn(async (id: string) => {
       const found = store.contacts.find((c) => c.id === id);
       if (!found) throw new Error('Not found');
@@ -91,6 +94,17 @@ vi.mock('../../src/services/venueContactLinks', () => {
     listVenuesForContact: vi.fn(async () => []),
     listContactsForVenue: vi.fn(async () => []),
     upsertVenueContactLink: vi.fn(async () => undefined),
+    deleteVenueContactLink: vi.fn(async () => undefined),
+    VENUE_CONTACT_RELATION_TYPES: [
+      'Booker',
+      'Programmateur',
+      'Régisseur',
+      'Technique',
+      'Communication',
+      'Presse',
+      'Administration',
+      'Autre',
+    ],
   };
 });
 
