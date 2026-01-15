@@ -246,6 +246,15 @@ vi.mock('../../src/services/concertFinancialItems', () => {
 
 import App from '../../src/App';
 
+function expandSection(name: RegExp) {
+  const btns = screen.getAllByRole('button', { name });
+  for (const btn of btns) {
+    if (btn.getAttribute('aria-expanded') !== 'true') {
+      fireEvent.click(btn);
+    }
+  }
+}
+
 test('US2 flow: list groups, create, edit, delete', async () => {
   render(
     <MemoryRouter initialEntries={['/']}>
@@ -255,6 +264,11 @@ test('US2 flow: list groups, create, edit, delete', async () => {
 
   expect(await screen.findByRole('heading', { level: 2, name: /À venir/ })).toBeInTheDocument();
   expect(screen.getByRole('heading', { level: 2, name: /Passés/ })).toBeInTheDocument();
+
+  // Sections are collapsed by default.
+  expandSection(/À venir/);
+  expandSection(/Passés/);
+
   expect(screen.getByText('Future Venue')).toBeInTheDocument();
   expect(screen.getByText('Past Venue')).toBeInTheDocument();
 
@@ -265,6 +279,11 @@ test('US2 flow: list groups, create, edit, delete', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 
   expect(await screen.findByText('Concerts')).toBeInTheDocument();
+
+  expandSection(/À planifier/);
+  expandSection(/À venir/);
+  expandSection(/Passés/);
+
   await waitFor(() => expect(screen.getByText('New Venue')).toBeInTheDocument());
 
   fireEvent.click(screen.getAllByRole('button', { name: 'Modifier' })[0]);
@@ -273,6 +292,11 @@ test('US2 flow: list groups, create, edit, delete', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
   expect(await screen.findByText('Concerts')).toBeInTheDocument();
+
+  expandSection(/À planifier/);
+  expandSection(/À venir/);
+  expandSection(/Passés/);
+
   await waitFor(() => expect(screen.getByText('Edited Venue')).toBeInTheDocument());
 
   fireEvent.click(screen.getByRole('button', { name: 'Supprimer Edited Venue' }));
@@ -298,6 +322,9 @@ test('create concert without date (date_start=null)', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Créer' }));
 
   expect(await screen.findByText('Concerts')).toBeInTheDocument();
+
+  expandSection(/À planifier/);
+
   await waitFor(() => expect(screen.getByText('New Venue')).toBeInTheDocument());
   expect(screen.getByText(/Date à définir/i)).toBeInTheDocument();
 });

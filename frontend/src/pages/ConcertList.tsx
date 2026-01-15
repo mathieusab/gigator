@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ConcertListItem from '../components/ConcertListItem';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -18,6 +18,83 @@ import {
 function isUpcoming(dateStart: string | null) {
   if (!dateStart) return false;
   return new Date(dateStart).getTime() >= Date.now();
+}
+
+function IconChevron({ isExpanded }: { isExpanded: boolean }) {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 20 20"
+      aria-hidden="true"
+      focusable="false"
+      style={{
+        display: 'block',
+        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+        transition: 'transform 120ms ease-out',
+      }}
+    >
+      <path
+        d="M7 5 L13 10 L7 15"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CollapsibleSection({
+  title,
+  defaultCollapsed = true,
+  style,
+  children,
+}: {
+  title: string;
+  defaultCollapsed?: boolean;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+}) {
+  const contentId = useId();
+  const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
+
+  return (
+    <div style={style}>
+      <h2 style={{ margin: 0 }}>
+        <button
+          type="button"
+          aria-expanded={isExpanded}
+          aria-controls={contentId}
+          onClick={() => setIsExpanded((v) => !v)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '4px 6px',
+            borderRadius: 8,
+            border: '1px solid transparent',
+            background: 'transparent',
+            cursor: 'pointer',
+            font: 'inherit',
+            color: 'inherit',
+          }}
+        >
+          <span style={{ color: '#6b7280', display: 'inline-flex', alignItems: 'center' }}>
+            <IconChevron isExpanded={isExpanded} />
+          </span>
+          <span>{title}</span>
+        </button>
+      </h2>
+
+      {isExpanded ? (
+        <div id={contentId} style={{ marginTop: 8 }}>
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export default function ConcertList() {
@@ -404,188 +481,194 @@ export default function ConcertList() {
 
       {!isLoading && !error ? (
         <section style={{ marginTop: 16 }}>
-          <h2>À traiter</h2>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <input
-              type="checkbox"
-              checked={showIgnored}
-              onChange={(e) => setShowIgnored(e.currentTarget.checked)}
-            />
-            Afficher les ignorés
-          </label>
-          {todoTop3.length === 0 ? <p>Rien à traiter.</p> : null}
-          {todoTop3.length ? (
-            <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
-              {todoTop3.map((t) => (
-                <li
-                  key={t.thread.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                    padding: 12,
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 8,
-                    background: '#fff7ed',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{t.subject}</div>
-                    <div style={{ color: '#4b5563' }}>
-                      {t.counterpartEmail}
-                      {t.snippet ? ` — ${t.snippet}` : ''}
+          <CollapsibleSection title="À traiter" defaultCollapsed>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <input
+                type="checkbox"
+                checked={showIgnored}
+                onChange={(e) => setShowIgnored(e.currentTarget.checked)}
+              />
+              Afficher les ignorés
+            </label>
+            {todoTop3.length === 0 ? <p>Rien à traiter.</p> : null}
+            {todoTop3.length ? (
+              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
+                {todoTop3.map((t) => (
+                  <li
+                    key={t.thread.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      padding: 12,
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 8,
+                      background: '#fff7ed',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{t.subject}</div>
+                      <div style={{ color: '#4b5563' }}>
+                        {t.counterpartEmail}
+                        {t.snippet ? ` — ${t.snippet}` : ''}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const qs = new URLSearchParams({
-                          source: 'gmail',
-                          email: t.counterpartEmail,
-                          subject: t.subject,
-                          snippet: t.snippet,
-                          threadId: t.thread.id,
-                        });
-                        if (t.todoId) qs.set('todoId', t.todoId);
-                        navigate(`/concerts/new?${qs.toString()}`);
-                      }}
-                    >
-                      Traiter
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const qs = new URLSearchParams({
+                            source: 'gmail',
+                            email: t.counterpartEmail,
+                            subject: t.subject,
+                            snippet: t.snippet,
+                            threadId: t.thread.id,
+                          });
+                          if (t.todoId) qs.set('todoId', t.todoId);
+                          navigate(`/concerts/new?${qs.toString()}`);
+                        }}
+                      >
+                        Traiter
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => void markTodoStatus(t.todoId ?? '', 'done')}
-                      disabled={!t.todoId || updatingTodoId === t.todoId}
-                      aria-label="Marquer comme fait"
-                    >
-                      Fait
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => void markTodoStatus(t.todoId ?? '', 'done')}
+                        disabled={!t.todoId || updatingTodoId === t.todoId}
+                        aria-label="Marquer comme fait"
+                      >
+                        Fait
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => void markTodoStatus(t.todoId ?? '', 'ignored')}
-                      disabled={!t.todoId || updatingTodoId === t.todoId}
-                      aria-label="Ignorer"
-                    >
-                      Ignorer
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {todoThreads.length > 3 ? (
-            <p style={{ color: '#4b5563', marginTop: 8 }}>
-              +{todoThreads.length - 3} autres à traiter
-            </p>
-          ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void markTodoStatus(t.todoId ?? '', 'ignored')}
+                        disabled={!t.todoId || updatingTodoId === t.todoId}
+                        aria-label="Ignorer"
+                      >
+                        Ignorer
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {todoThreads.length > 3 ? (
+              <p style={{ color: '#4b5563', marginTop: 8 }}>
+                +{todoThreads.length - 3} autres à traiter
+              </p>
+            ) : null}
 
-          {showIgnored ? (
-            <section style={{ marginTop: 14 }}>
-              <h3 style={{ margin: '10px 0 6px' }}>Ignorés</h3>
-              {ignoredThreads.length === 0 ? <p style={{ color: '#4b5563' }}>Aucun mail ignoré.</p> : null}
-              {ignoredThreads.length ? (
-                <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
-                  {ignoredThreads.map((t) => (
-                    <li
-                      key={t.todoId}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        justifyContent: 'space-between',
-                        gap: 12,
-                        padding: 12,
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 8,
-                        background: '#f3f4f6',
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{t.subject}</div>
-                        <div style={{ color: '#4b5563' }}>
-                          {t.counterpartEmail}
-                          {t.snippet ? ` — ${t.snippet}` : ''}
+            {showIgnored ? (
+              <section style={{ marginTop: 14 }}>
+                <h3 style={{ margin: '10px 0 6px' }}>Ignorés</h3>
+                {ignoredThreads.length === 0 ? (
+                  <p style={{ color: '#4b5563' }}>Aucun mail ignoré.</p>
+                ) : null}
+                {ignoredThreads.length ? (
+                  <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
+                    {ignoredThreads.map((t) => (
+                      <li
+                        key={t.todoId}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          padding: 12,
+                          border: '1px solid #e5e7eb',
+                          borderRadius: 8,
+                          background: '#f3f4f6',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{t.subject}</div>
+                          <div style={{ color: '#4b5563' }}>
+                            {t.counterpartEmail}
+                            {t.snippet ? ` — ${t.snippet}` : ''}
+                          </div>
                         </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (updatingTodoId) return;
-                            setUpdatingTodoId(t.todoId);
-                            try {
-                              await updateGmailTodoThreadStatus({ id: t.todoId, status: 'open' });
-                              setIgnoredThreads((prev) => prev.filter((x) => x.todoId !== t.todoId));
-                            } finally {
-                              setUpdatingTodoId((current) => (current === t.todoId ? null : current));
-                            }
-                          }}
-                          disabled={updatingTodoId === t.todoId}
-                          aria-label="Réafficher"
-                        >
-                          Réafficher
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </section>
-          ) : null}
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (updatingTodoId) return;
+                              setUpdatingTodoId(t.todoId);
+                              try {
+                                await updateGmailTodoThreadStatus({ id: t.todoId, status: 'open' });
+                                setIgnoredThreads((prev) => prev.filter((x) => x.todoId !== t.todoId));
+                              } finally {
+                                setUpdatingTodoId((current) => (current === t.todoId ? null : current));
+                              }
+                            }}
+                            disabled={updatingTodoId === t.todoId}
+                            aria-label="Réafficher"
+                          >
+                            Réafficher
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            ) : null}
+          </CollapsibleSection>
 
-          <h2>À planifier</h2>
-          {unscheduled.length === 0 ? <p>Aucun concert sans date.</p> : null}
-          {unscheduled.length ? (
-            <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
-              {unscheduled.map((c) => (
-                <ConcertListItem
-                  key={c.id}
-                  concert={c}
-                  onOpen={(id) => navigate(`/concerts/${id}`)}
-                  onEdit={(id) => navigate(`/concerts/${id}/edit`)}
-                  onDelete={requestDelete}
-                  isDeleting={deletingConcertId === c.id}
-                />
-              ))}
-            </ul>
-          ) : null}
+          <CollapsibleSection title="À planifier" defaultCollapsed style={{ marginTop: 12 }}>
+            {unscheduled.length === 0 ? <p>Aucun concert sans date.</p> : null}
+            {unscheduled.length ? (
+              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
+                {unscheduled.map((c) => (
+                  <ConcertListItem
+                    key={c.id}
+                    concert={c}
+                    onOpen={(id) => navigate(`/concerts/${id}`)}
+                    onEdit={(id) => navigate(`/concerts/${id}/edit`)}
+                    onDelete={requestDelete}
+                    isDeleting={deletingConcertId === c.id}
+                  />
+                ))}
+              </ul>
+            ) : null}
+          </CollapsibleSection>
 
-          <h2>À venir</h2>
-          {upcoming.length === 0 ? <p>Aucun concert à venir.</p> : null}
-          {upcoming.length ? (
-            <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
-              {upcoming.map((c) => (
-                <ConcertListItem
-                  key={c.id}
-                  concert={c}
-                  onOpen={(id) => navigate(`/concerts/${id}`)}
-                  onEdit={(id) => navigate(`/concerts/${id}/edit`)}
-                  onDelete={requestDelete}
-                  isDeleting={deletingConcertId === c.id}
-                />
-              ))}
-            </ul>
-          ) : null}
+          <CollapsibleSection title="À venir" defaultCollapsed style={{ marginTop: 12 }}>
+            {upcoming.length === 0 ? <p>Aucun concert à venir.</p> : null}
+            {upcoming.length ? (
+              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
+                {upcoming.map((c) => (
+                  <ConcertListItem
+                    key={c.id}
+                    concert={c}
+                    onOpen={(id) => navigate(`/concerts/${id}`)}
+                    onEdit={(id) => navigate(`/concerts/${id}/edit`)}
+                    onDelete={requestDelete}
+                    isDeleting={deletingConcertId === c.id}
+                  />
+                ))}
+              </ul>
+            ) : null}
+          </CollapsibleSection>
 
-          <h2 style={{ marginTop: 24 }}>Passés</h2>
-          {past.length === 0 ? <p>Aucun concert passé.</p> : null}
-          {past.length ? (
-            <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
-              {past.map((c) => (
-                <ConcertListItem
-                  key={c.id}
-                  concert={c}
-                  onOpen={(id) => navigate(`/concerts/${id}`)}
-                  onEdit={(id) => navigate(`/concerts/${id}/edit`)}
-                  onDelete={requestDelete}
-                  isDeleting={deletingConcertId === c.id}
-                />
-              ))}
-            </ul>
-          ) : null}
+          <CollapsibleSection title="Passés" defaultCollapsed style={{ marginTop: 12 }}>
+            {past.length === 0 ? <p>Aucun concert passé.</p> : null}
+            {past.length ? (
+              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
+                {past.map((c) => (
+                  <ConcertListItem
+                    key={c.id}
+                    concert={c}
+                    onOpen={(id) => navigate(`/concerts/${id}`)}
+                    onEdit={(id) => navigate(`/concerts/${id}/edit`)}
+                    onDelete={requestDelete}
+                    isDeleting={deletingConcertId === c.id}
+                  />
+                ))}
+              </ul>
+            ) : null}
+          </CollapsibleSection>
         </section>
       ) : null}
     </main>
