@@ -311,14 +311,6 @@ export default function ConcertList() {
           if (isMounted) setTodoThreads([]);
           return;
         }
-              <GmailTodoProcessModal
-                open={Boolean(processingTodo)}
-                onClose={() => setProcessingTodo(null)}
-                todo={processingTodo}
-                appAccessToken={appAccessToken}
-                onMarkStatus={markTodoStatus}
-              />
-
 
         let hiddenThreadIds = new Set<string>();
         try {
@@ -446,6 +438,14 @@ export default function ConcertList() {
     <main
       style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
     >
+      <GmailTodoProcessModal
+        open={Boolean(processingTodo)}
+        onClose={() => setProcessingTodo(null)}
+        todo={processingTodo}
+        appAccessToken={appAccessToken}
+        onMarkStatus={markTodoStatus}
+      />
+
       <ConfirmDialog
         open={pendingDeleteConcert !== null}
         title={
