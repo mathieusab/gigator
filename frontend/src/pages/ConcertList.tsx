@@ -382,18 +382,27 @@ export default function ConcertList() {
     };
   }, [appAccessToken]);
 
-  const { unscheduled, upcoming, past } = useMemo(() => {
-    const unscheduled = concerts.filter((c) => !c.date_start);
+  const { unscheduled, upcoming, past, cancelled } = useMemo(() => {
+    const cancelled = concerts
+      .filter((c) => c.status === 'cancelled')
+      .sort((a, b) => {
+        const ams = a.date_start ? new Date(a.date_start).getTime() : -Infinity;
+        const bms = b.date_start ? new Date(b.date_start).getTime() : -Infinity;
+        return bms - ams;
+      });
 
-    const upcoming = concerts
+    const activeConcerts = concerts.filter((c) => c.status !== 'cancelled');
+    const unscheduled = activeConcerts.filter((c) => !c.date_start);
+
+    const upcoming = activeConcerts
       .filter((c) => c.date_start && isUpcoming(c.date_start))
       .sort((a, b) => new Date(a.date_start as string).getTime() - new Date(b.date_start as string).getTime());
 
-    const past = concerts
+    const past = activeConcerts
       .filter((c) => c.date_start && !isUpcoming(c.date_start))
       .sort((a, b) => new Date(b.date_start as string).getTime() - new Date(a.date_start as string).getTime());
 
-    return { unscheduled, upcoming, past };
+    return { unscheduled, upcoming, past, cancelled };
   }, [concerts]);
 
   const todoTop3 = todoThreads.slice(0, 3);
@@ -661,6 +670,28 @@ export default function ConcertList() {
             {past.length ? (
               <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
                 {past.map((c) => (
+                  <ConcertListItem
+                    key={c.id}
+                    concert={c}
+                    onOpen={(id) => navigate(`/concerts/${id}`)}
+                    onEdit={(id) => navigate(`/concerts/${id}/edit`)}
+                    onDelete={requestDelete}
+                    isDeleting={deletingConcertId === c.id}
+                  />
+                ))}
+              </ul>
+            ) : null}
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title={`Refusés (cancelled) (${cancelled.length})`}
+            defaultCollapsed
+            style={{ marginTop: 12 }}
+          >
+            {cancelled.length === 0 ? <p>Aucun concert refusé.</p> : null}
+            {cancelled.length ? (
+              <ul style={{ listStyle: 'none', padding: 0, display: 'grid', gap: 10 }}>
+                {cancelled.map((c) => (
                   <ConcertListItem
                     key={c.id}
                     concert={c}
