@@ -10,6 +10,35 @@ function env(name: string): string {
   return String(process.env[name] ?? '').trim();
 }
 
+function formatStatusFr(statusRaw: string): string {
+  const status = String(statusRaw ?? '').trim().toLowerCase();
+  if (status === 'scheduled') return 'Prévu';
+  if (status === 'completed') return 'Terminé';
+  if (status === 'cancelled') return 'Annulé';
+  return statusRaw;
+}
+
+function formatDateFr(iso: string): string | null {
+  const s = String(iso ?? '').trim();
+  if (!s) return null;
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+
+  const tz = env('SLACK_TIMEZONE') || 'Europe/Paris';
+  try {
+    return new Intl.DateTimeFormat('fr-FR', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: tz,
+    }).format(d);
+  } catch {
+    return new Intl.DateTimeFormat('fr-FR', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(d);
+  }
+}
+
 function buildConcertUrl(concertId: string): string | null {
   const id = String(concertId ?? '').trim();
   if (!id) return null;
@@ -33,14 +62,12 @@ function formatConcertLine(concert: {
   city?: string | null;
   date_start?: string | null;
   status?: string | null;
-  id?: string | null;
 }): string {
   const title = String(concert.title ?? '').trim();
   const venue = String(concert.venue_name ?? '').trim();
   const city = String(concert.city ?? '').trim();
   const dateStart = String(concert.date_start ?? '').trim();
   const status = String(concert.status ?? '').trim();
-  const id = String(concert.id ?? '').trim();
 
   const name = title || venue || 'Concert';
   const where = [city].filter(Boolean).join(', ');
@@ -48,7 +75,7 @@ function formatConcertLine(concert: {
   const st = status ? ` — ${status}` : '';
   const extra = [where].filter(Boolean).join('');
 
-  return `${name}${extra ? ` (${extra})` : ''}${when}${st}${id ? ` [${id}]` : ''}`;
+  return `${name}${extra ? ` (${extra})` : ''}${when}${st}`;
 }
 
 export async function postSlackConcertUpdate(params: {
@@ -75,24 +102,60 @@ export async function postSlackConcertUpdate(params: {
         ? 'Concert modifié'
         : 'Concert supprimé';
 
-  const line = formatConcertLine(params.concert);
-  const by = params.actorUserId ? ` (par ${params.actorUserId})` : '';
+  const venue = String(params.concert.venue_name ?? '').trim();
+  const city = String(params.concert.city ?? '').trim();
+  const title = String(params.concert.title ?? '').trim() || venue || 'Concert';
+  const statusFr = formatStatusFr(String(params.concert.status ?? '').trim());
+  const dateFr = formatDateFr(String(params.concert.date_start ?? '').trim());
+
+  // Keep actor as a short suffix (UUIDs are noisy). Can be expanded later using app_users.name.
+  const actorId = String(params.actorUserId ?? '').trim();
+  const actorShort = actorId ? actorId.slice(0, 8) : '';
 
   const concertId = String(params.concert.id ?? '').trim();
   const url = buildConcertUrl(concertId);
   const slackLink = url ? `<${url}|Ouvrir dans Gigator>` : null;
 
+  const details: string[] = [];
+  if (venue) details.push(`*Lieu:* ${venue}`);
+  if (city) details.push(`*Ville:* ${city}`);
+  if (dateFr) details.push(`*Date:* ${dateFr}`);
+  if (statusFr) details.push(`*Statut:* ${statusFr}`);
+  if (actorShort) details.push(`*Par:* ${actorShort}`);
+
   const payload: Record<string, unknown> = {
     // Keep text for notifications + compatibility, even when using blocks.
-    text: `${actionLabel}: ${line}${by}${slackLink ? ` — ${slackLink}` : ''}`,
+    text: `${actionLabel}: ${title}${city ? ` (${city})` : ''}${dateFr ? ` — ${dateFr}` : ''}`,
     blocks: [
+      {
+        type: 'header',
+        text: { type: 'plain_text', text: actionLabel },
+      },
       {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*${actionLabel}*\n${line}${by}${slackLink ? `\n${slackLink}` : ''}`,
+          text: `*${title}*`,
         },
       },
+      {
+        type: 'section',
+        fields: details.map((t) => ({ type: 'mrkdwn', text: t })),
+      },
+      ...(url
+        ? [
+            {
+              type: 'actions',
+              elements: [
+                {
+                  type: 'button',
+                  text: { type: 'plain_text', text: 'Ouvrir dans Gigator' },
+                  url,
+                },
+              ],
+            },
+          ]
+        : []),
     ],
   };
 
