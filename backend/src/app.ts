@@ -3,6 +3,7 @@ import express from 'express';
 
 import { gmailRouter } from './routes/gmail.js';
 import { mapsRouter } from './routes/maps.js';
+import { slackRouter } from './routes/slack.js';
 
 export function createApp() {
   const app = express();
@@ -16,6 +17,7 @@ export function createApp() {
 
   app.use('/gmail', gmailRouter);
   app.use('/maps', mapsRouter);
+  app.use('/slack', slackRouter);
 
   return app;
 }

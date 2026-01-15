@@ -52,6 +52,33 @@ async function requireUserId(): Promise<string> {
   return userId;
 }
 
+async function getAppAccessToken(): Promise<string | null> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) return null;
+  return data.session?.access_token ?? null;
+}
+
+async function notifySlackConcertUpdate(
+  action: 'created' | 'updated' | 'deleted',
+  concert: Partial<Concert> & { id: string },
+): Promise<void> {
+  const token = await getAppAccessToken();
+  if (!token) return;
+
+  try {
+    await fetch('/slack/concert-update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action, concert }),
+    });
+  } catch {
+    // Best-effort only.
+  }
+}
+
 function unwrap<T>(result: { data: T | null; error: { message: string } | null }): T {
   if (result.error) throw new Error(result.error.message);
   if (result.data === null) throw new Error('Unexpected empty response');
@@ -96,7 +123,9 @@ export async function createConcert(input: ConcertUpsertInput): Promise<Concert>
   }
 
   const res = await supabase.from('concerts').insert(payload).select('*').single();
-  return unwrap<Concert>(res);
+  const created = unwrap<Concert>(res);
+  await notifySlackConcertUpdate('created', created);
+  return created;
 }
 
 export async function updateConcert(id: string, input: ConcertUpsertInput): Promise<Concert> {
@@ -114,10 +143,21 @@ export async function updateConcert(id: string, input: ConcertUpsertInput): Prom
   }
 
   const res = await supabase.from('concerts').update(payload).eq('id', id).select('*').single();
-  return unwrap<Concert>(res);
+  const updated = unwrap<Concert>(res);
+  await notifySlackConcertUpdate('updated', updated);
+  return updated;
 }
 
 export async function deleteConcert(id: string): Promise<void> {
+  const before = await supabase
+    .from('concerts')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+    .then((r) => (r.error ? null : r.data));
+
   const res = await supabase.from('concerts').delete().eq('id', id);
   if (res.error) throw new Error(res.error.message);
+
+  await notifySlackConcertUpdate('deleted', (before as any) ?? { id });
 }
