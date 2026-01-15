@@ -10,6 +10,23 @@ function env(name: string): string {
   return String(process.env[name] ?? '').trim();
 }
 
+function buildConcertUrl(concertId: string): string | null {
+  const id = String(concertId ?? '').trim();
+  if (!id) return null;
+
+  // Requested default for local dev; can be overridden in prod.
+  const base = env('SLACK_FRONTEND_BASE_URL') || 'http://localhost:5173';
+  try {
+    const u = new URL(base);
+    u.pathname = `/concerts/${encodeURIComponent(id)}`;
+    u.search = '';
+    u.hash = '';
+    return u.toString();
+  } catch {
+    return `http://localhost:5173/concerts/${encodeURIComponent(id)}`;
+  }
+}
+
 function formatConcertLine(concert: {
   title?: string | null;
   venue_name?: string | null;
@@ -61,8 +78,22 @@ export async function postSlackConcertUpdate(params: {
   const line = formatConcertLine(params.concert);
   const by = params.actorUserId ? ` (par ${params.actorUserId})` : '';
 
+  const concertId = String(params.concert.id ?? '').trim();
+  const url = buildConcertUrl(concertId);
+  const slackLink = url ? `<${url}|Ouvrir dans Gigator>` : null;
+
   const payload: Record<string, unknown> = {
-    text: `${actionLabel}: ${line}${by}`,
+    // Keep text for notifications + compatibility, even when using blocks.
+    text: `${actionLabel}: ${line}${by}${slackLink ? ` — ${slackLink}` : ''}`,
+    blocks: [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*${actionLabel}*\n${line}${by}${slackLink ? `\n${slackLink}` : ''}`,
+        },
+      },
+    ],
   };
 
   // Incoming Webhooks may allow overriding the channel depending on Slack config.

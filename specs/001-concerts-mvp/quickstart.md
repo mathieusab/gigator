@@ -19,6 +19,7 @@
 - `FRONTEND_ORIGIN` and `GMAIL_OAUTH_REDIRECT_URI` — backend-only, for OAuth redirects (Option B)
 - `SLACK_WEBHOOK_URL` — backend-only, optional, to post concert updates to Slack
 - `SLACK_CHANNEL` — backend-only, optional, channel override for Incoming Webhook (if allowed)
+- `SLACK_FRONTEND_BASE_URL` — backend-only, optional, base URL used to build links in Slack (defaults to `http://localhost:5173`)
 
 ## Database schema (minimal)
 
