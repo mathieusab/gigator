@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 import { useAuth } from '../lib/useAuth';
 import { getContact } from '../services/contacts';
 import { getGmailConnection, listGmailThreadsForEmail } from '../services/gmailProxy';
+import { RefreshCw } from 'lucide-react';
 import { CONCERT_STATUSES, listConcerts, patchConcert, type Concert, type ConcertStatus } from '../services/concerts';
 import { listConcertFinancialItems, type ConcertFinancialItem } from '../services/concertFinancialItems';
 import { formatConcertStatusFr } from '../lib/concertStatus';
@@ -540,14 +542,13 @@ export default function StatsPage() {
   }, [concerts]);
 
   return (
-    <main
-      style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
-    >
-      <header
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
-      >
-        <h1 style={{ margin: 0 }}>Statistiques</h1>
-        <Link to="/">Retour</Link>
+    <main className="container">
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h1 className="h1">Statistiques</h1>
+        <Link to="/" className="btn btn-ghost btn-sm">
+          <ArrowLeft size={16} aria-hidden="true" />
+          Retour
+        </Link>
       </header>
 
       {isLoading ? <p>Chargement…</p> : null}
@@ -747,19 +748,9 @@ export default function StatsPage() {
                     setIsBackfilling(false);
                   }
                 }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '8px 12px',
-                  borderRadius: 10,
-                  border: '1px solid #f59e0b',
-                  background: isBackfilling ? '#fde68a' : '#fbbf24',
-                  color: '#78350f',
-                  fontWeight: 700,
-                  cursor: isBackfilling ? 'not-allowed' : 'pointer',
-                }}
+                className="btn btn-warn"
               >
+                <RefreshCw size={16} aria-hidden="true" />
                 {isBackfilling ? 'Backfill en cours…' : 'Backfill Gmail → first_email_sent_at'}
               </button>
               {backfillStatus ? <div style={{ marginTop: 8 }}>{backfillStatus}</div> : null}

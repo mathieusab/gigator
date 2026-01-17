@@ -52,7 +52,7 @@ description: 'Generated tasks for Concerts MVP'
 - [x] T017 [P] [US2] Implement `frontend/src/pages/ConcertList.tsx` (group upcoming / past)
 - [x] T018 [P] [US2] Implement `frontend/src/components/ConcertForm.tsx` and `frontend/src/pages/ConcertEdit.tsx` for create/edit
 - [x] T019 [US2] [US2] Add integration test `frontend/tests/integration/test_concerts.spec.ts` covering create → list → edit → delete
-- [x] T020 [US2] [P] Implement chronological ordering and the `À venir` / `Passés` UI in `frontend/src/components/ConcertListItem.tsx`
+- [x] T020 [US2] [P] Implement chronological ordering and the `À venir` / `Joués` UI in `frontend/src/components/ConcertListItem.tsx`
 
 ---
 

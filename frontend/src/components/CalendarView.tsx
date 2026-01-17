@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 import type { Concert } from '../services/concerts';
 import { bucketColors, deriveConcertBucket, formatBucketFr, type ConcertBucket } from '../lib/concertBuckets';
+import { ArrowLeft, ArrowRight, ExternalLink, X } from 'lucide-react';
 
 function pad2(n: number) {
   return String(n).padStart(2, '0');
@@ -42,7 +43,8 @@ function formatMonthLabel(month: Date) {
   return `${month.getUTCFullYear()}-${pad2(month.getUTCMonth() + 1)}`;
 }
 
-function formatTimeUTC(iso: string) {
+function formatTimeUTC(iso: string | null) {
+  if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
@@ -134,7 +136,9 @@ export default function CalendarView({
           type="button"
           onClick={() => setMonth((m) => addMonthsUTC(m, -1))}
           data-testid="calendar-prev-month"
+          className="btn btn-sm"
         >
+          <ArrowLeft size={16} aria-hidden="true" />
           Mois précédent
         </button>
         <div style={{ fontWeight: 700 }} data-testid="calendar-month-label">
@@ -144,8 +148,10 @@ export default function CalendarView({
           type="button"
           onClick={() => setMonth((m) => addMonthsUTC(m, 1))}
           data-testid="calendar-next-month"
+          className="btn btn-sm"
         >
           Mois suivant
+          <ArrowRight size={16} aria-hidden="true" />
         </button>
       </header>
 
@@ -259,8 +265,8 @@ export default function CalendarView({
               }}
             >
               <h2 style={{ margin: 0, fontSize: 18 }}>Concerts — {selectedDate}</h2>
-              <button type="button" onClick={() => setSelectedDate(null)}>
-                Fermer
+              <button type="button" className="btn btn-icon" onClick={() => setSelectedDate(null)} aria-label="Fermer" title="Fermer">
+                <X size={18} aria-hidden="true" />
               </button>
             </header>
 
@@ -290,7 +296,8 @@ export default function CalendarView({
                           {formatTimeUTC(c.date_start)}
                         </div>
                       </div>
-                      <button type="button" onClick={() => onOpenConcert(c.id)}>
+                      <button type="button" className="btn btn-sm" onClick={() => onOpenConcert(c.id)}>
+                        <ExternalLink size={16} aria-hidden="true" />
                         Ouvrir
                       </button>
                     </div>

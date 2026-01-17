@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, ExternalLink, Home, Link2, Link2Off, Pencil, Save, X } from 'lucide-react';
 
 import ConfirmDialog from '../components/ConfirmDialog';
 import { listContacts, type Contact } from '../services/contacts';
@@ -127,16 +128,19 @@ export default function VenueDetail() {
   });
 
   return (
-    <main
-      style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
-    >
-      <header
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
-      >
-        <h1 style={{ margin: 0 }}>Lieu</h1>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Link to="/venues">Retour</Link>
-          <button type="button" onClick={() => navigate('/')}>Accueil</button>
+    <main className="container">
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h1 className="h1">Lieu</h1>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Link to="/venues" className="btn btn-ghost btn-sm">
+            <ArrowLeft size={16} />
+            Retour
+          </Link>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/')}
+          >
+            <Home size={16} />
+            Accueil
+          </button>
         </div>
       </header>
 
@@ -150,7 +154,7 @@ export default function VenueDetail() {
 
       {!isLoading && !error && venue ? (
         <section style={{ marginTop: 16, display: 'grid', gap: 12 }}>
-          <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
+          <div className="card card-pad">
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
               <div>
                 <div style={{ fontWeight: 800, fontSize: 18 }}>{venue.name}</div>
@@ -166,15 +170,47 @@ export default function VenueDetail() {
             </div>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
-              <a href={mapsLink(venue)} target="_blank" rel="noreferrer">Ouvrir dans Maps</a>
+              <a
+                href={mapsLink(venue)}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-sm"
+              >
+                <ExternalLink size={16} />
+                Ouvrir dans Maps
+              </a>
               {safeUrl(venue.website) ? (
-                <a href={safeUrl(venue.website)} target="_blank" rel="noreferrer">Site web</a>
+                <a
+                  href={safeUrl(venue.website)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-sm"
+                >
+                  <ExternalLink size={16} />
+                  Site web
+                </a>
               ) : null}
               {safeUrl(venue.instagram) ? (
-                <a href={safeUrl(venue.instagram)} target="_blank" rel="noreferrer">Instagram</a>
+                <a
+                  href={safeUrl(venue.instagram)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-sm"
+                >
+                  <ExternalLink size={16} />
+                  Instagram
+                </a>
               ) : null}
               {safeUrl(venue.facebook) ? (
-                <a href={safeUrl(venue.facebook)} target="_blank" rel="noreferrer">Facebook</a>
+                <a
+                  href={safeUrl(venue.facebook)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-sm"
+                >
+                  <ExternalLink size={16} />
+                  Facebook
+                </a>
               ) : null}
             </div>
 
@@ -186,8 +222,10 @@ export default function VenueDetail() {
             <Section title="Merch" value={venue.merch_notes} />
           </div>
 
-          <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8 }}>
-            <h2 style={{ margin: 0, marginBottom: 8, fontSize: 16 }}>Contacts</h2>
+          <div className="card card-pad">
+            <h2 className="h2" style={{ marginBottom: 8 }}>
+              Contacts
+            </h2>
 
             {mutateError ? (
               <p role="alert" style={{ color: 'crimson', marginTop: 0 }}>
@@ -226,19 +264,14 @@ export default function VenueDetail() {
                   }
                 })();
               }}
-              style={{
-                display: 'grid',
-                gap: 10,
-                padding: 10,
-                border: '1px solid #e5e7eb',
-                borderRadius: 8,
-                marginBottom: 10,
-              }}
+              className="card"
+              style={{ display: 'grid', gap: 10, padding: 12, marginBottom: 10, boxShadow: 'none' }}
             >
               <div style={{ fontWeight: 700 }}>Ajouter un contact</div>
               <label style={{ display: 'grid', gap: 4 }}>
                 <span style={{ fontSize: 12, color: '#6b7280' }}>Rechercher</span>
                 <input
+                  className="input"
                   value={contactFilter}
                   onChange={(e) => setContactFilter(e.currentTarget.value)}
                   placeholder="Nom, email…"
@@ -247,6 +280,7 @@ export default function VenueDetail() {
               <label style={{ display: 'grid', gap: 4 }}>
                 <span style={{ fontSize: 12, color: '#6b7280' }}>Contact</span>
                 <select
+                  className="select"
                   aria-label="Ajouter un contact"
                   value={newContactId}
                   onChange={(e) => setNewContactId(e.currentTarget.value)}
@@ -265,7 +299,11 @@ export default function VenueDetail() {
               </label>
               <label style={{ display: 'grid', gap: 4 }}>
                 <span style={{ fontSize: 12, color: '#6b7280' }}>Type de relation</span>
-                <select value={newRelationType} onChange={(e) => setNewRelationType(e.currentTarget.value)}>
+                <select
+                  className="select"
+                  value={newRelationType}
+                  onChange={(e) => setNewRelationType(e.currentTarget.value)}
+                >
                   <option value="">—</option>
                   {relationTypeOptions(newRelationType).map((t) => (
                     <option key={t} value={t}>
@@ -277,6 +315,7 @@ export default function VenueDetail() {
               <label style={{ display: 'grid', gap: 4 }}>
                 <span style={{ fontSize: 12, color: '#6b7280' }}>Notes</span>
                 <textarea
+                  className="textarea"
                   value={newNotes}
                   onChange={(e) => setNewNotes(e.currentTarget.value)}
                   rows={3}
@@ -284,7 +323,8 @@ export default function VenueDetail() {
                 />
               </label>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button type="submit" disabled={isMutating}>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={isMutating}>
+                  <Link2 size={16} />
                   {isMutating ? 'Enregistrement…' : 'Lier'}
                 </button>
               </div>
@@ -342,6 +382,7 @@ export default function VenueDetail() {
                           <label style={{ display: 'grid', gap: 4 }}>
                             <span style={{ fontSize: 12, color: '#6b7280' }}>Type de relation</span>
                             <select
+                              className="select"
                               value={editRelationType}
                               onChange={(e) => setEditRelationType(e.currentTarget.value)}
                             >
@@ -356,6 +397,7 @@ export default function VenueDetail() {
                           <label style={{ display: 'grid', gap: 4 }}>
                             <span style={{ fontSize: 12, color: '#6b7280' }}>Notes</span>
                             <textarea
+                              className="textarea"
                               value={editNotes}
                               onChange={(e) => setEditNotes(e.currentTarget.value)}
                               rows={3}
@@ -370,11 +412,13 @@ export default function VenueDetail() {
                                 setEditNotes('');
                               }}
                               disabled={isMutating}
-                              style={{ background: 'white', border: '1px solid #e5e7eb' }}
+                              className="btn btn-ghost btn-sm"
                             >
+                              <X size={16} />
                               Annuler
                             </button>
-                            <button type="submit" disabled={isMutating}>
+                            <button type="submit" className="btn btn-primary btn-sm" disabled={isMutating}>
+                              <Save size={16} />
                               {isMutating ? 'Enregistrement…' : 'Enregistrer'}
                             </button>
                           </div>
@@ -393,16 +437,18 @@ export default function VenueDetail() {
                                 setEditNotes(l.notes ?? '');
                               }}
                               disabled={isMutating}
-                              style={{ background: 'white', border: '1px solid #e5e7eb' }}
+                              className="btn btn-ghost btn-sm"
                             >
+                              <Pencil size={16} />
                               Modifier
                             </button>
                             <button
                               type="button"
                               onClick={() => setConfirmUnlink({ id: l.id, contactName: title })}
                               disabled={isMutating}
-                              style={{ background: '#fee2e2', border: '1px solid #fecaca', color: '#991b1b' }}
+                              className="btn btn-danger btn-sm"
                             >
+                              <Link2Off size={16} />
                               Dissocier
                             </button>
                           </div>

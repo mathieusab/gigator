@@ -52,31 +52,15 @@ export default function ConfirmDialog({
         // Backdrop click cancels.
         if (e.target === e.currentTarget && !isConfirming) onCancel();
       }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(17,24,39,0.55)',
-        display: 'grid',
-        placeItems: 'center',
-        padding: 16,
-        zIndex: 50,
-      }}
+      className="overlay"
+      style={{ zIndex: 50 }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        style={{
-          width: 'min(560px, 100%)',
-          background: 'white',
-          borderRadius: 12,
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 24px 48px rgba(0,0,0,0.22)',
-          padding: 16,
-          display: 'grid',
-          gap: 12,
-          fontFamily: 'system-ui, sans-serif',
-        }}
+        className="panel"
+        style={{ width: 'min(560px, 100%)' }}
       >
         <div style={{ display: 'grid', gap: 6 }}>
           <div style={{ fontWeight: 800, fontSize: 16 }}>{title}</div>
@@ -85,16 +69,13 @@ export default function ConfirmDialog({
           ) : null}
         </div>
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="actions actions-right">
           <button
             type="button"
             ref={cancelButtonRef}
             onClick={onCancel}
             disabled={isConfirming}
-            style={{
-              background: 'white',
-              border: '1px solid #e5e7eb',
-            }}
+            className="btn btn-sm"
           >
             {cancelText}
           </button>
@@ -102,12 +83,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={isConfirming}
-            style={{
-              background: isConfirming ? '#f3f4f6' : '#fee2e2',
-              border: '1px solid #fecaca',
-              color: '#991b1b',
-              fontWeight: 650,
-            }}
+            className="btn btn-danger btn-sm"
           >
             {isConfirming ? 'Suppression…' : confirmText}
           </button>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import ConcertForm from '../components/ConcertForm';
 import ConcertFinancesEditor from '../components/ConcertFinancesEditor';
 import {
@@ -223,7 +224,7 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
 
   return (
     <main
-      style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
+      className="container"
     >
       <header
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
@@ -231,7 +232,10 @@ export default function ConcertEdit({ mode }: { mode: 'create' | 'edit' }) {
         <h1 style={{ margin: 0 }}>
           {mode === 'create' ? 'Nouveau concert' : 'Modifier le concert'}
         </h1>
-        <Link to="/">Retour</Link>
+        <Link to="/" className="btn btn-ghost btn-sm">
+          <ArrowLeft size={16} aria-hidden="true" />
+          Retour
+        </Link>
       </header>
 
       {error ? (

@@ -48,7 +48,7 @@ const BUCKET_COLORS: Record<UiBucket, BucketColors> = {
     text: '#065f46',
   },
 
-  // Passés: dark green
+  // Joués: dark green
   past: {
     accent: '#166534',
     bg: '#f0fdf4',
@@ -80,7 +80,7 @@ export function formatBucketFr(bucket: UiBucket): string {
     case 'upcoming':
       return 'À venir';
     case 'past':
-      return 'Passé';
+      return 'Joué';
     case 'cancelled':
       return 'Annulé';
     default: {

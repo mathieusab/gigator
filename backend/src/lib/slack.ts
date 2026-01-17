@@ -14,7 +14,7 @@ function formatStatusFr(statusRaw: string): string {
   const status = String(statusRaw ?? '').trim().toLowerCase();
   if (status === 'contacted') return 'Contacté';
   if (status === 'scheduled') return 'Planifié';
-  if (status === 'completed') return 'Terminé';
+  if (status === 'completed') return 'Joué';
   if (status === 'cancelled') return 'Annulé';
   return statusRaw;
 }

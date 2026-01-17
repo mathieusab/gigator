@@ -1,6 +1,7 @@
 import type { Concert } from '../services/concerts';
 import { Link } from 'react-router-dom';
 import { bucketColors, deriveConcertBucket } from '../lib/concertBuckets';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 
 function formatDateTime(value: string | null) {
   if (!value) return 'Date à définir';
@@ -60,10 +61,12 @@ export default function ConcertListItem({
         <div style={{ color: '#4b5563' }}>{formatDateTime(concert.date_start)}</div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={() => onOpen(concert.id)}>
+        <button type="button" className="btn btn-sm" onClick={() => onOpen(concert.id)}>
+          <Eye size={16} aria-hidden="true" />
           Voir
         </button>
-        <button type="button" onClick={() => onEdit(concert.id)}>
+        <button type="button" className="btn btn-sm" onClick={() => onEdit(concert.id)}>
+          <Pencil size={16} aria-hidden="true" />
           Modifier
         </button>
         <button
@@ -71,7 +74,9 @@ export default function ConcertListItem({
           onClick={() => onDelete(concert.id)}
           disabled={isDeleting}
           aria-label={`Supprimer ${concert.venue_name}`}
+          className="btn btn-danger btn-sm"
         >
+          <Trash2 size={16} aria-hidden="true" />
           Supprimer
         </button>
       </div>

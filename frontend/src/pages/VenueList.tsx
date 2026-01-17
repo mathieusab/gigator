@@ -5,6 +5,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import VenueCreateForm from '../components/VenueCreateForm';
 import { listConcerts, type Concert } from '../services/concerts';
 import { deleteVenue, listVenues, type Venue } from '../services/venues';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 
 type PlayedFilter = 'all' | 'played' | 'not_played';
 
@@ -180,7 +181,11 @@ export default function VenueList() {
       >
         <h1 style={{ margin: 0 }}>Lieux</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" onClick={() => navigate('/')}>Retour</button>
+          <button type="button" className="btn btn-sm" onClick={() => navigate('/')}
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            Retour
+          </button>
         </div>
       </header>
 
@@ -228,6 +233,7 @@ export default function VenueList() {
           <label style={{ display: 'grid', gap: 4 }}>
             <span style={{ fontSize: 12, color: '#6b7280' }}>Filtrer (lieu)</span>
             <input
+              className="input"
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
               placeholder="Ville, pays…"
@@ -237,6 +243,7 @@ export default function VenueList() {
           <label style={{ display: 'grid', gap: 4 }}>
             <span style={{ fontSize: 12, color: '#6b7280' }}>Déjà joué</span>
             <select
+              className="select"
               value={playedFilter}
               onChange={(e) => setPlayedFilter(e.target.value as PlayedFilter)}
             >
@@ -309,12 +316,9 @@ export default function VenueList() {
                         }}
                         disabled={deletingVenueId === v.id}
                         aria-label={`Supprimer ${v.name}`}
-                        style={{
-                          background: deletingVenueId === v.id ? '#f3f4f6' : '#fee2e2',
-                          border: '1px solid #fecaca',
-                          color: '#991b1b',
-                        }}
+                        className="btn btn-danger btn-sm"
                       >
+                        <Trash2 size={16} aria-hidden="true" />
                         Supprimer
                       </button>
                     </div>

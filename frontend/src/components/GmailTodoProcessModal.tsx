@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CircleSlash, Plus, Users, Warehouse } from 'lucide-react';
 import Modal from './Modal';
 import ContactCreateForm from './ContactCreateForm';
 import VenueCreateForm from './VenueCreateForm';
@@ -282,16 +283,25 @@ export default function GmailTodoProcessModal({
             ) : null}
 
             <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
-              <button type="button" onClick={() => setIsVenueCreateOpen(true)}>
+              <button type="button" className="btn btn-sm" onClick={() => setIsVenueCreateOpen(true)}>
+                <Warehouse size={16} aria-hidden="true" />
                 Ajouter un lieu
               </button>
-              <button type="button" onClick={() => setIsContactCreateOpen(true)}>
+              <button type="button" className="btn btn-sm" onClick={() => setIsContactCreateOpen(true)}>
+                <Users size={16} aria-hidden="true" />
                 Ajouter un contact
               </button>
-              <button type="button" onClick={openConcertCreate}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={openConcertCreate}>
+                <Plus size={16} aria-hidden="true" />
                 Ajouter un concert
               </button>
-              <button type="button" onClick={() => void markRejected()} disabled={!todo.todoId}>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={() => void markRejected()}
+                disabled={!todo.todoId}
+              >
+                <CircleSlash size={16} aria-hidden="true" />
                 Classer en refusé
               </button>
             </div>

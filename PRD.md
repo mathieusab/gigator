@@ -93,7 +93,7 @@ Cette section décrit le comportement actuellement présent dans le code du repo
 
 - Deux sections:
   - “À venir” (ordre chronologique)
-  - “Passés” (ordre antichronologique)
+  - “Joués” (ordre antichronologique)
 - Chaque concert affiche au minimum:
   - Date / heure
   - Nom du lieu / ville

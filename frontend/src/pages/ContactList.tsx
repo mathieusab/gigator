@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ContactCreateForm from '../components/ContactCreateForm';
 import { deleteContact, listContacts, type Contact } from '../services/contacts';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 
 function displayName(c: Contact): string {
   const name = String(c.full_name ?? '').trim();
@@ -118,7 +119,10 @@ export default function ContactList() {
       >
         <h1 style={{ margin: 0 }}>Contacts</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" onClick={() => navigate('/')}>Retour</button>
+          <button type="button" className="btn btn-sm" onClick={() => navigate('/')}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            Retour
+          </button>
         </div>
       </header>
 
@@ -165,7 +169,12 @@ export default function ContactList() {
 
         <label style={{ display: 'grid', gap: 4 }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>Rechercher</span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nom, email, téléphone…" />
+          <input
+            className="input"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Nom, email, téléphone…"
+          />
         </label>
 
         {isLoading ? <p>Chargement…</p> : null}
@@ -223,12 +232,9 @@ export default function ContactList() {
                         }}
                         disabled={deletingContactId === c.id}
                         aria-label={`Supprimer ${displayName(c)}`}
-                        style={{
-                          background: deletingContactId === c.id ? '#f3f4f6' : '#fee2e2',
-                          border: '1px solid #fecaca',
-                          color: '#991b1b',
-                        }}
+                        className="btn btn-danger btn-sm"
                       >
+                        <Trash2 size={16} aria-hidden="true" />
                         Supprimer
                       </button>
                     </div>

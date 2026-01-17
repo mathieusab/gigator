@@ -18,15 +18,21 @@ export default function Login() {
   }
 
   return (
-    <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 480 }}>
-      <h1>Gigator</h1>
-      <p>Sign in to access concerts.</p>
-      <GoogleSignInButton onClick={handleSignIn} disabled={isLoading} />
-      {error ? (
-        <p role="alert" style={{ marginTop: 12, color: 'crimson' }}>
-          {error}
+    <main className="container" style={{ maxWidth: 520 }}>
+      <div className="card card-pad">
+        <h1 className="h1">Gigator</h1>
+        <p className="p-muted" style={{ marginTop: 8 }}>
+          Sign in to access concerts.
         </p>
-      ) : null}
+        <div style={{ marginTop: 12 }}>
+          <GoogleSignInButton onClick={handleSignIn} disabled={isLoading} />
+        </div>
+        {error ? (
+          <p role="alert" style={{ marginTop: 12, color: 'crimson' }}>
+            {error}
+          </p>
+        ) : null}
+      </div>
     </main>
   );
 }

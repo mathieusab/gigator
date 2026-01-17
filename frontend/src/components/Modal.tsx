@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 
 export type ModalProps = {
   open: boolean;
@@ -51,46 +52,26 @@ export default function Modal({ open, title, onClose, children, widthPx = 720 }:
         // Backdrop click closes.
         if (e.target === e.currentTarget) onClose();
       }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(17,24,39,0.55)',
-        display: 'grid',
-        placeItems: 'center',
-        padding: 16,
-        zIndex: 60,
-      }}
+      className="overlay"
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        style={{
-          width: `min(${widthPx}px, 100%)`,
-          maxHeight: 'min(80vh, 900px)',
-          overflow: 'auto',
-          background: 'white',
-          borderRadius: 12,
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 24px 48px rgba(0,0,0,0.22)',
-          padding: 16,
-          display: 'grid',
-          gap: 12,
-          fontFamily: 'system-ui, sans-serif',
-        }}
+        className="panel"
+        style={{ width: `min(${widthPx}px, 100%)` }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>{title}</div>
+        <div className="panel-header">
+          <div className="panel-title">{title}</div>
           <button
             type="button"
             ref={closeButtonRef}
             onClick={onClose}
-            style={{
-              background: 'white',
-              border: '1px solid #e5e7eb',
-            }}
+            className="btn btn-icon"
+            aria-label="Fermer"
+            title="Fermer"
           >
-            Fermer
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 

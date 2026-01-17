@@ -1,0 +1,248 @@
+:root {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --panel: rgba(255, 255, 255, 0.95);
+  --text: #111827;
+  --muted: #6b7280;
+  --border: rgba(0, 0, 0, 0.1);
+  --border-soft: rgba(0, 0, 0, 0.06);
+  --shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+  --radius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Lexend, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.card-pad {
+  padding: 16px;
+}
+
+.h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.p-muted {
+  color: var(--muted);
+}
+
+/* Inputs */
+.input,
+.select,
+.textarea {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+/* Dropdown (autocomplete, menus) */
+.menu {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+}
+
+.menu-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  border: 0;
+  background: #fff;
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+  font: inherit;
+  color: inherit;
+}
+
+.menu-item:hover {
+  background: #f9fafb;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.55);
+}
+
+/* Buttons (validator-inspired) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease,
+    box-shadow 120ms ease;
+}
+
+.btn:hover {
+  background: #f9fafb;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #2563eb;
+  border-color: rgba(29, 78, 216, 0.9);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-danger {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.btn-danger:hover {
+  background: #fecaca;
+}
+
+.btn-warn {
+  background: #fbbf24;
+  border-color: #f59e0b;
+  color: #78350f;
+}
+
+.btn-warn:hover {
+  background: #f59e0b;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.btn-icon {
+  padding: 10px;
+  width: 40px;
+  height: 40px;
+}
+
+.btn-sm {
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+/* Modal / dialog */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 60;
+}
+
+.panel {
+  width: min(720px, 100%);
+  max-height: min(80vh, 900px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-title {
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.actions-right {
+  justify-content: flex-end;
+}

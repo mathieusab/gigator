@@ -7,7 +7,7 @@ export function formatConcertStatusFr(status: ConcertStatus): string {
     case 'scheduled':
       return 'Planifié';
     case 'completed':
-      return 'Terminé';
+      return 'Joués';
     case 'cancelled':
       return 'Annulé';
     default: {

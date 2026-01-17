@@ -18,6 +18,19 @@ import {
   type GmailTodoThreadStatus,
 } from '../services/gmailTodoThreads';
 import { bucketColors } from '../lib/concertBuckets';
+import {
+  BarChart3,
+  Calendar,
+  Check,
+  ChevronRight,
+  CircleSlash,
+  Map as MapIcon,
+  Plus,
+  Sparkles,
+  Undo2,
+  Users,
+  Warehouse,
+} from 'lucide-react';
 
 function isUpcoming(dateStart: string | null) {
   if (!dateStart) return false;
@@ -26,27 +39,15 @@ function isUpcoming(dateStart: string | null) {
 
 function IconChevron({ isExpanded }: { isExpanded: boolean }) {
   return (
-    <svg
-      width={16}
-      height={16}
-      viewBox="0 0 20 20"
+    <ChevronRight
+      size={16}
       aria-hidden="true"
-      focusable="false"
       style={{
         display: 'block',
         transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
         transition: 'transform 120ms ease-out',
       }}
-    >
-      <path
-        d="M7 5 L13 10 L7 15"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    />
   );
 }
 
@@ -74,18 +75,8 @@ function CollapsibleSection({
           aria-expanded={isExpanded}
           aria-controls={contentId}
           onClick={() => setIsExpanded((v) => !v)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '4px 6px',
-            borderRadius: 8,
-            border: '1px solid transparent',
-            background: 'transparent',
-            cursor: 'pointer',
-            font: 'inherit',
-            color: 'inherit',
-          }}
+          className="btn btn-ghost btn-sm"
+          style={{ padding: '6px 8px' }}
         >
           <span style={{ color: '#6b7280', display: 'inline-flex', alignItems: 'center' }}>
             <IconChevron isExpanded={isExpanded} />
@@ -497,22 +488,28 @@ export default function ConcertList() {
       >
         <h1 style={{ margin: 0 }}>Concerts</h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" onClick={() => navigate('/venues')}>
+          <button type="button" className="btn btn-sm" onClick={() => navigate('/venues')}>
+            <Warehouse size={16} aria-hidden="true" />
             Lieux
           </button>
-          <button type="button" onClick={() => navigate('/contacts')}>
+          <button type="button" className="btn btn-sm" onClick={() => navigate('/contacts')}>
+            <Users size={16} aria-hidden="true" />
             Contacts
           </button>
-          <button type="button" onClick={() => navigate('/calendar')}>
+          <button type="button" className="btn btn-sm" onClick={() => navigate('/calendar')}>
+            <Calendar size={16} aria-hidden="true" />
             Calendrier
           </button>
-          <button type="button" onClick={() => navigate('/map')}>
+          <button type="button" className="btn btn-sm" onClick={() => navigate('/map')}>
+            <MapIcon size={16} aria-hidden="true" />
             Carte
           </button>
-          <button type="button" onClick={() => navigate('/stats')}>
+          <button type="button" className="btn btn-sm" onClick={() => navigate('/stats')}>
+            <BarChart3 size={16} aria-hidden="true" />
             Stats
           </button>
-          <button type="button" onClick={() => navigate('/concerts/new')}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => navigate('/concerts/new')}>
+            <Plus size={16} aria-hidden="true" />
             Ajouter
           </button>
         </div>
@@ -577,7 +574,9 @@ export default function ConcertList() {
                             snippet: t.snippet,
                           });
                         }}
+                        className="btn btn-primary btn-sm"
                       >
+                        <Sparkles size={16} aria-hidden="true" />
                         Traiter
                       </button>
 
@@ -586,7 +585,9 @@ export default function ConcertList() {
                         onClick={() => void markTodoStatus(t.todoId ?? '', 'done')}
                         disabled={!t.todoId || updatingTodoId === t.todoId}
                         aria-label="Marquer comme fait"
+                        className="btn btn-sm"
                       >
+                        <Check size={16} aria-hidden="true" />
                         Fait
                       </button>
 
@@ -595,7 +596,9 @@ export default function ConcertList() {
                         onClick={() => void markTodoStatus(t.todoId ?? '', 'ignored')}
                         disabled={!t.todoId || updatingTodoId === t.todoId}
                         aria-label="Ignorer"
+                        className="btn btn-ghost btn-sm"
                       >
+                        <CircleSlash size={16} aria-hidden="true" />
                         Ignorer
                       </button>
                     </div>
@@ -634,7 +637,9 @@ export default function ConcertList() {
                         <div>
                           <div style={{ fontWeight: 600 }}>{t.subject}</div>
                           <div style={{ color: '#4b5563' }}>
+                            className="btn btn-sm"
                             {t.counterpartEmail}
+                            <Undo2 size={16} aria-hidden="true" />
                             {t.snippet ? ` — ${t.snippet}` : ''}
                           </div>
                         </div>
@@ -735,7 +740,7 @@ export default function ConcertList() {
           </CollapsibleSection>
 
           <CollapsibleSection
-            title={`Passés (${past.length})`}
+            title={`Joués (${past.length})`}
             defaultCollapsed
             style={{ marginTop: 12 }}
             accent={bucketColors('past').accent}

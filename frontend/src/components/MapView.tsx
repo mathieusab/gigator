@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Concert } from '../services/concerts';
 import { bucketColors, deriveConcertBucket, formatBucketFr } from '../lib/concertBuckets';
+import { ExternalLink } from 'lucide-react';
 
 let googleMapsLoadPromise: Promise<void> | null = null;
 
 function loadGoogleMapsScript(apiKey: string): Promise<void> {
-  if (globalThis.google?.maps) return Promise.resolve();
+  const existingGoogle = (globalThis as unknown as { google?: typeof google }).google;
+  if (existingGoogle?.maps) return Promise.resolve();
   if (googleMapsLoadPromise) return googleMapsLoadPromise;
 
   googleMapsLoadPromise = new Promise<void>((resolve, reject) => {
@@ -144,7 +146,7 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
         setLoadError(null);
         await loadGoogleMapsScript(resolvedApiKey);
 
-        const g = globalThis.google;
+        const g = (globalThis as unknown as { google?: typeof google }).google;
         if (!g?.maps) throw new Error('Google Maps failed to initialize');
         if (isCancelled) return;
         setGoogleMaps(g);
@@ -307,7 +309,8 @@ export default function MapView({ concerts, onOpenConcert, apiKey, mapId }: Prop
           {pins.length} concert{pins.length === 1 ? '' : 's'} avec coordonnées
         </p>
         {selectedConcert ? (
-          <button type="button" onClick={() => onOpenConcert(selectedConcert.id)}>
+          <button type="button" className="btn btn-sm" onClick={() => onOpenConcert(selectedConcert.id)}>
+            <ExternalLink size={16} aria-hidden="true" />
             Ouvrir le concert
           </button>
         ) : null}

@@ -308,11 +308,11 @@ test('US2 flow: list groups, create, edit, delete', async () => {
   );
 
   expect(await screen.findByRole('heading', { level: 2, name: /À venir/ })).toBeInTheDocument();
-  expect(screen.getByRole('heading', { level: 2, name: /Passés/ })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 2, name: /Joués/ })).toBeInTheDocument();
 
   // Sections are collapsed by default.
   expandSection(/À venir/);
-  expandSection(/Passés/);
+  expandSection(/Joués/);
 
   expect(screen.getByText('Future Venue')).toBeInTheDocument();
   expect(screen.getByText('Past Venue')).toBeInTheDocument();
@@ -327,7 +327,7 @@ test('US2 flow: list groups, create, edit, delete', async () => {
 
   expandSection(/À planifier/);
   expandSection(/À venir/);
-  expandSection(/Passés/);
+  expandSection(/Joués/);
 
   await waitFor(() => expect(screen.getByText('New Venue')).toBeInTheDocument());
 
@@ -340,7 +340,7 @@ test('US2 flow: list groups, create, edit, delete', async () => {
 
   expandSection(/À planifier/);
   expandSection(/À venir/);
-  expandSection(/Passés/);
+  expandSection(/Joués/);
 
   await waitFor(() => expect(screen.getByText('Edited Venue')).toBeInTheDocument());
 

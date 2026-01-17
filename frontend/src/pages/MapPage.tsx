@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 import MapView from '../components/MapView';
 import { listConcerts, type Concert } from '../services/concerts';
@@ -33,14 +34,13 @@ export default function MapPage() {
   }, []);
 
   return (
-    <main
-      style={{ padding: 24, fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '0 auto' }}
-    >
-      <header
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
-      >
-        <h1 style={{ margin: 0 }}>Carte</h1>
-        <Link to="/">Retour</Link>
+    <main className="container">
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h1 className="h1">Carte</h1>
+        <Link to="/" className="btn btn-ghost btn-sm">
+          <ArrowLeft size={16} aria-hidden="true" />
+          Retour
+        </Link>
       </header>
 
       {isLoading ? <p>Chargement…</p> : null}

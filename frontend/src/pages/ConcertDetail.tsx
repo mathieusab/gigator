@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Pencil } from 'lucide-react';
 
 import GmailThreads from '../components/GmailThreads';
 import { getContact, type Contact } from '../services/contacts';
@@ -327,9 +328,13 @@ export default function ConcertDetail() {
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <h1 style={{ margin: 0 }}>Détail du concert</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Link to="/">Retour</Link>
+          <Link to="/" className="btn btn-sm">
+            <ArrowLeft size={16} aria-hidden="true" />
+            Retour
+          </Link>
           {concertId ? (
-            <button type="button" onClick={() => navigate(`/concerts/${concertId}/edit`)}>
+            <button type="button" className="btn btn-sm" onClick={() => navigate(`/concerts/${concertId}/edit`)}>
+              <Pencil size={16} aria-hidden="true" />
               Modifier
             </button>
           ) : null}

@@ -100,7 +100,7 @@ Acceptance Scenarios:
 - **FR-001**: The system MUST allow users to sign in using Google OAuth and establish an application session.
 - **FR-002**: The system MUST restrict access to users present and active in the `app_users` table.
 - **FR-003**: The system MUST provide CRUD operations for `concerts` (create, read, update, delete) via the app UI.
-- **FR-004**: The system MUST display concerts grouped into "À venir" (upcoming, chronological) and "Passés" (past, reverse chronological).
+- **FR-004**: The system MUST display concerts grouped into "À venir" (upcoming, chronological) and "Joués" (past, reverse chronological).
 - **FR-005**: The system MUST render a monthly calendar showing concerts as events and allow navigation by month.
 - **FR-006**: The system MUST render a map view with pins for concerts that have lat/lng coordinates; clicking a pin opens a minimal preview.
 - **FR-007**: The system MUST allow a user to request external mailbox conversation threads related to a concert contact (read-only) using a minimal OAuth scope; the UI must present these threads as read-only.

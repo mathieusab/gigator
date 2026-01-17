@@ -79,7 +79,8 @@ export default function ContactCreateForm({
   return (
     <form
       onSubmit={handleCreate}
-      style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, display: 'grid', gap: 10 }}
+      className="card"
+      style={{ padding: 12, boxShadow: 'none', display: 'grid', gap: 10 }}
     >
       <div style={{ fontWeight: 700 }}>Ajouter un contact</div>
 
@@ -98,17 +99,29 @@ export default function ContactCreateForm({
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: '1fr 1fr' }}>
         <label style={{ display: 'grid', gap: 4 }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>Nom</span>
-          <input value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder="Prénom Nom" />
+          <input
+            className="input"
+            value={newFullName}
+            onChange={(e) => setNewFullName(e.target.value)}
+            placeholder="Prénom Nom"
+          />
         </label>
         <label style={{ display: 'grid', gap: 4 }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>Email</span>
-          <input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} inputMode="email" placeholder="contact@lieu.com" />
+          <input
+            className="input"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            inputMode="email"
+            placeholder="contact@lieu.com"
+          />
         </label>
       </div>
 
       <label style={{ display: 'grid', gap: 4 }}>
         <span style={{ fontSize: 12, color: '#6b7280' }}>Téléphone</span>
         <input
+          className="input"
           value={newPhone}
           onChange={(e) => setNewPhone(e.target.value)}
           inputMode="tel"
@@ -116,8 +129,8 @@ export default function ContactCreateForm({
         />
       </label>
 
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button type="submit" disabled={isCreating}>
+      <div className="actions actions-right">
+        <button type="submit" className="btn btn-primary" disabled={isCreating}>
           {isCreating ? 'Création…' : 'Ajouter'}
         </button>
       </div>

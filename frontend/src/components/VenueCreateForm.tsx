@@ -230,7 +230,8 @@ export default function VenueCreateForm({
   return (
     <form
       onSubmit={handleCreate}
-      style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, display: 'grid', gap: 10 }}
+      className="card"
+      style={{ padding: 12, boxShadow: 'none', display: 'grid', gap: 10 }}
     >
       <div style={{ fontWeight: 700 }}>Ajouter un lieu</div>
 
@@ -257,6 +258,7 @@ export default function VenueCreateForm({
           <span style={{ fontSize: 12, color: '#6b7280' }}>Nom</span>
           <div style={{ position: 'relative' }}>
             <input
+              className="input"
               value={newName}
               onChange={(e) => {
                 setNewName(e.target.value);
@@ -273,18 +275,8 @@ export default function VenueCreateForm({
 
             {showSuggestions && (isSuggesting || suggestions.length > 0) ? (
               <div
-                style={{
-                  position: 'absolute',
-                  zIndex: 10,
-                  top: 'calc(100% + 6px)',
-                  left: 0,
-                  right: 0,
-                  background: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: 8,
-                  overflow: 'hidden',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.08)',
-                }}
+                className="menu"
+                style={{ position: 'absolute', zIndex: 10, top: 'calc(100% + 6px)', left: 0, right: 0 }}
               >
                 {isSuggesting ? (
                   <div style={{ padding: 10, fontSize: 13, color: '#6b7280' }}>Recherche…</div>
@@ -297,16 +289,7 @@ export default function VenueCreateForm({
                       e.preventDefault();
                       void handlePickSuggestion(s);
                     }}
-                    style={{
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: 10,
-                      border: 'none',
-                      background: 'white',
-                      cursor: 'pointer',
-                      display: 'grid',
-                      gap: 2,
-                    }}
+                    className="menu-item"
                   >
                     <div style={{ fontWeight: 650 }}>{s.name ?? s.description ?? 'Lieu'}</div>
                     {s.secondary_text ? (
@@ -328,8 +311,8 @@ export default function VenueCreateForm({
         </div>
       ) : null}
 
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button type="submit" disabled={isCreating || isResolving}>
+      <div className="actions actions-right">
+        <button type="submit" className="btn btn-primary" disabled={isCreating || isResolving}>
           {isCreating ? 'Création…' : isResolving ? 'Recherche…' : 'Ajouter'}
         </button>
       </div>
